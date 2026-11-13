@@ -54,7 +54,6 @@ import cn.yingxia.player.AppViewModel
 import cn.yingxia.player.core.*
 import cn.yingxia.player.playback.Media3VideoSurface
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable fun PlayerPage(vm: AppViewModel, state: PlaybackState, settings: UserSettings) {
@@ -75,6 +74,11 @@ import kotlin.math.roundToInt
     var verticalStart by remember { mutableFloatStateOf(0f) }
     val videos by vm.videos.collectAsStateWithLifecycle()
     val video = state.video ?: return
+    var zoom by remember(video.id) { mutableFloatStateOf(1f) }
+    var panX by remember(video.id) { mutableFloatStateOf(0f) }
+    var panY by remember(video.id) { mutableFloatStateOf(0f) }
+    var guardDismissed by remember(video.id) { mutableStateOf(false) }
+    val shielded = locked || (settings.touchGuard && state.isPlaying && !guardDismissed)
     val current = videos.firstOrNull { it.id == video.id } ?: video
     val remaining by vm.graph.timer.remainingMs.collectAsStateWithLifecycle()
     val untilEnd by vm.graph.timer.untilEnd.collectAsStateWithLifecycle()
@@ -124,17 +128,20 @@ import kotlin.math.roundToInt
     LaunchedEffect(feedback) { if (feedback != null) { delay(1000); feedback = null } }
     Column(Modifier.fillMaxSize().background(Color.Black).then(if (fullscreen) Modifier else Modifier.statusBarsPadding())) {
         Box(Modifier.fillMaxWidth().then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
-            Media3VideoSurface(vm.graph.player, settings.subtitleScale, Modifier.fillMaxSize())
+            Media3VideoSurface(vm.graph.player, settings.subtitleScale, current.rotation, current.mirrored, current.cropBars, zoom, panX, panY, Modifier.fillMaxSize())
             key(video.id) {
                 AndroidView(factory = { PlayerGestureView(it) }, modifier = Modifier.fillMaxSize(), update = { view ->
-                    view.snapshot = { latestState }; view.fullscreen = fullscreen; view.locked = locked; view.holdSpeed = settings.holdSpeed
+                    view.snapshot = { latestState }; view.fullscreen = fullscreen; view.locked = shielded; view.holdSpeed = settings.holdSpeed
+                    view.sensitivity = settings.gestureSensitivity
+                    view.zoom = zoom; view.panX = panX; view.panY = panY
+                    view.onTransform = { next, x, y -> zoom = next; panX = x; panY = y }
                     view.command = vm::command; view.tap = { controls = !controls }; view.preview = { preview = it }
                     view.vertical = { mode, delta, starting ->
                         if (starting) {
                             volume = audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume
                             verticalStart = if (mode == GestureMode.BRIGHTNESS) brightness else volume
                         } else {
-                            val value = (verticalStart + delta * 1.2f).coerceIn(0f, 1f)
+                            val value = (verticalStart + delta * 1.2f * settings.gestureSensitivity).coerceIn(0f, 1f)
                             if (mode == GestureMode.BRIGHTNESS) {
                                 brightness = value.coerceAtLeast(.02f)
                                 activity.window.attributes = activity.window.attributes.apply { screenBrightness = brightness }
@@ -162,7 +169,7 @@ import kotlin.math.roundToInt
                         Modifier.padding(horizontal = 22.dp, vertical = 14.dp), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 }
             }
-            val chrome = !locked && (controls || !state.isPlaying)
+            val chrome = !shielded && (controls || !state.isPlaying)
             val edge = if (fullscreen) Modifier.windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)) else Modifier
             FrameVisibility(chrome, Modifier.align(Alignment.TopCenter),
                 fadeIn(motionTween(180)) + slideInVertically(tween(220, easing = FastOutSlowInEasing)) { -it / 4 },
@@ -197,10 +204,13 @@ import kotlin.math.roundToInt
                     PlayerIcon(if (fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, if (fullscreen) "退出全屏" else "全屏", toggleFull, size = 22)
                 }
             }
-            if (fullscreen && (controls || locked)) Column(Modifier.align(Alignment.CenterStart).padding(start = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                PlayerIcon(if (locked) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
-                    if (locked) "解除锁定" else "锁定屏幕", { locked = !locked; controls = true })
-                if (locked) Text("已锁定", color = Color.White, fontSize = 11.sp)
+            if (fullscreen || settings.touchGuard || locked) Column(Modifier.align(Alignment.CenterStart).padding(start = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                PlayerIcon(if (shielded) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
+                    if (shielded) "解除锁定" else "锁定屏幕", {
+                        if (shielded) { locked = false; guardDismissed = true } else { locked = true; guardDismissed = false }
+                        controls = true
+                    })
+                if (shielded) Text(if (locked) "已锁定" else "防误触", color = Color.White, fontSize = 11.sp)
             }
             state.failure?.let { error ->
                 Column(Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = .8f), RoundedCornerShape(12.dp)).padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -230,7 +240,7 @@ import kotlin.math.roundToInt
                                 ToolShortcut(Icons.Outlined.BookmarkBorder, "书签", { sheet = "bookmarks" })
                                 ToolShortcut(Icons.Outlined.Tune, "播放工具", { sheet = "tools" })
                             }
-                            Text("点击画面显示控制，双击播放或暂停，左右滑动调节进度。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                            Text("点击画面显示控制，双击播放或暂停，左右滑动调节进度。双指捏合可以放大，不会改进度或亮度。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                     item {
@@ -263,7 +273,7 @@ import kotlin.math.roundToInt
                             }
                         }
                     }
-                    item { Text("全屏后，左侧上下滑动调节亮度，右侧上下滑动调节音量。长按画面可以临时加速。", Modifier.padding(horizontal = 20.dp, vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+                    item { Text("全屏后，左侧上下滑动调节亮度，右侧上下滑动调节音量。长按画面可以临时加速。双指捏合只放大画面。", Modifier.padding(horizontal = 20.dp, vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
                 }
             }
         }
@@ -285,15 +295,16 @@ import kotlin.math.roundToInt
                         }
                     }
                     Spacer(Modifier.height(16.dp))
-                    val effectScope = rememberCoroutineScope()
-                    EffectSwitch("清晰度", settings.clarity, "放大较低分辨率的画面，并略微提高对比。不能找回已经丢失的细节。") {
-                        effectScope.launch { vm.graph.settings.setClarity(it) }
+                    Text("画面", style = MaterialTheme.typography.titleSmall)
+                    Text("旋转和镜像记在这条视频上。双指捏合只在这次播放里放大，松手后的缩放不会影响进度和亮度。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { vm.savePicture(video.id, current.rotation - 90, current.mirrored, current.cropBars) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("左转") }
+                        OutlinedButton(onClick = { vm.savePicture(video.id, current.rotation + 90, current.mirrored, current.cropBars) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("右转") }
+                        OutlinedButton(onClick = { vm.savePicture(video.id, current.rotation, !current.mirrored, current.cropBars) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (current.mirrored) "取消镜像" else "水平镜像") }
+                        if (zoom > 1.01f) OutlinedButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }, modifier = Modifier.heightIn(min = 48.dp)) { Text("还原缩放") }
                     }
-                    EffectSwitch("放大到 4K", settings.upscale4k, "把 1080p 及更低的画面放大到接近 4K，并略微提高对比。只是放大现有画面，不会生成真正的 4K 细节。内存不够时会自动关闭。") {
-                        effectScope.launch { vm.graph.settings.setUpscale4k(it) }
-                    }
-                    EffectSwitch("音质增强", settings.audioEnhance, "略微加强高低音，并限制爆音。不会凭空补上录音里没有的声音。") {
-                        effectScope.launch { vm.graph.settings.setAudioEnhance(it) }
+                    ToolSwitch("裁掉黑边", current.cropBars, "按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。") {
+                        vm.savePicture(video.id, current.rotation, current.mirrored, it)
                     }
                     Text("播放顺序", style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { RepeatMode.entries.forEach { mode -> FilterChip(state.repeatMode == mode, { vm.command(PlayerCommand.SetRepeat(mode)) }, label = { Text(repeatLabel(mode)) }) } }
@@ -317,7 +328,7 @@ import kotlin.math.roundToInt
     }
 }
 
-@Composable private fun EffectSwitch(title: String, checked: Boolean, description: String, onChecked: (Boolean) -> Unit) {
+@Composable private fun ToolSwitch(title: String, checked: Boolean, description: String, onChecked: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
             Text(title, style = MaterialTheme.typography.titleSmall)

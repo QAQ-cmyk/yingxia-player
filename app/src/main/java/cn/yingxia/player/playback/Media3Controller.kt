@@ -1,14 +1,11 @@
 @file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 package cn.yingxia.player.playback
 
-import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.*
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
-import androidx.media3.effect.Contrast
-import androidx.media3.effect.Presentation
 import androidx.media3.exoplayer.ExoPlayer
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.SettingsRepository
@@ -25,13 +22,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     override val events = mutableEvents.asSharedFlow()
     internal val cues = MutableStateFlow<List<Cue>>(emptyList())
     internal val aspectRatio = MutableStateFlow(16f / 9f)
-    private val audioEnhance = EnhancementAudioProcessor()
-    private val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let { it.isLowRamDevice || it.memoryClass < 192 }
-    private val allow4k = (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let { !it.isLowRamDevice && it.memoryClass >= 256 }
-    private var clarityKey = ""
-    private var activeClarity = ClarityMode.OFF
-    private var told4kRefuse = false
-    internal val surfacePlayer: ExoPlayer = ExoPlayer.Builder(context, EnhancingRenderersFactory(context, audioEnhance)).build().apply {
+    internal val surfacePlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
         setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
         setHandleAudioBecomingNoisy(true)
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
@@ -50,13 +41,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 }
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) {
-                    aspectRatio.value = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
-                    scope.launch {
-                        val prefs = settings.settings.first()
-                        applyClarity(prefs.clarity, prefs.upscale4k, videoSize.width, videoSize.height)
-                    }
-                }
+                if (videoSize.width > 0 && videoSize.height > 0) aspectRatio.value = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 updatePosition()
@@ -83,20 +68,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
             override fun onCues(cueGroup: CueGroup) { cues.value = cueGroup.cues }
             override fun onPlayerError(error: PlaybackException) {
                 endBoost()
-                if (activeClarity != ClarityMode.OFF && error.errorCode in 7000..7003) {
-                    val was4k = activeClarity == ClarityMode.UPSCALE_4K
-                    clarityKey = ""
-                    activeClarity = ClarityMode.OFF
-                    runCatching { surfacePlayer.setVideoEffects(emptyList()) }
-                    if (was4k) {
-                        scope.launch { settings.setUpscale4k(false) }
-                        report(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备无法放大到 4K，已自动关闭"))
-                    } else {
-                        scope.launch { settings.setClarity(false) }
-                        report(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备开不了清晰度，已自动关闭"))
-                    }
-                    return
-                }
                 val failure = when (error.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> PlayerFailure(FailureKind.ACCESS_DENIED, "视频访问权限已失效，请重新授权")
                     PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> PlayerFailure(FailureKind.SOURCE_MISSING, "视频文件已被移动或删除")
@@ -112,8 +83,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 val base = preferences.speed
                 mutableState.update { it.copy(baseSpeed = base, effectiveSpeed = if (it.boosting) PlaybackRules.temporarySpeed(base, preferences.holdSpeed) else base) }
                 surfacePlayer.setPlaybackSpeed(state.value.effectiveSpeed)
-                audioEnhance.active = preferences.audioEnhance
-                applyClarity(preferences.clarity, preferences.upscale4k, surfacePlayer.videoSize.width, surfacePlayer.videoSize.height)
             }
         }
         scope.launch {
@@ -290,48 +259,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         val position = surfacePlayer.currentPosition.coerceAtLeast(0)
         lastSavedAt = System.currentTimeMillis()
         scope.launch { repository.saveProgress(video.id, position) }
-    }
-    private fun applyClarity(clarity: Boolean, upscale4k: Boolean, width: Int, height: Int) {
-        if (upscale4k && !allow4k) {
-            if (!told4kRefuse) {
-                told4kRefuse = true
-                scope.launch { settings.setUpscale4k(false) }
-                mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备内存不足，无法放大到 4K，已自动关闭")))
-            }
-            installClarity(clarity, false, width, height)
-            return
-        }
-        told4kRefuse = false
-        installClarity(clarity, upscale4k, width, height)
-    }
-    private fun pictureEffects(mode: ClarityMode, width: Int, height: Int) = when (mode) {
-        ClarityMode.OFF -> emptyList()
-        ClarityMode.CONTRAST -> listOf(Contrast(ClarityPolicy.CONTRAST))
-        ClarityMode.UPSCALE -> listOf(Presentation.createForHeight(ClarityPolicy.targetHeight(height)), Contrast(ClarityPolicy.CONTRAST))
-        ClarityMode.UPSCALE_4K -> listOf(Presentation.createForHeight(ClarityPolicy.targetHeight4k(width, height)), Contrast(ClarityPolicy.CONTRAST))
-    }
-    private fun installClarity(clarity: Boolean, upscale4k: Boolean, width: Int, height: Int) {
-        val mode = ClarityPolicy.choose(clarity, height, lowRam, upscale4k, width, allow4k)
-        val key = "$clarity-$upscale4k-$mode-$width-$height"
-        if (key == clarityKey) return
-        val effects = pictureEffects(mode, width, height)
-        if (runCatching { surfacePlayer.setVideoEffects(effects) }.isSuccess) {
-            clarityKey = key
-            activeClarity = mode
-        } else {
-            clarityKey = key
-            activeClarity = ClarityMode.OFF
-            if (mode == ClarityMode.UPSCALE_4K) {
-                val fallback = ClarityPolicy.choose(clarity, height, lowRam, false, width, false)
-                runCatching { surfacePlayer.setVideoEffects(pictureEffects(fallback, width, height)) }
-                scope.launch { settings.setUpscale4k(false) }
-                mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备无法放大到 4K，已自动关闭")))
-            } else if (clarity) {
-                runCatching { surfacePlayer.setVideoEffects(emptyList()) }
-                scope.launch { settings.setClarity(false) }
-                mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备开不了清晰度，已自动关闭")))
-            }
-        }
     }
     private fun endBoost() {
         if (!state.value.boosting) return

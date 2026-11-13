@@ -1,8 +1,7 @@
 package cn.yingxia.player
 
 import cn.yingxia.player.core.*
-import cn.yingxia.player.playback.ClarityMode
-import cn.yingxia.player.playback.ClarityPolicy
+import cn.yingxia.player.data.LibraryBackup
 import cn.yingxia.player.data.LocalFileManager
 import cn.yingxia.player.data.mediaPermissions
 import org.junit.Assert.*
@@ -62,21 +61,29 @@ class PlaybackRulesTest {
         assertEquals(ascending.asReversed(), SortOrder.NAME_DESC.apply(items).map { it.name })
         assertTrue(ascending.indexOf("阿里") < ascending.indexOf("北京"))
     }
-    @Test fun clarityStaysOffUntilAskedAndSkipsUpscaleOnLargeOrWeakVideo() {
-        assertEquals(ClarityMode.OFF, ClarityPolicy.choose(false, 480, false))
-        assertEquals(ClarityMode.UPSCALE, ClarityPolicy.choose(true, 480, false))
-        assertEquals(720, ClarityPolicy.targetHeight(480))
-        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 1080, false))
-        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 480, true))
-        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 0, false))
-        assertEquals(ClarityMode.UPSCALE_4K, ClarityPolicy.choose(false, 1080, false, upscale4k = true, width = 1920))
-        assertEquals(ClarityMode.UPSCALE_4K, ClarityPolicy.choose(true, 480, false, upscale4k = true, width = 640))
-        assertEquals(2160, ClarityPolicy.targetHeight4k(1920, 1080))
-        assertEquals(3840, ClarityPolicy.targetHeight4k(1080, 1920))
-        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 1080, true, upscale4k = true, width = 1920, allow4k = false))
-        assertEquals(ClarityMode.OFF, ClarityPolicy.choose(false, 1080, true, upscale4k = true, width = 1920, allow4k = false))
-        assertEquals(ClarityMode.OFF, ClarityPolicy.choose(false, 1440, false, upscale4k = true, width = 2560))
-        assertEquals(false, ClarityPolicy.is1080pOrLower(0, 1080))
+    @Test fun searchMatchesSubstringsAndPinyinInitials() {
+        assertTrue(matchesLibraryQuery("啤酒花", "beer.mp4", "电影", "酒花"))
+        assertTrue(matchesLibraryQuery("啤酒花", "beer.mp4", "电影", "pjh"))
+        assertTrue(matchesLibraryQuery("Notes", "readme.mp4", "旅行", "旅行"))
+        assertFalse(matchesLibraryQuery("啤酒花", "beer.mp4", "电影", "zzz"))
+        assertEquals(1.75f, gestureSlopScale(0.7f), 0.01f)
+        assertEquals(1f, gestureSlopScale(1f), 0.01f)
+        assertEquals(0.62f, gestureSlopScale(1.4f), 0.01f)
+        assertEquals(270, quarterTurn(-90))
+    }
+    @Test fun backupRoundTripKeepsFavoritesProgressAndSettingsWithoutVideoBytes() {
+        val video = VideoItem(VideoId("ms:1"), "content://media/1", "啤酒花.mp4", "电影", "k", 1_000, 20, favorite = true, positionMs = 4_000, displayName = "花")
+        val settings = UserSettings(theme = ThemeMode.DARK, gestureSensitivity = 0.7f, touchGuard = true, sort = SortOrder.NAME_ASC)
+        val text = LibraryBackup.export(listOf(video), settings)
+        assertFalse(text.contains("ftyp"))
+        val plan = LibraryBackup.plan(listOf(video), LibraryBackup.parse(text))
+        assertEquals(ThemeMode.DARK, plan.settings.theme)
+        assertTrue(plan.settings.touchGuard)
+        assertEquals(1, plan.matched.size)
+        assertEquals(4_000, plan.matched[0].positionMs)
+        assertTrue(plan.matched[0].favorite)
+        assertEquals(0, plan.skipped)
+        assertEquals(1, LibraryBackup.plan(emptyList(), LibraryBackup.parse(text)).skipped)
     }
     @Test fun permissionRequestsMatchAndroid8_13_14_16() {
         assertArrayEquals(arrayOf("android.permission.READ_EXTERNAL_STORAGE"), mediaPermissions(26))

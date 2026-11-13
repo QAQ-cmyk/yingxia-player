@@ -116,6 +116,23 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     fun favorite(ids: Set<VideoId>, favorite: Boolean) {
         viewModelScope.launch { graph.repository.setFavorite(ids, favorite); notify(if (favorite) "已加入收藏" else "已取消收藏") }
     }
+    fun savePicture(id: VideoId, rotation: Int, mirrored: Boolean, cropBars: Boolean) {
+        viewModelScope.launch {
+            runCatching { graph.repository.savePicture(id, rotation, mirrored, cropBars) }
+                .onFailure { notify(it.message ?: "无法保存画面设置") }
+        }
+    }
+    fun restoreBackup(text: String) {
+        viewModelScope.launch {
+            runCatching {
+                val plan = cn.yingxia.player.data.LibraryBackup.plan(graph.repository.allVideos(), cn.yingxia.player.data.LibraryBackup.parse(text))
+                graph.settings.replacePlayback(plan.settings)
+                graph.repository.restoreRecords(plan.matched)
+                plan
+            }.onSuccess { notify(if (it.skipped == 0) "已恢复 ${it.matched.size} 条记录" else "已恢复 ${it.matched.size} 条记录，${it.skipped} 条找不到对应视频") }
+                .onFailure { notify(it.message ?: "无法读取备份") }
+        }
+    }
     fun rename(id: VideoId, displayName: String) {
         viewModelScope.launch {
             runCatching { graph.repository.rename(id, displayName) }

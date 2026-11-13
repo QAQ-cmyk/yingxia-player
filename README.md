@@ -1,20 +1,20 @@
-# 映匣 1.3.3
+# 映匣 1.4.0
 
 中文 Android 本地视频播放器，支持 Android 8.0（API 26）及以上。Kotlin + Compose + Media3，Room 保存关联记录，DataStore 保存偏好。视频和记录都留在手机里，应用不联网。
 
-[下载 1.3.3 调试包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.3.3/YingXia-1.3.3-debug.apk) · [1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk) · [版本发布页](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [安装说明](delivery/安装与使用.md) · [测试记录](delivery/测试记录.md)
+[下载 1.4.0 调试包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.4.0/YingXia-1.4.0-debug.apk) · [1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk) · [版本发布页](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [安装说明](delivery/安装与使用.md) · [测试记录](delivery/测试记录.md)
 
 1.1.0 至 1.2.1 曾内置 B 站网页。该功能已经移除，不再提供在线浏览、网页登录或广告过滤。`delivery/v1.*-notes/` 只保留当时的说明。
 
 ## 播放器功能
 
-相册全部/部分授权、文件选择、搜索排序、文件夹、收藏；八档倍速、长按加速、进度拖动、互斥手势；全屏、亮度音量、锁定、续播和队列；SRT/VTT 与内嵌字幕、A-B 循环、时间书签、睡眠定时；批量隐藏恢复和深色模式。播放工具里可选「清晰度」「放大到 4K」和「音质增强」，默认关闭。清晰度只放大较低分辨率并略微提高对比。放大到 4K 只把 1080p 及更低的画面放大到接近 4K，不会生成真正的 4K 细节，内存不够会自动关闭。音质增强是机内轻量均衡。三项都在本机完成。
+相册全部/部分授权、文件选择、搜索排序、文件夹、收藏；八档倍速、长按加速、进度拖动、互斥手势；全屏、亮度音量、锁定、续播和队列；SRT/VTT 与内嵌字幕、A-B 循环、时间书签、睡眠定时；批量隐藏恢复和深色模式。双指可以放大画面，播放工具里可以裁掉黑边、旋转和水平镜像，旋转和镜像记在每条视频上。播放与外观里可以调节手势灵敏度，并打开播放时防误触。搜索支持拼音首字母。我的页面可以导出或恢复收藏、进度和设置，备份不含视频文件。
 
 本地视频不会上传。隐藏只影响应用内显示；「删除原文件」则会真正删除手机文件。
 
 ## 安装与交付
 
-1.3.3 发布页上的 `YingXia-1.3.3-debug.apk` 使用 debug 签名，只能装到测试机，不能覆盖已经安装的 1.2.1 正式签名包。正式覆盖升级仍使用 [1.2.1 签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)，不要先卸载。截图、安装说明和测试记录位于仓库的 `delivery/`。APK 和本机构建缓存不纳入 Git 历史。
+1.4.0 发布页上的 `YingXia-1.4.0-debug.apk` 使用 debug 签名，只能装到测试机，不能覆盖已经安装的 1.2.1 正式签名包。正式覆盖升级仍使用 [1.2.1 签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)，不要先卸载。截图、安装说明和测试记录位于仓库的 `delivery/`。APK 和本机构建缓存不纳入 Git 历史。
 
 ## 构建
 

@@ -12,13 +12,32 @@ data class VideoItem(
     val hidden: Boolean = false, val favorite: Boolean = false,
     val positionMs: Long = 0, val lastPlayedAt: Long = 0,
     val subtitleUri: String? = null, val subtitleName: String? = null,
-    val displayName: String? = null,
+    val displayName: String? = null, val rotation: Int = 0,
+    val mirrored: Boolean = false, val cropBars: Boolean = false,
 )
 fun VideoItem.displayTitle(): String = displayName?.trim()?.ifEmpty { null } ?: name.substringBeforeLast('.', name)
+fun quarterTurn(degrees: Int) = ((degrees % 360) + 360) % 360 / 90 * 90
+/** Substring match, plus pinyin initials such as “pjh” for 啤酒花. */
+fun matchesLibraryQuery(title: String, name: String, folder: String, query: String): Boolean {
+    if (query.isBlank()) return true
+    if (listOf(title, name, folder).any { it.contains(query, ignoreCase = true) }) return true
+    val needle = query.filter { it.isLetterOrDigit() }.lowercase()
+    if (needle.isEmpty()) return false
+    return listOf(title, name).any { PinyinInitials.of(it).contains(needle) }
+}
+/** Higher sensitivity means a shorter drag starts a gesture. 0.7 low, 1 standard, 1.4 high. */
+fun gestureSlopScale(sensitivity: Float) = when {
+    sensitivity < 0.85f -> 1.75f
+    sensitivity > 1.15f -> 0.62f
+    else -> 1f
+}
 data class Bookmark(val id: Long, val videoId: VideoId, val positionMs: Long, val note: String)
 data class SubtitleAttachment(val uri: String, val name: String, val mimeType: String)
 data class SubtitleTrack(val id: String, val name: String, val selected: Boolean)
 data class StorageFolder(val uri: String, val name: String)
+data class LibraryRecord(val id: String, val uri: String, val name: String, val sizeBytes: Long,
+    val favorite: Boolean, val positionMs: Long, val lastPlayedAt: Long, val displayName: String?,
+    val rotation: Int, val mirrored: Boolean, val cropBars: Boolean)
 enum class RepeatMode { SEQUENCE, ONE, ALL }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class LibraryAccess { FULL, PARTIAL, NONE }
@@ -54,7 +73,7 @@ data class PlaybackState(
 )
 data class UserSettings(val theme: ThemeMode = ThemeMode.SYSTEM, val speed: Float = 1f,
     val holdSpeed: Float = 2f, val subtitleScale: Float = 1f, val sort: SortOrder = SortOrder.NEWEST,
-    val clarity: Boolean = false, val audioEnhance: Boolean = false, val upscale4k: Boolean = false)
+    val gestureSensitivity: Float = 1f, val touchGuard: Boolean = false)
 
 sealed interface PlayerCommand {
     data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null) : PlayerCommand
@@ -99,13 +118,16 @@ interface VideoRepository {
     val access: StateFlow<LibraryAccess>
     val scanError: StateFlow<String?>
     suspend fun refresh()
+    suspend fun allVideos(): List<VideoItem>
     suspend fun importVideo(uri: String): VideoItem
     suspend fun get(id: VideoId): VideoItem?
     suspend fun requirePlayable(id: VideoId): VideoItem
     suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean)
     suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean)
     suspend fun rename(id: VideoId, displayName: String)
+    suspend fun savePicture(id: VideoId, rotation: Int, mirrored: Boolean, cropBars: Boolean)
     suspend fun saveProgress(id: VideoId, positionMs: Long)
+    suspend fun restoreRecords(rows: List<LibraryRecord>)
     suspend fun saveSubtitle(id: VideoId, attachment: SubtitleAttachment)
     suspend fun saveBookmark(videoId: VideoId, positionMs: Long, note: String, id: Long = 0)
     suspend fun deleteBookmark(id: Long)
@@ -140,7 +162,7 @@ object PlaybackRules {
     }
 }
 
-enum class GestureMode { PENDING, SEEK, BRIGHTNESS, VOLUME, BOOST, DOUBLE_TAP }
+enum class GestureMode { PENDING, SEEK, BRIGHTNESS, VOLUME, BOOST, DOUBLE_TAP, PINCH }
 fun chooseDrag(dx: Float, dy: Float, slop: Float, fullscreen: Boolean, leftSide: Boolean): GestureMode {
     if (kotlin.math.abs(dx) > slop && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.2f) return GestureMode.SEEK
     if (fullscreen && kotlin.math.abs(dy) > slop && kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.2f)

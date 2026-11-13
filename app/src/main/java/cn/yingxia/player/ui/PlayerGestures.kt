@@ -10,17 +10,23 @@ import android.view.ViewConfiguration
 import android.widget.SeekBar
 import cn.yingxia.player.core.*
 import kotlin.math.abs
+import kotlin.math.hypot
 
-/** One recognizer owns a touch stream. CANCEL never commits a seek or a tap. */
+/** One recognizer owns a touch stream. A second finger zooms and never commits a seek. CANCEL never commits a seek or a tap. */
 internal class PlayerGestureView(context: Context) : View(context) {
     var snapshot: () -> PlaybackState = { PlaybackState() }
     var fullscreen = false
     var locked = false
     var holdSpeed = 2f
+    var sensitivity = 1f
+    var zoom = 1f
+    var panX = 0f
+    var panY = 0f
     var command: (PlayerCommand) -> Unit = {}
     var tap: () -> Unit = {}
     var preview: (Long?) -> Unit = {}
     var vertical: (GestureMode, Float, Boolean) -> Unit = { _, _, _ -> }
+    var onTransform: (Float, Float, Float) -> Unit = { _, _, _ -> }
     private val handler = Handler(Looper.getMainLooper())
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private var mode = GestureMode.PENDING
@@ -35,6 +41,10 @@ internal class PlayerGestureView(context: Context) : View(context) {
     private var lastUp = 0L
     private var lastX = 0f
     private var lastY = 0f
+    private var pinchBase = 1f
+    private var pinchZoom = 1f
+    private var pinchX = 0f
+    private var pinchY = 0f
     private val singleTap = Runnable { lastUp = 0; tap() }
     private val hold = Runnable {
         if (active && !moved && !double && mode == GestureMode.PENDING && snapshot().isPlaying && !locked) {
@@ -45,6 +55,7 @@ internal class PlayerGestureView(context: Context) : View(context) {
     }
     init { isClickable = true; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
     override fun performClick(): Boolean { super.performClick(); tap(); return true }
+    private fun dragSlop() = slop * gestureSlopScale(sensitivity)
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (locked) { cancelGesture(); return true }
         when (event.actionMasked) {
@@ -58,12 +69,13 @@ internal class PlayerGestureView(context: Context) : View(context) {
                 if (!double) handler.postDelayed(hold, 450)
                 parent?.requestDisallowInterceptTouchEvent(true)
             }
-            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_CANCEL -> cancelGesture()
-            MotionEvent.ACTION_MOVE -> if (active) {
+            MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) beginPinch(event)
+            MotionEvent.ACTION_MOVE -> if (active && mode == GestureMode.PINCH && event.pointerCount >= 2) movePinch(event) else if (active) {
                 val dx = event.x - downX; val dy = event.y - downY
-                if (abs(dx) > slop || abs(dy) > slop) { moved = true; handler.removeCallbacks(hold) }
+                val threshold = dragSlop()
+                if (abs(dx) > threshold || abs(dy) > threshold) { moved = true; handler.removeCallbacks(hold) }
                 if (mode == GestureMode.PENDING && moved) {
-                    mode = chooseDrag(dx, dy, slop, fullscreen, downX < width / 2f)
+                    mode = chooseDrag(dx, dy, threshold, fullscreen, downX < width / 2f)
                     if (mode == GestureMode.BRIGHTNESS || mode == GestureMode.VOLUME) vertical(mode, 0f, true)
                 }
                 when (mode) {
@@ -76,11 +88,16 @@ internal class PlayerGestureView(context: Context) : View(context) {
                     else -> Unit
                 }
             }
+            MotionEvent.ACTION_POINTER_UP -> if (mode == GestureMode.PINCH && event.pointerCount <= 2) {
+                active = false; moved = true; mode = GestureMode.PENDING; lastUp = 0
+            }
+            MotionEvent.ACTION_CANCEL -> cancelGesture()
             MotionEvent.ACTION_UP -> if (active) {
                 handler.removeCallbacks(hold)
                 when (mode) {
                     GestureMode.SEEK -> { preview(null); command(PlayerCommand.Seek(target)) }
                     GestureMode.BOOST -> command(PlayerCommand.EndBoost)
+                    GestureMode.PINCH -> Unit
                     GestureMode.PENDING -> if (!moved) {
                         if (double) { lastUp = 0; command(PlayerCommand.Toggle) }
                         else {
@@ -96,6 +113,27 @@ internal class PlayerGestureView(context: Context) : View(context) {
         }
         return true
     }
+    private fun beginPinch(event: MotionEvent) {
+        handler.removeCallbacks(hold); handler.removeCallbacks(singleTap)
+        if (mode == GestureMode.BOOST) command(PlayerCommand.EndBoost)
+        if (mode == GestureMode.SEEK) preview(null)
+        mode = GestureMode.PINCH; moved = true; lastUp = 0; active = true
+        pinchBase = span(event).coerceAtLeast(1f); pinchZoom = zoom
+        val (x, y) = centroid(event); pinchX = x; pinchY = y
+        parent?.requestDisallowInterceptTouchEvent(true)
+    }
+    private fun movePinch(event: MotionEvent) {
+        val next = (pinchZoom * span(event) / pinchBase).coerceIn(1f, 4f)
+        val (x, y) = centroid(event)
+        val limitX = width * (next - 1f)
+        val limitY = height * (next - 1f)
+        panX = if (next <= 1.01f) 0f else (panX + x - pinchX).coerceIn(-limitX, limitX)
+        panY = if (next <= 1.01f) 0f else (panY + y - pinchY).coerceIn(-limitY, limitY)
+        pinchX = x; pinchY = y; zoom = next
+        onTransform(zoom, panX, panY)
+    }
+    private fun span(event: MotionEvent) = hypot(event.getX(0) - event.getX(1), event.getY(0) - event.getY(1))
+    private fun centroid(event: MotionEvent) = (event.getX(0) + event.getX(1)) / 2f to (event.getY(0) + event.getY(1)) / 2f
     fun cancelGesture() {
         handler.removeCallbacks(hold); handler.removeCallbacks(singleTap)
         if (mode == GestureMode.BOOST) command(PlayerCommand.EndBoost)

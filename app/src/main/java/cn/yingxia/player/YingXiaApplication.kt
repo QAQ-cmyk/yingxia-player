@@ -23,7 +23,7 @@ class YingXiaApplication : Application(), ImageLoaderFactory {
 }
 class AppGraph(application: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val database = Room.databaseBuilder(application, VideoDatabase::class.java, "yingxia.db").addMigrations(MIGRATION_1_2).build()
+    val database = Room.databaseBuilder(application, VideoDatabase::class.java, "yingxia.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     val repository = LocalVideoRepository(application, database)
     val settings = SettingsRepository(application)
     val files = LocalFileManager(application)
