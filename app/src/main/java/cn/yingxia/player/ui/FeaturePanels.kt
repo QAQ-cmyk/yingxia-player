@@ -117,9 +117,11 @@ val BuiltInFeaturePanels = mapOf(
 @Composable private fun SleepPanel(vm: AppViewModel) {
     val remaining by vm.graph.timer.remainingMs.collectAsStateWithLifecycle()
     PanelTitle("睡眠定时", "到时暂停播放，A-B 循环和列表循环也适用")
-    if (remaining > 0) Text("${durationText(remaining)} 后暂停", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 20.dp))
+    val untilEnd by vm.graph.timer.untilEnd.collectAsStateWithLifecycle()
+    if (remaining > 0) Text(if (untilEnd) "播完当前后暂停 · ${durationText(remaining)}" else "${durationText(remaining)} 后暂停", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = 20.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         listOf(15, 30, 60, 90).forEach { minutes -> OutlinedButton(onClick = { vm.graph.timer.start(minutes) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("$minutes 分钟") } }
+        OutlinedButton(onClick = { vm.graph.timer.stopWhenFinished() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("播完当前") }
     }
     if (remaining > 0) TextButton(onClick = { vm.graph.timer.cancel() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("取消定时") }
 }

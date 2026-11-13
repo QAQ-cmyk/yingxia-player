@@ -190,7 +190,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
-            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
+            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "transfer" -> "同一 Wi-Fi 互传"; "cloud" -> "云端传输"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
                 else Spacer(Modifier.width(12.dp))
@@ -213,7 +213,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text(if (allVisibleSelected) "取消全选" else "全选") }
                     if (page == "hidden") TextButton(onClick = { vm.hide(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("恢复显示") }
                     else {
-                        TextButton(onClick = { vm.favorite(selected, tab != 2); selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text(if (tab == 2) "取消收藏" else "收藏") }
+                        TextButton(onClick = { vm.favorite(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("收藏") }
+                        TextButton(onClick = { vm.favorite(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("取消收藏") }
                         TextButton(onClick = {
                             val chosen = visible.filter { it.id in selected }
                             val targets = chosen.filter { it.accessible }
@@ -240,6 +241,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }, label = "library-screen") { current ->
             when (current) {
                 "settings" -> SettingsPage(vm)
+                "transfer" -> TransferPage(vm)
+                "cloud" -> CloudPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
                 "tab3" -> ProfilePage(videos, bookmarks.size, { page = it }, importFile)
                 "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }) { folder = it; query = "" }
@@ -511,6 +514,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     MenuRow(Icons.Outlined.History, "播放历史", "从上次离开的地方继续", { onPage("history") })
                     MenuRow(Icons.Outlined.Bookmarks, "时间书签", "记下值得重看的瞬间", { onPage("bookmarks") })
                     MenuRow(Icons.Outlined.VisibilityOff, "隐藏管理", "查看与恢复隐藏的视频", { onPage("hidden") })
+                    MenuRow(Icons.Outlined.Wifi, "同一 Wi-Fi 互传", "附近的映匣互相收发视频", { onPage("transfer") })
+                    MenuRow(Icons.Outlined.CloudUpload, "云端传输", "用你自己的 WebDAV 搬运视频", { onPage("cloud") })
                 }
             }
         }

@@ -23,8 +23,27 @@ class SleepTimerFeature(private val controller: PlaybackController, private val 
     override val title = "睡眠定时"
     override val order = 30
     val remainingMs = MutableStateFlow(0L)
+    val untilEnd = MutableStateFlow(false)
     private var job: Job? = null
     fun start(minutes: Int) { startMilliseconds(minutes * 60_000L) }
+    fun stopWhenFinished() {
+        job?.cancel()
+        if (controller.state.value.durationMs <= 0) return
+        untilEnd.value = true
+        job = scope.launch {
+            while (isActive) {
+                val snapshot = controller.state.value
+                if (snapshot.video == null || snapshot.durationMs <= 0) break
+                val left = (snapshot.durationMs - snapshot.positionMs).coerceAtLeast(0)
+                remainingMs.value = left
+                if (left <= 800) { controller.execute(PlayerCommand.Pause); break }
+                delay(400)
+            }
+            remainingMs.value = 0
+            untilEnd.value = false
+            job = null
+        }
+    }
     internal fun startMilliseconds(duration: Long) {
         cancel()
         val deadline = SystemClock.elapsedRealtime() + duration
@@ -37,7 +56,7 @@ class SleepTimerFeature(private val controller: PlaybackController, private val 
             controller.execute(PlayerCommand.Pause)
         }
     }
-    fun cancel() { job?.cancel(); job = null; remainingMs.value = 0 }
+    fun cancel() { job?.cancel(); job = null; remainingMs.value = 0; untilEnd.value = false }
     override suspend fun onEvent(event: PlayerEvent) { if (event is PlayerEvent.Closed) cancel() }
 }
 class BookmarkFeature(private val controller: PlaybackController, private val repository: VideoRepository) : PlayerFeature {

@@ -91,7 +91,16 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
         viewModelScope.launch { graph.player.events.collect { if (it is PlayerEvent.Error) notify(it.failure.message) } }
     }
     fun command(command: PlayerCommand) { viewModelScope.launch { graph.player.execute(command) } }
-    fun open(video: VideoItem, queue: List<VideoItem>, position: Long? = null) { command(PlayerCommand.Open(video.id, queue.map { it.id }, position)) }
+    fun open(video: VideoItem, queue: List<VideoItem>, position: Long? = null) {
+        if (position == null) {
+            val at = PlaybackRules.resume(video.positionMs, video.durationMs)
+            if (at > 0) {
+                val seconds = at / 1000
+                viewModelScope.launch { notify("从 %02d:%02d 继续播放".format(seconds / 60, seconds % 60)) }
+            }
+        }
+        command(PlayerCommand.Open(video.id, queue.map { it.id }, position))
+    }
     fun hide(ids: Set<VideoId>, hidden: Boolean) {
         if (ids.isEmpty()) return
         viewModelScope.launch {
