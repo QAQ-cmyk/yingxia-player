@@ -69,6 +69,14 @@ class PlaybackRulesTest {
         assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 1080, false))
         assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 480, true))
         assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 0, false))
+        assertEquals(ClarityMode.UPSCALE_4K, ClarityPolicy.choose(false, 1080, false, upscale4k = true, width = 1920))
+        assertEquals(ClarityMode.UPSCALE_4K, ClarityPolicy.choose(true, 480, false, upscale4k = true, width = 640))
+        assertEquals(2160, ClarityPolicy.targetHeight4k(1920, 1080))
+        assertEquals(3840, ClarityPolicy.targetHeight4k(1080, 1920))
+        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 1080, true, upscale4k = true, width = 1920, allow4k = false))
+        assertEquals(ClarityMode.OFF, ClarityPolicy.choose(false, 1080, true, upscale4k = true, width = 1920, allow4k = false))
+        assertEquals(ClarityMode.OFF, ClarityPolicy.choose(false, 1440, false, upscale4k = true, width = 2560))
+        assertEquals(false, ClarityPolicy.is1080pOrLower(0, 1080))
     }
     @Test fun permissionRequestsMatchAndroid8_13_14_16() {
         assertArrayEquals(arrayOf("android.permission.READ_EXTERNAL_STORAGE"), mediaPermissions(26))

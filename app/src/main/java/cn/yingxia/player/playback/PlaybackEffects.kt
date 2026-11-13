@@ -11,17 +11,31 @@ import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import java.nio.ByteBuffer
 
-/** What “清晰度” is allowed to do. It never invents detail that was not recorded. */
-enum class ClarityMode { OFF, CONTRAST, UPSCALE }
+/** What the picture filters are allowed to do. Neither mode invents detail that was not recorded. */
+enum class ClarityMode { OFF, CONTRAST, UPSCALE, UPSCALE_4K }
 
 object ClarityPolicy {
     const val CONTRAST = 0.1f
-    fun choose(enabled: Boolean, height: Int, lowRam: Boolean): ClarityMode = when {
-        !enabled -> ClarityMode.OFF
+    /** 1080p class: long side at most 1920 and short side at most 1080. */
+    fun is1080pOrLower(width: Int, height: Int): Boolean {
+        if (width <= 0 || height <= 0) return false
+        val longSide = maxOf(width, height)
+        val shortSide = minOf(width, height)
+        return longSide <= 1920 && shortSide <= 1080
+    }
+    fun choose(clarity: Boolean, height: Int, lowRam: Boolean, upscale4k: Boolean = false, width: Int = 0, allow4k: Boolean = !lowRam): ClarityMode = when {
+        upscale4k && allow4k && is1080pOrLower(width, height) -> ClarityMode.UPSCALE_4K
+        !clarity -> ClarityMode.OFF
         lowRam || height <= 0 || height >= 720 -> ClarityMode.CONTRAST
         else -> ClarityMode.UPSCALE
     }
     fun targetHeight(height: Int) = (height * 2).coerceIn(2, 720)
+    /** Scale so the short side moves toward 2160, and the long side stays at most 3840. */
+    fun targetHeight4k(width: Int, height: Int): Int {
+        if (width <= 0 || height <= 0) return 2160
+        val scaled = if (width < height) (height * 2160f / width).toInt() else 2160
+        return scaled.coerceIn(2, 3840)
+    }
 }
 
 /** A light bass/treble lift with a soft ceiling. Inactive unless [active] is set. */

@@ -16,6 +16,7 @@ class SettingsRepository(private val context: Context) {
     private val sort = stringPreferencesKey("library_sort")
     private val clarity = booleanPreferencesKey("clarity")
     private val audioEnhance = booleanPreferencesKey("audio_enhance")
+    private val upscale4k = booleanPreferencesKey("upscale_4k")
     private val folders = stringSetPreferencesKey("storage_folders")
     private val davUrl = stringPreferencesKey("webdav_url")
     private val davUser = stringPreferencesKey("webdav_user")
@@ -38,7 +39,7 @@ class SettingsRepository(private val context: Context) {
         PlaybackRules.speed(p[speed] ?: 1f), if (p[hold] == 3f) 3f else 2f,
         (p[scale] ?: 1f).coerceIn(.75f, 1.5f),
         runCatching { SortOrder.valueOf(p[sort] ?: SortOrder.NEWEST.name) }.getOrDefault(SortOrder.NEWEST),
-        p[clarity] ?: false, p[audioEnhance] ?: false) }
+        p[clarity] ?: false, p[audioEnhance] ?: false, p[upscale4k] ?: false) }
     suspend fun setTheme(value: ThemeMode) { context.preferences.edit { it[theme] = value.name } }
     suspend fun setSpeed(value: Float) { context.preferences.edit { it[speed] = PlaybackRules.speed(value) } }
     suspend fun setHoldSpeed(value: Float) { context.preferences.edit { it[hold] = if (value == 3f) 3f else 2f } }
@@ -46,6 +47,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSort(value: SortOrder) { context.preferences.edit { it[sort] = value.name } }
     suspend fun setClarity(value: Boolean) { context.preferences.edit { it[clarity] = value } }
     suspend fun setAudioEnhance(value: Boolean) { context.preferences.edit { it[audioEnhance] = value } }
+    suspend fun setUpscale4k(value: Boolean) { context.preferences.edit { it[upscale4k] = value } }
     val webDav: Flow<WebDavConfig> = context.preferences.data.catch {
         if (it is IOException) emit(emptyPreferences()) else throw it
     }.map { WebDavConfig(it[davUrl].orEmpty(), it[davUser].orEmpty(), it[davPass].orEmpty()) }
