@@ -12,7 +12,9 @@ data class VideoItem(
     val hidden: Boolean = false, val favorite: Boolean = false,
     val positionMs: Long = 0, val lastPlayedAt: Long = 0,
     val subtitleUri: String? = null, val subtitleName: String? = null,
+    val displayName: String? = null,
 )
+fun VideoItem.displayTitle(): String = displayName?.trim()?.ifEmpty { null } ?: name.substringBeforeLast('.', name)
 data class Bookmark(val id: Long, val videoId: VideoId, val positionMs: Long, val note: String)
 data class SubtitleAttachment(val uri: String, val name: String, val mimeType: String)
 data class SubtitleTrack(val id: String, val name: String, val selected: Boolean)
@@ -84,6 +86,7 @@ interface VideoRepository {
     suspend fun requirePlayable(id: VideoId): VideoItem
     suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean)
     suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean)
+    suspend fun rename(id: VideoId, displayName: String)
     suspend fun saveProgress(id: VideoId, positionMs: Long)
     suspend fun saveSubtitle(id: VideoId, attachment: SubtitleAttachment)
     suspend fun saveBookmark(videoId: VideoId, positionMs: Long, note: String, id: Long = 0)

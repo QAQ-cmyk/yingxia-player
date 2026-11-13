@@ -62,6 +62,8 @@ import kotlin.math.roundToInt
     var controls by rememberSaveable { mutableStateOf(true) }
     var locked by rememberSaveable { mutableStateOf(false) }
     var sheet by rememberSaveable { mutableStateOf<String?>(null) }
+    var renaming by remember { mutableStateOf(false) }
+    var renameText by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<Long?>(null) }
     var feedback by remember { mutableStateOf<String?>(null) }
     var brightness by remember { mutableFloatStateOf(activity.window.attributes.screenBrightness.takeIf { it >= 0 } ?: .5f) }
@@ -166,16 +168,9 @@ import kotlin.math.roundToInt
                     .then(if (fullscreen) Modifier.statusBarsPadding() else Modifier).then(edge).padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                     PlayerIcon(Icons.AutoMirrored.Outlined.ArrowBack, "返回", { if (fullscreen) toggleFull() else close() }, size = 22)
                     PlayerIcon(Icons.Outlined.Home, "回到列表", close, size = 22)
-                    Text(video.name, Modifier.weight(1f).padding(horizontal = 4.dp), color = Color.White.copy(alpha = .92f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(current.displayTitle(), Modifier.weight(1f).padding(horizontal = 4.dp), color = Color.White.copy(alpha = .92f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     TextButton(onClick = { sheet = "speed" }, modifier = Modifier.testTag("speed-button").heightIn(min = 40.dp)) { Text(speedText(state.baseSpeed), color = Color.White, maxLines = 1) }
                     PlayerIcon(Icons.Outlined.MoreHoriz, "播放工具", { sheet = "tools" }, size = 22)
-                }
-            }
-            FrameVisibility(chrome && !state.boosting, Modifier.align(androidx.compose.ui.BiasAlignment(0f, -.55f)),
-                fadeIn(motionTween(180)), fadeOut(motionTween(140))) {
-                Surface(onClick = { sheet = "speed" }, shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = .16f)) {
-                    Text("长按 ${speedText(settings.holdSpeed)}", Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        color = Color.White.copy(alpha = .7f), fontSize = 12.sp)
                 }
             }
             FrameVisibility(chrome, Modifier.align(Alignment.BottomCenter),
@@ -220,7 +215,10 @@ import kotlin.math.roundToInt
                                 Text("  ${fileSize(video.sizeBytes)} · ${video.width} × ${video.height}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             }
-                            Text(video.name, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 12.dp, bottom = 7.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(current.displayTitle(), style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(top = 12.dp, bottom = 7.dp))
+                                IconButton(onClick = { renameText = current.displayTitle(); renaming = true }, modifier = Modifier.padding(top = 4.dp)) { Icon(Icons.Outlined.Edit, "重命名") }
+                            }
                             Text(video.folder, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 ToolShortcut(if (current.favorite) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder, if (current.favorite) "已收藏" else "收藏", { vm.favorite(setOf(video.id), !current.favorite) }, current.favorite)
@@ -256,7 +254,7 @@ import kotlin.math.roundToInt
                                 }
                             }
                             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                Text(item.name, maxLines = 2, overflow = TextOverflow.Ellipsis, color = if (item.id == video.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+                                Text(item.displayTitle(), maxLines = 2, overflow = TextOverflow.Ellipsis, color = if (item.id == video.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
                                 Text(durationText(item.durationMs), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 5.dp))
                             }
                         }
@@ -298,6 +296,9 @@ import kotlin.math.roundToInt
                 else -> BuiltInFeaturePanels[sheet]?.panel?.invoke(vm, state, closeSheet)
             }
         }
+    }
+    if (renaming) RenameVideoDialog(renameText, { renaming = false }) { name ->
+        vm.rename(current.id, name); renaming = false
     }
 }
 
