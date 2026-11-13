@@ -1,5 +1,7 @@
 package cn.yingxia.player.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,7 +20,7 @@ private val Light = lightColorScheme(
     surfaceContainer = Color(0xFFF7F7F9), surfaceContainerLow = Color(0xFFFAFAFC),
     surfaceContainerHigh = Color(0xFFF0F1F4), surfaceVariant = Color(0xFFF2F3F5),
     onBackground = Color(0xFF23252D), onSurface = Color(0xFF23252D),
-    onSurfaceVariant = Color(0xFF696B76), outlineVariant = Color(0xFFE9E9EE))
+    onSurfaceVariant = Color(0xFF5A5C66), outlineVariant = Color(0xFFE3E4EA))
 private val Dark = darkColorScheme(
     primary = Color(0xFFFFA1BF), onPrimary = Color(0xFF5E1530),
     primaryContainer = Color(0xFF512333), onPrimaryContainer = Color(0xFFFFDFE9),
@@ -40,6 +42,8 @@ private val Dark = darkColorScheme(
             bodyMedium = baseline.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
             labelSmall = baseline.labelSmall.copy(fontSize = 11.sp)), content = content)
 }
+
+fun <T> motionTween(durationMillis: Int = 220) = tween<T>(durationMillis, easing = FastOutSlowInEasing)
 
 fun durationText(ms: Long): String {
     val seconds = ms.coerceAtLeast(0) / 1000

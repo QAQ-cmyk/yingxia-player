@@ -12,6 +12,7 @@ import coil.decode.VideoFrameDecoder
 import cn.yingxia.player.data.*
 import cn.yingxia.player.features.*
 import cn.yingxia.player.playback.*
+import cn.yingxia.player.transfer.LanTransfer
 import kotlinx.coroutines.*
 
 class YingXiaApplication : Application(), ImageLoaderFactory {
@@ -22,10 +23,11 @@ class YingXiaApplication : Application(), ImageLoaderFactory {
 }
 class AppGraph(application: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val database = Room.databaseBuilder(application, VideoDatabase::class.java, "yingxia.db").build()
+    val database = Room.databaseBuilder(application, VideoDatabase::class.java, "yingxia.db").addMigrations(MIGRATION_1_2).build()
     val repository = LocalVideoRepository(application, database)
     val settings = SettingsRepository(application)
     val files = LocalFileManager(application)
+    val lan = LanTransfer(application, repository, scope)
     val player = Media3Controller(application, repository, settings, scope)
     val subtitles = LocalSubtitleProvider(application)
     val loop = LoopFeature(player)

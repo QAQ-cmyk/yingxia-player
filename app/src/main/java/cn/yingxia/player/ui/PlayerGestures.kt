@@ -1,6 +1,7 @@
 package cn.yingxia.player.ui
 
 import android.content.Context
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.view.MotionEvent
@@ -115,8 +116,13 @@ internal class CommitSeekBar(context: Context) : SeekBar(context) {
     init {
         max = 10_000
         contentDescription = "播放进度"
-        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(251, 114, 153))
-        progressTintList = tint; thumbTintList = tint
+        val pink = android.graphics.Color.rgb(251, 114, 153)
+        val tint = android.content.res.ColorStateList.valueOf(pink)
+        progressTintList = tint
+        progressBackgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.argb(110, 255, 255, 255))
+        val thumbPx = (10 * resources.displayMetrics.density).toInt().coerceAtLeast(8)
+        thumb = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(pink); setSize(thumbPx, thumbPx) }
+        thumbOffset = thumbPx / 2
         setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar) { tracking = true; cancelled = false }
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
