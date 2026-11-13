@@ -1,8 +1,8 @@
-# 映匣 1.2.1
+# 映匣 1.3.0
 
 中文 Android 本地视频播放器，支持 Android 8.0（API 26）及以上。Kotlin + Compose + Media3，Room 保存关联记录，DataStore 保存偏好。视频和记录都留在手机里，应用不联网。
 
-[下载 1.2.1 安装包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk) · [版本发布页](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [安装说明](delivery/安装与使用.md) · [测试记录](delivery/测试记录.md)
+[下载 1.3.0 调试包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.3.0/YingXia-1.3.0-debug.apk) · [1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk) · [版本发布页](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [安装说明](delivery/安装与使用.md) · [测试记录](delivery/测试记录.md)
 
 1.1.0 至 1.2.1 曾内置 B 站网页。该功能已经移除，不再提供在线浏览、网页登录或广告过滤。`delivery/v1.*-notes/` 只保留当时的说明。
 
@@ -14,7 +14,7 @@
 
 ## 安装与交付
 
-从 [Releases](https://github.com/QAQ-cmyk/yingxia-player/releases) 下载 `YingXia-1.2.1.apk`。沿用旧版签名，可直接覆盖升级保留记录，不要先卸载。发布页同时提供完整源码 ZIP 和 SHA-256 校验文件；截图、安装说明、接口说明和测试记录位于仓库的 `delivery/`。APK、打包源码和本机构建缓存不纳入 Git 历史。
+1.3.0 发布页上的 `YingXia-1.3.0-debug.apk` 使用 debug 签名，只能装到测试机，不能覆盖已经安装的 1.2.1 正式签名包。正式覆盖升级仍使用 [1.2.1 签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)，不要先卸载。截图、安装说明和测试记录位于仓库的 `delivery/`。APK 和本机构建缓存不纳入 Git 历史。
 
 ## 构建
 
