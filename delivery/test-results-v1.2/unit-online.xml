@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="cn.yingxia.player.OnlineSourceTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-12T04:55:11.090Z" hostname="LAPTOP-ECS64FIC" time="0.058">
+  <properties/>
+  <testcase name="fallbackUrlsAreValidatedAndMalformedIntentsStayBlocked" classname="cn.yingxia.player.OnlineSourceTest" time="0.041"/>
+  <testcase name="navigationRejectsSpoofsAndLocalAccess" classname="cn.yingxia.player.OnlineSourceTest" time="0.003"/>
+  <testcase name="folderNamesCannotEscapeSelectedDirectory" classname="cn.yingxia.player.OnlineSourceTest" time="0.002"/>
+  <testcase name="automaticWakeupsAndRepeatedCurrentVideoNeverNavigate" classname="cn.yingxia.player.OnlineSourceTest" time="0.006"/>
+  <testcase name="advertisingRulesKeepLoginAndVideoResources" classname="cn.yingxia.player.OnlineSourceTest" time="0.003"/>
+  <testcase name="appVideoLinksBecomeInternalPagesAndPreservePartNumber" classname="cn.yingxia.player.OnlineSourceTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

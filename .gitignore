@@ -1,0 +1,29 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.tools/
+outputs/
+*.jks
+*.keystore
+.idea/
+*.iml
+captures/
+__pycache__/
+*.pyc
+*.p12
+*.idsig
+
+# Local task notes, attachments and credentials
+.codex-remote-attachments/
+.serena/
+/PROJECT_STATUS.md
+.env
+.env.*
+*.pem
+*.key
+password.txt
+
+# Downloadable builds belong to GitHub Releases, not Git history
+/delivery/*.apk
+/delivery/*.zip

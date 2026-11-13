@@ -1,0 +1,8 @@
+Final signed Release 1.2.0 manual checks (Android 14 emulator-5556):
+- Installed v1.1 release then install -r v1.2: success; original firstInstallTime unchanged (see release-upgrade.log).
+- Native Search loads official mobile search. Android and Python returned website empty state in this release pass; result navigation not yet live-confirmed. Deterministic search-card navigation passed final instrumentation test.
+- Account opens official mobile phone/password login page in same shell; no account or verification code entered.
+- Final rebuild after DOM-ready scheduling fix: all 16 device tests passed (38.631 s), 12 JVM tests passed, lint 0 errors/38 warnings.
+- Final signed APK SHA256: 3c69fc902989e0b8ac65d0849f83855e5dca171b4e6900e092c09626dac144b6.
+- Repeated v1.1 -> final v1.2 upgrade succeeded at emulator 04:56:44; firstInstallTime remained 04:56:39.
+- Final release opened shell and accepted a BV input; attempted real-video screenshot was interrupted by Windows qemu-system-x86_64-headless.exe crash (0xc0000005, 12:57:48 local). Do not count this final attempt as passed playback.

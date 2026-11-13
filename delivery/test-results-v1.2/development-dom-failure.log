@@ -1,0 +1,29 @@
+Performing Streamed Install
+Success
+Performing Streamed Install
+Success
+
+cn.yingxia.player.LifecycleUiTest:.
+cn.yingxia.player.OnlineUiTest:
+Error in shellKeepsSingleInlineVideoRoutesCardsAndSilencesAutomaticAppWakeups(cn.yingxia.player.OnlineUiTest):
+org.junit.ComparisonFailure: expected:<"[none,block,none],true"> but was:<"[block,block,block],true">
+	at org.junit.Assert.assertEquals(Assert.java:117)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at cn.yingxia.player.OnlineUiTest.awaitJs(OnlineUiTest.kt:37)
+	at cn.yingxia.player.OnlineUiTest.shellKeepsSingleInlineVideoRoutesCardsAndSilencesAutomaticAppWakeups(OnlineUiTest.kt:69)
+
+cn.yingxia.player.PlayerIntegrationTest:..............
+
+Time: 49.434
+There was 1 failure:
+1) shellKeepsSingleInlineVideoRoutesCardsAndSilencesAutomaticAppWakeups(cn.yingxia.player.OnlineUiTest)
+org.junit.ComparisonFailure: expected:<"[none,block,none],true"> but was:<"[block,block,block],true">
+	at org.junit.Assert.assertEquals(Assert.java:117)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at cn.yingxia.player.OnlineUiTest.awaitJs(OnlineUiTest.kt:37)
+	at cn.yingxia.player.OnlineUiTest.shellKeepsSingleInlineVideoRoutesCardsAndSilencesAutomaticAppWakeups(OnlineUiTest.kt:69)
+
+FAILURES!!!
+Tests run: 16,  Failures: 1
+
+

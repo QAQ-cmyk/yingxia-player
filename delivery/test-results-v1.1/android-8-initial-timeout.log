@@ -1,0 +1,33 @@
+Performing Streamed Install
+Success
+Performing Streamed Install
+Success
+
+cn.yingxia.player.LifecycleUiTest:.
+cn.yingxia.player.OnlineUiTest:.
+cn.yingxia.player.PlayerIntegrationTest:.......
+Error in chineseSrtVttTrackSwitchOffAndInvalidEncoding(cn.yingxia.player.PlayerIntegrationTest):
+kotlinx.coroutines.TimeoutCancellationException: Timed out waiting for 15000 ms
+	at kotlinx.coroutines.TimeoutKt.TimeoutCancellationException(Timeout.kt:188)
+	at kotlinx.coroutines.TimeoutCoroutine.run(Timeout.kt:156)
+	at kotlinx.coroutines.EventLoopImplBase$DelayedRunnableTask.run(EventLoop.common.kt:505)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+	at kotlinx.coroutines.DefaultExecutor.run(DefaultExecutor.kt:105)
+	at java.lang.Thread.run(Thread.java:764)
+.....
+
+Time: 42.916
+There was 1 failure:
+1) chineseSrtVttTrackSwitchOffAndInvalidEncoding(cn.yingxia.player.PlayerIntegrationTest)
+kotlinx.coroutines.TimeoutCancellationException: Timed out waiting for 15000 ms
+	at kotlinx.coroutines.TimeoutKt.TimeoutCancellationException(Timeout.kt:188)
+	at kotlinx.coroutines.TimeoutCoroutine.run(Timeout.kt:156)
+	at kotlinx.coroutines.EventLoopImplBase$DelayedRunnableTask.run(EventLoop.common.kt:505)
+	at kotlinx.coroutines.EventLoopImplBase.processNextEvent(EventLoop.common.kt:263)
+	at kotlinx.coroutines.DefaultExecutor.run(DefaultExecutor.kt:105)
+	at java.lang.Thread.run(Thread.java:764)
+
+FAILURES!!!
+Tests run: 16,  Failures: 1
+
+

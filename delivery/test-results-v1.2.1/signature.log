@@ -1,0 +1,22 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=YingXia Local, O=YingXia, C=CN
+Signer #1 certificate SHA-256 digest: f7ebbf960581fe7951b20cd162e68f94e3f14d460e527e2d40d5b55775c4450d
+Signer #1 certificate SHA-1 digest: 11f9dbc3efffff24139d06d7831bc080d875670a
+Signer #1 certificate MD5 digest: e363453aab024984389fbca0db2190b5
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 3072
+Signer #1 public key SHA-256 digest: 3b27b15f71a1250c825cd66ae3cef97b2da3a7045a5486809feff9f9a142a595
+Signer #1 public key SHA-1 digest: 3f6ea8034cc9ae1f1947babb53cd1003d970feb3
+Signer #1 public key MD5 digest: 99d820928d1192c68b971b3557defe16
+
+Algorithm       Hash                                                                   Path
+---------       ----                                                                   ----
+SHA256          4C7660236CF5EEC8B75D4E07778E37398EC3533A19652E9D6ECFB774B76B242B       C:\Users\H\OneDrive\文档\ChatGPT…
+

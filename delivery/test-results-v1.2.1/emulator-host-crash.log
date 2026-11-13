@@ -1,0 +1,40 @@
+
+TimeCreated : 2026/11/12 13:52:09
+Message     : 出错应用程序名称： qemu-system-x86_64-headless.exe，版本： 0.0.0.0，时间戳： 0x6ab43b80
+              出错模块名称： unknown， 版本： 0.0.0.0，时间戳： 0x00000000
+              异常代码： 0xc0000005
+              错误偏移： 0x0000023be1d086f3
+              出错进程 ID： 0xAA20
+              出错应用程序开始时间： 0x1DD7269D77C7EE7
+              Faulting 应用程序路径： C:\Users\H\Documents\Codex\2026-10-25\ni\work\android-sdk\emulator\qemu\windows-x86_64\qemu-system-x86_64-headless.exe
+              Faulting 模块路径： unknown
+              Report ID： eaa30f39-ddbb-4408-af25-c7879e5c4fdd
+              Faulting 包全名： 
+              Faulting 程序包相对应用程序 ID：  个
+
+TimeCreated : 2026/11/12 13:50:43
+Message     : 出错应用程序名称： qemu-system-x86_64-headless.exe，版本： 0.0.0.0，时间戳： 0x6ab43b80
+              出错模块名称： unknown， 版本： 0.0.0.0，时间戳： 0x00000000
+              异常代码： 0xc0000005
+              错误偏移： 0x000002302970a440
+              出错进程 ID： 0x6158
+              出错应用程序开始时间： 0x1DD72692EF8B447
+              Faulting 应用程序路径： C:\Users\H\Documents\Codex\2026-10-25\ni\work\android-sdk\emulator\qemu\windows-x86_64\qemu-system-x86_64-headless.exe
+              Faulting 模块路径： unknown
+              Report ID： e8aa8810-28bd-4a31-8528-ec39214d70b6
+              Faulting 包全名： 
+              Faulting 程序包相对应用程序 ID：  个
+
+TimeCreated : 2026/11/12 13:45:49
+Message     : 出错应用程序名称： qemu-system-x86_64-headless.exe，版本： 0.0.0.0，时间戳： 0x6ab43b80
+              出错模块名称： unknown， 版本： 0.0.0.0，时间戳： 0x00000000
+              异常代码： 0xc0000005
+              错误偏移： 0x000002a3bf2e0440
+              出错进程 ID： 0xA49C
+              出错应用程序开始时间： 0x1DD72666B40511B
+              Faulting 应用程序路径： C:\Users\H\Documents\Codex\2026-10-25\ni\work\android-sdk\emulator\qemu\windows-x86_64\qemu-system-x86_64-headless.exe
+              Faulting 模块路径： unknown
+              Report ID： 552f7b31-f64a-4e80-98b5-49ddb6b0b15c
+              Faulting 包全名： 
+              Faulting 程序包相对应用程序 ID：  个
+

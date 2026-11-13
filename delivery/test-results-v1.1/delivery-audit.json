@@ -1,0 +1,9 @@
+{
+  "source_files": 115,
+  "matching_app_source_files": 35,
+  "archive_integrity": "passed",
+  "signing_material_excluded": true,
+  "checksums": "passed",
+  "gallery_local_links": 26,
+  "release_test_media_excluded": true
+}
