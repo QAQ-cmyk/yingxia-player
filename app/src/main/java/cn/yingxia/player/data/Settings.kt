@@ -13,8 +13,6 @@ class SettingsRepository(private val context: Context) {
     private val speed = floatPreferencesKey("speed")
     private val hold = floatPreferencesKey("hold_speed")
     private val scale = floatPreferencesKey("subtitle_scale")
-    private val desktop = booleanPreferencesKey("web_desktop")
-    private val ads = booleanPreferencesKey("web_block_ads")
     private val folders = stringSetPreferencesKey("storage_folders")
     val storageFolders: Flow<List<StorageFolder>> = context.preferences.data.catch {
         if (it is IOException) emit(emptyPreferences()) else throw it
@@ -32,9 +30,7 @@ class SettingsRepository(private val context: Context) {
     }.map { p -> UserSettings(
         runCatching { ThemeMode.valueOf(p[theme] ?: "SYSTEM") }.getOrDefault(ThemeMode.SYSTEM),
         PlaybackRules.speed(p[speed] ?: 1f), if (p[hold] == 3f) 3f else 2f,
-        (p[scale] ?: 1f).coerceIn(.75f, 1.5f), p[desktop] ?: false, p[ads] ?: true) }
-    suspend fun setWebDesktop(value: Boolean) { context.preferences.edit { it[desktop] = value } }
-    suspend fun setBlockWebAds(value: Boolean) { context.preferences.edit { it[ads] = value } }
+        (p[scale] ?: 1f).coerceIn(.75f, 1.5f)) }
     suspend fun setTheme(value: ThemeMode) { context.preferences.edit { it[theme] = value.name } }
     suspend fun setSpeed(value: Float) { context.preferences.edit { it[speed] = PlaybackRules.speed(value) } }
     suspend fun setHoldSpeed(value: Float) { context.preferences.edit { it[hold] = if (value == 3f) 3f else 2f } }
