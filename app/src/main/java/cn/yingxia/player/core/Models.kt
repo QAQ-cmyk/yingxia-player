@@ -22,7 +22,24 @@ data class StorageFolder(val uri: String, val name: String)
 enum class RepeatMode { SEQUENCE, ONE, ALL }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class LibraryAccess { FULL, PARTIAL, NONE }
-enum class SortOrder(val title: String) { NEWEST("最近添加"), NAME("名称"), DURATION("时长"), SIZE("文件大小") }
+enum class SortOrder(val title: String) {
+    NEWEST("最近添加"), OLDEST("最早添加"), RECENT_PLAY("最近播放"),
+    NAME_ASC("名称 A–Z"), NAME_DESC("名称 Z–A"),
+    SIZE_DESC("从大到小"), SIZE_ASC("从小到大"), DURATION("时长")
+}
+fun SortOrder.apply(items: List<VideoItem>): List<VideoItem> {
+    val collator = java.text.Collator.getInstance(java.util.Locale.CHINA).apply { strength = java.text.Collator.PRIMARY }
+    return when (this) {
+        SortOrder.NEWEST -> items.sortedByDescending { it.addedAt }
+        SortOrder.OLDEST -> items.sortedBy { it.addedAt }
+        SortOrder.RECENT_PLAY -> items.sortedByDescending { it.lastPlayedAt }
+        SortOrder.NAME_ASC -> items.sortedWith { a, b -> collator.compare(a.displayTitle(), b.displayTitle()) }
+        SortOrder.NAME_DESC -> items.sortedWith { a, b -> collator.compare(b.displayTitle(), a.displayTitle()) }
+        SortOrder.SIZE_DESC -> items.sortedByDescending { it.sizeBytes }
+        SortOrder.SIZE_ASC -> items.sortedBy { it.sizeBytes }
+        SortOrder.DURATION -> items.sortedByDescending { it.durationMs }
+    }
+}
 enum class FailureKind { ACCESS_DENIED, SOURCE_MISSING, UNSUPPORTED_FORMAT, DECODE_FAILED, INVALID_SUBTITLE, UNKNOWN }
 class PlayerFailure(val kind: FailureKind, override val message: String) : Exception(message)
 data class LoopRange(val startMs: Long, val endMs: Long)
@@ -36,7 +53,7 @@ data class PlaybackState(
     val failure: String? = null,
 )
 data class UserSettings(val theme: ThemeMode = ThemeMode.SYSTEM, val speed: Float = 1f,
-    val holdSpeed: Float = 2f, val subtitleScale: Float = 1f)
+    val holdSpeed: Float = 2f, val subtitleScale: Float = 1f, val sort: SortOrder = SortOrder.NEWEST)
 
 sealed interface PlayerCommand {
     data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null) : PlayerCommand

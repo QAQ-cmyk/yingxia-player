@@ -47,6 +47,19 @@ class PlaybackRulesTest {
         assertEquals(GestureMode.VOLUME, chooseDrag(5f, 100f, 10f, true, false))
         assertEquals(GestureMode.PENDING, chooseDrag(50f, 50f, 10f, true, false))
     }
+    @Test fun sortCoversSizeTimeAndPinyinName() {
+        fun clip(name: String, added: Long = 0, played: Long = 0, size: Long = 0) =
+            VideoItem(VideoId(name), "content://v", name, "文件夹", "k", 1_000, size, addedAt = added, lastPlayedAt = played)
+        val items = listOf(clip("北京", added = 2, played = 1, size = 20), clip("阿里", added = 9, played = 8, size = 5), clip("zebra", added = 3, played = 4, size = 50))
+        assertEquals(listOf("阿里", "zebra", "北京"), SortOrder.NEWEST.apply(items).map { it.name })
+        assertEquals(listOf("北京", "zebra", "阿里"), SortOrder.OLDEST.apply(items).map { it.name })
+        assertEquals(listOf("阿里", "zebra", "北京"), SortOrder.RECENT_PLAY.apply(items).map { it.name })
+        assertEquals(listOf("zebra", "北京", "阿里"), SortOrder.SIZE_DESC.apply(items).map { it.name })
+        assertEquals(listOf("阿里", "北京", "zebra"), SortOrder.SIZE_ASC.apply(items).map { it.name })
+        val ascending = SortOrder.NAME_ASC.apply(items).map { it.name }
+        assertEquals(ascending.asReversed(), SortOrder.NAME_DESC.apply(items).map { it.name })
+        assertTrue(ascending.indexOf("阿里") < ascending.indexOf("北京"))
+    }
     @Test fun permissionRequestsMatchAndroid8_13_14_16() {
         assertArrayEquals(arrayOf("android.permission.READ_EXTERNAL_STORAGE"), mediaPermissions(26))
         assertArrayEquals(arrayOf("android.permission.READ_MEDIA_VIDEO"), mediaPermissions(33))

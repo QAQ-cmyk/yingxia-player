@@ -124,7 +124,9 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     var page by rememberSaveable { mutableStateOf("") }
     var folder by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
-    var order by rememberSaveable { mutableStateOf(SortOrder.NEWEST) }
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val order = settings.sort
+    val scope = rememberCoroutineScope()
     var filter by rememberSaveable { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf(setOf<VideoId>()) }
     var searchFocused by remember { mutableStateOf(false) }
@@ -156,7 +158,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     }
     val current = when {
         page == "hidden" -> hidden
-        page == "history" -> videos.filter { it.lastPlayedAt > 0 }.sortedByDescending { it.lastPlayedAt }
+        page == "history" -> videos.filter { it.lastPlayedAt > 0 }
         tab == 2 -> videos.filter { it.favorite }
         folder != null -> videos.filter { it.folderKey == folder || it.folderKey in managedKeys[folder].orEmpty() || belongsToFolder(it, folder!!) }
         else -> videos
@@ -164,13 +166,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     val visible = remember(current, query, order, filter, page, tab) {
         val filtered = current.filter { query.isBlank() || it.displayTitle().contains(query, true) || it.name.contains(query, true) || it.folder.contains(query, true) }
             .filter { tab != 0 || page.isNotEmpty() || filter != 2 || it.positionMs > 0 && it.durationMs - it.positionMs > 5000 }
-        when {
-            page == "history" -> filtered.sortedByDescending { it.lastPlayedAt }
-            order == SortOrder.NAME -> filtered.sortedBy { it.displayTitle().lowercase() }
-            order == SortOrder.DURATION -> filtered.sortedByDescending { it.durationMs }
-            order == SortOrder.SIZE -> filtered.sortedByDescending { it.sizeBytes }
-            else -> filtered.sortedByDescending { it.addedAt }
-        }
+        order.apply(filtered)
     }
     val titles = listOf("首页", "文件夹", "收藏", "我的")
     val icons = listOf(Icons.Outlined.Home, Icons.Outlined.Folder, Icons.Outlined.FavoriteBorder, Icons.Outlined.PersonOutline)
@@ -265,7 +261,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                             }
                         }
                     }
-                    VideoGrid(vm, visible, videos, access, scanning, scanError, order, { order = it }, query,
+                    VideoGrid(vm, visible, videos, access, scanning, scanError, order, { scope.launch { vm.graph.settings.setSort(it) } }, query,
                         selected, { selected = it }, listKind, current == "tab0" && query.isBlank() && filter != 2,
                         requestAccess, importFile, { video, move -> moving = move; fileItems = listOf(video) }, { renaming = it })
                     }
@@ -338,9 +334,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 Spacer(Modifier.weight(1f))
                 if (scanning) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                 IconButton(onClick = vm::refresh, modifier = Modifier.size(48.dp)) { Icon(Icons.Outlined.Refresh, "刷新视频", modifier = Modifier.size(20.dp)) }
-                if (history) Text("按观看时间", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 8.dp))
-                else Box {
-                    TextButton(onClick = { sortMenu = true }, modifier = Modifier.heightIn(min = 48.dp)) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序", modifier = Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text(order.title, fontSize = 12.sp) }
+                Box {
+                    TextButton(onClick = { sortMenu = true }, modifier = Modifier.heightIn(min = 48.dp)) { Icon(Icons.AutoMirrored.Outlined.Sort, "排序", modifier = Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text(order.title, fontSize = 12.sp, maxLines = 1) }
                     DropdownMenu(sortMenu, { sortMenu = false }) { SortOrder.entries.forEach { o -> DropdownMenuItem(text = { Text(o.title) }, onClick = { onOrder(o); sortMenu = false }) } }
                 }
             }
