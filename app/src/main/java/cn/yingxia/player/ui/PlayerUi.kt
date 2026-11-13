@@ -118,8 +118,7 @@ import kotlin.math.roundToInt
     }
     LaunchedEffect(feedback) { if (feedback != null) { delay(1000); feedback = null } }
     Column(Modifier.fillMaxSize().background(Color.Black).then(if (fullscreen) Modifier else Modifier.statusBarsPadding())) {
-        BoxWithConstraints(Modifier.fillMaxWidth().then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
-            val seekLift = (maxHeight * 0.2f - 8.dp).coerceIn(4.dp, maxHeight * 0.25f)
+        Box(Modifier.fillMaxWidth().then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
             Media3VideoSurface(vm.graph.player, settings.subtitleScale, Modifier.fillMaxSize())
             key(video.id) {
                 AndroidView(factory = { PlayerGestureView(it) }, modifier = Modifier.fillMaxSize(), update = { view ->
@@ -146,10 +145,10 @@ import kotlin.math.roundToInt
             }
             if (state.buffering && state.failure == null) CircularProgressIndicator(Modifier.align(Alignment.Center).size(32.dp), color = BrandPink, strokeWidth = 3.dp)
             if (state.boosting && preview == null && feedback == null) {
-                Surface(Modifier.align(androidx.compose.ui.BiasAlignment(0f, -.38f)).testTag("boost-hint"),
-                    shape = RoundedCornerShape(20.dp), color = Color(0xFFF8F4F6).copy(alpha = .88f)) {
-                    Text("▶▶ ${speedText(state.effectiveSpeed)} 加速中", Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = Color(0xFF655B62), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Surface(Modifier.align(androidx.compose.ui.BiasAlignment(0f, -.72f)).testTag("boost-hint"),
+                    shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = .22f)) {
+                    Text("▶▶ ${speedText(state.effectiveSpeed)} 加速中", Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                        color = Color.White.copy(alpha = .72f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
             if (preview != null || feedback != null) {
@@ -172,14 +171,21 @@ import kotlin.math.roundToInt
                     PlayerIcon(Icons.Outlined.MoreHoriz, "播放工具", { sheet = "tools" }, size = 22)
                 }
             }
+            FrameVisibility(chrome && !state.boosting, Modifier.align(androidx.compose.ui.BiasAlignment(0f, -.55f)),
+                fadeIn(motionTween(180)), fadeOut(motionTween(140))) {
+                Surface(onClick = { sheet = "speed" }, shape = RoundedCornerShape(20.dp), color = Color.White.copy(alpha = .16f)) {
+                    Text("长按 ${speedText(settings.holdSpeed)}", Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        color = Color.White.copy(alpha = .7f), fontSize = 12.sp)
+                }
+            }
             FrameVisibility(chrome, Modifier.align(Alignment.BottomCenter),
                 fadeIn(motionTween(180)) + slideInVertically(tween(220, easing = FastOutSlowInEasing)) { it / 5 },
                 fadeOut(motionTween(140)) + slideOutVertically(tween(160, easing = FastOutSlowInEasing)) { it / 5 }) {
-                Row(Modifier.fillMaxWidth().padding(bottom = seekLift).then(edge)
+                Row(Modifier.fillMaxWidth().then(edge)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .48f))))
-                    .padding(start = 2.dp, end = 4.dp, top = 6.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PlayerIcon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (state.isPlaying) "暂停" else "播放", { vm.command(PlayerCommand.Toggle); controls = true }, size = 26)
+                    .padding(start = 2.dp, end = 4.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     PlayerIcon(Icons.Outlined.SkipPrevious, "上一条", { playRelative(-1) }, size = 20)
+                    PlayerIcon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (state.isPlaying) "暂停" else "播放", { vm.command(PlayerCommand.Toggle); controls = true }, size = 26)
                     PlayerIcon(Icons.Outlined.SkipNext, "下一条", { playRelative(1) }, size = 20)
                     AndroidView(factory = { CommitSeekBar(it) }, modifier = Modifier.weight(1f).height(32.dp).testTag("seek-bar"), update = {
                         it.durationMs = state.durationMs
@@ -226,8 +232,7 @@ import kotlin.math.roundToInt
                         }
                     }
                     item {
-                        FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AssistChip(onClick = { sheet = "speed" }, label = { Text("长按 ${speedText(settings.holdSpeed)}") }, leadingIcon = { Icon(Icons.Outlined.TouchApp, null, Modifier.size(16.dp)) })
+                        if (state.loop != null || remaining > 0) FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (state.loop != null) AssistChip(onClick = { sheet = "loop" }, label = { Text("A-B 循环中") })
                             if (remaining > 0) AssistChip(onClick = { sheet = "sleep" }, label = { Text("${durationText(remaining)} 后暂停") })
                         }
