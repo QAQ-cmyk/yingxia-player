@@ -1,6 +1,7 @@
 package cn.yingxia.player
 
 import cn.yingxia.player.core.*
+import cn.yingxia.player.data.LocalFileManager
 import cn.yingxia.player.data.mediaPermissions
 import org.junit.Assert.*
 import org.junit.Test
@@ -51,5 +52,11 @@ class PlaybackRulesTest {
         assertArrayEquals(arrayOf("android.permission.READ_MEDIA_VIDEO"), mediaPermissions(33))
         val selected = arrayOf("android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
         assertArrayEquals(selected, mediaPermissions(34)); assertArrayEquals(selected, mediaPermissions(36))
+    }
+    @Test fun folderNamesCannotEscapeSelectedDirectory() {
+        listOf("学习", "课程 01", "旅行.2026").forEach { assertTrue(LocalFileManager.validFolderName(it)) }
+        listOf("", "  ", "..", "../Movies", "a\\b", "a:b", "a\nb", "x".repeat(61)).forEach {
+            assertFalse(it, LocalFileManager.validFolderName(it))
+        }
     }
 }

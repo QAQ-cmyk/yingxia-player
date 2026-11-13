@@ -115,7 +115,13 @@ internal class CommitSeekBar(context: Context) : SeekBar(context) {
     init {
         max = 10_000
         contentDescription = "播放进度"
-        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(251, 114, 153))
+        // Keep the hit target tall, but draw the track in its lower portion.
+        addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val topPad = (height * 0.62f).toInt()
+            val bottomPad = (height * 0.06f).toInt()
+            if (paddingTop != topPad || paddingBottom != bottomPad) setPadding(paddingLeft, topPad, paddingRight, bottomPad)
+        }
+        val tint = android.content.res.ColorStateList.valueOf(android.graphics.Color.rgb(224, 138, 79))
         progressTintList = tint; thumbTintList = tint
         setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar) { tracking = true; cancelled = false }

@@ -34,8 +34,7 @@ data class PlaybackState(
     val failure: String? = null,
 )
 data class UserSettings(val theme: ThemeMode = ThemeMode.SYSTEM, val speed: Float = 1f,
-    val holdSpeed: Float = 2f, val subtitleScale: Float = 1f,
-    val webDesktop: Boolean = false, val blockWebAds: Boolean = true)
+    val holdSpeed: Float = 2f, val subtitleScale: Float = 1f)
 
 sealed interface PlayerCommand {
     data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null) : PlayerCommand
