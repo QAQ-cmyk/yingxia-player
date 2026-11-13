@@ -54,6 +54,7 @@ import cn.yingxia.player.AppViewModel
 import cn.yingxia.player.core.*
 import cn.yingxia.player.playback.Media3VideoSurface
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable fun PlayerPage(vm: AppViewModel, state: PlaybackState, settings: UserSettings) {
@@ -284,6 +285,13 @@ import kotlin.math.roundToInt
                         }
                     }
                     Spacer(Modifier.height(16.dp))
+                    val effectScope = rememberCoroutineScope()
+                    EffectSwitch("清晰度", settings.clarity, "放大较低分辨率的画面，并略微提高对比。不能找回已经丢失的细节。") {
+                        effectScope.launch { vm.graph.settings.setClarity(it) }
+                    }
+                    EffectSwitch("音质增强", settings.audioEnhance, "略微加强高低音，并限制爆音。不会凭空补上录音里没有的声音。") {
+                        effectScope.launch { vm.graph.settings.setAudioEnhance(it) }
+                    }
                     Text("播放顺序", style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { RepeatMode.entries.forEach { mode -> FilterChip(state.repeatMode == mode, { vm.command(PlayerCommand.SetRepeat(mode)) }, label = { Text(repeatLabel(mode)) }) } }
                     Text("亮度", modifier = Modifier.padding(top = 10.dp), style = MaterialTheme.typography.titleSmall)
@@ -306,6 +314,15 @@ import kotlin.math.roundToInt
     }
 }
 
+@Composable private fun EffectSwitch(title: String, checked: Boolean, description: String, onChecked: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked, onChecked)
+    }
+}
 @Composable private fun BoxScope.FrameVisibility(visible: Boolean, modifier: Modifier, enter: androidx.compose.animation.EnterTransition, exit: androidx.compose.animation.ExitTransition, content: @Composable () -> Unit) {
     AnimatedVisibility(visible, modifier, enter, exit) { content() }
 }

@@ -1,6 +1,8 @@
 package cn.yingxia.player
 
 import cn.yingxia.player.core.*
+import cn.yingxia.player.playback.ClarityMode
+import cn.yingxia.player.playback.ClarityPolicy
 import cn.yingxia.player.data.LocalFileManager
 import cn.yingxia.player.data.mediaPermissions
 import org.junit.Assert.*
@@ -59,6 +61,14 @@ class PlaybackRulesTest {
         val ascending = SortOrder.NAME_ASC.apply(items).map { it.name }
         assertEquals(ascending.asReversed(), SortOrder.NAME_DESC.apply(items).map { it.name })
         assertTrue(ascending.indexOf("阿里") < ascending.indexOf("北京"))
+    }
+    @Test fun clarityStaysOffUntilAskedAndSkipsUpscaleOnLargeOrWeakVideo() {
+        assertEquals(ClarityMode.OFF, ClarityPolicy.choose(false, 480, false))
+        assertEquals(ClarityMode.UPSCALE, ClarityPolicy.choose(true, 480, false))
+        assertEquals(720, ClarityPolicy.targetHeight(480))
+        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 1080, false))
+        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 480, true))
+        assertEquals(ClarityMode.CONTRAST, ClarityPolicy.choose(true, 0, false))
     }
     @Test fun permissionRequestsMatchAndroid8_13_14_16() {
         assertArrayEquals(arrayOf("android.permission.READ_EXTERNAL_STORAGE"), mediaPermissions(26))
