@@ -1,11 +1,14 @@
 @file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 package cn.yingxia.player.playback
 
+import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
 import androidx.media3.common.*
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
+import androidx.media3.effect.Contrast
+import androidx.media3.effect.Presentation
 import androidx.media3.exoplayer.ExoPlayer
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.SettingsRepository
@@ -22,7 +25,10 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     override val events = mutableEvents.asSharedFlow()
     internal val cues = MutableStateFlow<List<Cue>>(emptyList())
     internal val aspectRatio = MutableStateFlow(16f / 9f)
-    internal val surfacePlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
+    private val audioEnhance = EnhancementAudioProcessor()
+    private val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).let { it.isLowRamDevice || it.memoryClass < 192 }
+    private var clarityKey = ""
+    internal val surfacePlayer: ExoPlayer = ExoPlayer.Builder(context, EnhancingRenderersFactory(context, audioEnhance)).build().apply {
         setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
         setHandleAudioBecomingNoisy(true)
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
@@ -41,7 +47,10 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 }
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) aspectRatio.value = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+                if (videoSize.width > 0 && videoSize.height > 0) {
+                    aspectRatio.value = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
+                    scope.launch { applyClarity(settings.settings.first().clarity, videoSize.height) }
+                }
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 updatePosition()
@@ -68,6 +77,13 @@ class Media3Controller(context: Context, private val repository: VideoRepository
             override fun onCues(cueGroup: CueGroup) { cues.value = cueGroup.cues }
             override fun onPlayerError(error: PlaybackException) {
                 endBoost()
+                if (clarityKey.startsWith("on") && error.errorCode in 7000..7003) {
+                    clarityKey = ""
+                    runCatching { surfacePlayer.setVideoEffects(emptyList()) }
+                    scope.launch { settings.setClarity(false) }
+                    report(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备开不了清晰度，已自动关闭"))
+                    return
+                }
                 val failure = when (error.errorCode) {
                     PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> PlayerFailure(FailureKind.ACCESS_DENIED, "视频访问权限已失效，请重新授权")
                     PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> PlayerFailure(FailureKind.SOURCE_MISSING, "视频文件已被移动或删除")
@@ -83,6 +99,8 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 val base = preferences.speed
                 mutableState.update { it.copy(baseSpeed = base, effectiveSpeed = if (it.boosting) PlaybackRules.temporarySpeed(base, preferences.holdSpeed) else base) }
                 surfacePlayer.setPlaybackSpeed(state.value.effectiveSpeed)
+                audioEnhance.active = preferences.audioEnhance
+                applyClarity(preferences.clarity, surfacePlayer.videoSize.height)
             }
         }
         scope.launch {
@@ -259,6 +277,25 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         val position = surfacePlayer.currentPosition.coerceAtLeast(0)
         lastSavedAt = System.currentTimeMillis()
         scope.launch { repository.saveProgress(video.id, position) }
+    }
+    private fun applyClarity(enabled: Boolean, height: Int) {
+        val mode = ClarityPolicy.choose(enabled, height, lowRam)
+        val key = "${if (enabled) "on" else "off"}-$mode-$height"
+        if (key == clarityKey) return
+        val effects = when (mode) {
+            ClarityMode.OFF -> emptyList()
+            ClarityMode.CONTRAST -> listOf(Contrast(ClarityPolicy.CONTRAST))
+            ClarityMode.UPSCALE -> listOf(Presentation.createForHeight(ClarityPolicy.targetHeight(height)), Contrast(ClarityPolicy.CONTRAST))
+        }
+        if (runCatching { surfacePlayer.setVideoEffects(effects) }.isSuccess) clarityKey = key
+        else {
+            clarityKey = key
+            if (enabled) {
+                runCatching { surfacePlayer.setVideoEffects(emptyList()) }
+                scope.launch { settings.setClarity(false) }
+                mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.DECODE_FAILED, "这台设备开不了清晰度，已自动关闭")))
+            }
+        }
     }
     private fun endBoost() {
         if (!state.value.boosting) return
