@@ -289,6 +289,9 @@ import kotlin.math.roundToInt
                     EffectSwitch("清晰度", settings.clarity, "放大较低分辨率的画面，并略微提高对比。不能找回已经丢失的细节。") {
                         effectScope.launch { vm.graph.settings.setClarity(it) }
                     }
+                    EffectSwitch("放大到 4K", settings.upscale4k, "把 1080p 及更低的画面放大到接近 4K，并略微提高对比。只是放大现有画面，不会生成真正的 4K 细节。内存不够时会自动关闭。") {
+                        effectScope.launch { vm.graph.settings.setUpscale4k(it) }
+                    }
                     EffectSwitch("音质增强", settings.audioEnhance, "略微加强高低音，并限制爆音。不会凭空补上录音里没有的声音。") {
                         effectScope.launch { vm.graph.settings.setAudioEnhance(it) }
                     }
