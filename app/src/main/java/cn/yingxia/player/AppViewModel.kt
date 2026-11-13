@@ -107,6 +107,13 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     fun favorite(ids: Set<VideoId>, favorite: Boolean) {
         viewModelScope.launch { graph.repository.setFavorite(ids, favorite); notify(if (favorite) "已加入收藏" else "已取消收藏") }
     }
+    fun rename(id: VideoId, displayName: String) {
+        viewModelScope.launch {
+            runCatching { graph.repository.rename(id, displayName) }
+                .onSuccess { notify("已更新显示名称") }
+                .onFailure { notify(it.message ?: "无法重命名") }
+        }
+    }
     fun importVideo(uri: String) {
         viewModelScope.launch {
             runCatching { graph.repository.importVideo(uri) }.onSuccess { open(it, listOf(it)) }

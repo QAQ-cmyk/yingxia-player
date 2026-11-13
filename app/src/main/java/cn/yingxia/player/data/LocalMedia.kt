@@ -121,7 +121,8 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                     val existing = latest[to]
                     val recent = if ((existing?.lastPlayedAt ?: 0) > old.lastPlayedAt) existing!! else old
                     val merged = old.copy(id = to, favorite = old.favorite || existing?.favorite == true,
-                        hidden = old.hidden || existing?.hidden == true, positionMs = recent.positionMs, lastPlayedAt = recent.lastPlayedAt)
+                        hidden = old.hidden || existing?.hidden == true, positionMs = recent.positionMs, lastPlayedAt = recent.lastPlayedAt,
+                        displayName = old.displayName ?: existing?.displayName)
                     dao.upsert(listOf(merged)); dao.relocateBookmarks(from, to); dao.removeAlias(from)
                     latest.remove(from); latest[to] = merged
                 }
@@ -132,7 +133,8 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                         source = if (old?.source == "document") "document" else video.source,
                         hidden = old?.hidden ?: false, favorite = old?.favorite ?: false,
                         positionMs = old?.positionMs ?: 0, lastPlayedAt = old?.lastPlayedAt ?: 0,
-                        subtitleUri = old?.subtitleUri, subtitleName = old?.subtitleName)
+                        subtitleUri = old?.subtitleUri, subtitleName = old?.subtitleName,
+                        displayName = old?.displayName)
                 })
                 // A persisted document grant remains usable even without broad gallery access.
                 val scannedIds = fresh.map { it.id.value }.toSet()
@@ -216,6 +218,13 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     override suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean) = db.withTransaction {
         ids.map { it.value }.chunked(900).forEach { dao.favorite(it, favorite) }
     }
+    override suspend fun rename(id: VideoId, displayName: String) {
+        val trimmed = displayName.trim()
+        require(trimmed.isNotEmpty() && trimmed.length <= 80) { "名称需要在 1 到 80 个字之间" }
+        require(trimmed.none { it == '\n' || it == '\r' || it == '\u0000' }) { "名称不能包含换行" }
+        check(dao.get(id.value) != null) { "找不到这个视频" }
+        dao.rename(id.value, trimmed)
+    }
     override suspend fun saveProgress(id: VideoId, positionMs: Long) { dao.progress(id.value, positionMs.coerceAtLeast(0), System.currentTimeMillis()) }
     override suspend fun saveSubtitle(id: VideoId, attachment: SubtitleAttachment) { dao.subtitle(id.value, attachment.uri, attachment.name) }
     override suspend fun saveBookmark(videoId: VideoId, positionMs: Long, note: String, id: Long) {
@@ -233,7 +242,8 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                 val old = dao.get(original.id.value) ?: original.entity()
                 val moved = imported.entity().copy(folder = folderName, folderKey = "managed:$folderName",
                     favorite = old.favorite, hidden = old.hidden, positionMs = old.positionMs,
-                    lastPlayedAt = old.lastPlayedAt, subtitleUri = old.subtitleUri, subtitleName = old.subtitleName)
+                    lastPlayedAt = old.lastPlayedAt, subtitleUri = old.subtitleUri, subtitleName = old.subtitleName,
+                    displayName = old.displayName)
                 dao.upsert(listOf(moved))
                 if (old.id != moved.id) { dao.unavailable(old.id); dao.relocateBookmarks(old.id, moved.id) }
                 moved.domain()
