@@ -60,7 +60,7 @@ fun belongsToFolder(video: VideoItem, folderUri: String): Boolean = runCatching 
                 OutlinedButton(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) { Text("新建文件夹") }
             } else Text("这会从手机存储中删除原视频，系统相册也会失去该文件，无法在映匣中撤销。仅想不显示时，请使用「隐藏」。")
         } },
-        confirmButton = { TextButton(onClick = confirm, enabled = !moving || target != null) { Text(if (moving) "开始移动" else "删除原文件") } },
+        confirmButton = { TextButton(onClick = confirm, enabled = !moving || target != null) { Text(if (moving) "开始移动" else "删除原文件", color = if (moving) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } })
 }
 

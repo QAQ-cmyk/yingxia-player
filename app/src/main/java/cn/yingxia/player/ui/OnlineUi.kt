@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -233,22 +235,28 @@ import java.io.ByteArrayInputStream
                     DropdownMenuItem(text = { Text("刷新内容") }, onClick = { menu = false; web.reload() })
                     DropdownMenuItem(text = { Text("打开链接或 BV 号") }, onClick = { menu = false; enterLink = true })
                     DropdownMenuItem(text = { Text(if (settings.webDesktop) "切换手机版网页" else "切换电脑版网页") }, onClick = { menu = false; scope.launch { vm.graph.settings.setWebDesktop(!settings.webDesktop) } })
-                    DropdownMenuItem(text = { Text(if (settings.blockWebAds) "广告过滤：开（点击关闭）" else "广告过滤：关（点击开启）") }, onClick = { menu = false; scope.launch { vm.graph.settings.setBlockWebAds(!settings.blockWebAds) } })
+                    DropdownMenuItem(text = { Text(if (settings.blockWebAds) "关闭页面广告过滤" else "开启页面广告过滤") }, leadingIcon = { Icon(if (settings.blockWebAds) Icons.Outlined.Check else Icons.Outlined.Block, null) }, onClick = { menu = false; scope.launch { vm.graph.settings.setBlockWebAds(!settings.blockWebAds) } })
                     DropdownMenuItem(text = { Text("清除网页登录状态") }, onClick = { menu = false; clearLogin = true })
                 }
             }
         }
-        if (progress < 100) LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
-        if (error != null) Surface(color = MaterialTheme.colorScheme.errorContainer) {
-            Column(Modifier.padding(16.dp)) { Text(error!!); TextButton(onClick = { error = null; web.reload() }) { Text("重新加载") } }
-        }
+        if (progress < 100) LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth().semantics { stateDescription = "正在加载，$progress%" })
+        error?.let { message -> Surface(color = MaterialTheme.colorScheme.errorContainer) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(message, color = MaterialTheme.colorScheme.onErrorContainer)
+                Row {
+                    TextButton(onClick = { error = null; web.reload() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("重新加载") }
+                    TextButton(onClick = { error = null }, modifier = Modifier.heightIn(min = 48.dp)) { Text("关闭") }
+                }
+            }
+        } }
         AndroidView(factory = { web }, modifier = Modifier.weight(1f).fillMaxWidth().testTag("bilibili-webview"))
         NavigationBar(windowInsets = WindowInsets(0, 0, 0, 0)) {
-            NavigationBarItem(selected = !isAccount && !isSearch, onClick = { web.loadUrl(if (settings.webDesktop) "https://www.bilibili.com/" else BilibiliSource.home) }, icon = { Icon(Icons.Outlined.Home, null) }, label = { Text("推荐") }, modifier = Modifier.testTag("online-home"))
-            NavigationBarItem(selected = isSearch, onClick = { web.loadUrl(BilibiliSource.search) }, icon = { Icon(Icons.Outlined.Search, null) }, label = { Text("搜索") }, modifier = Modifier.testTag("online-search"))
+            NavigationBarItem(selected = !isAccount && !isSearch && !isVideo, onClick = { web.loadUrl(if (settings.webDesktop) "https://www.bilibili.com/" else BilibiliSource.home) }, icon = { Icon(Icons.Outlined.Home, "推荐") }, label = { Text("推荐") }, modifier = Modifier.testTag("online-home"))
+            NavigationBarItem(selected = isSearch, onClick = { web.loadUrl(BilibiliSource.search) }, icon = { Icon(Icons.Outlined.Search, "搜索") }, label = { Text("搜索") }, modifier = Modifier.testTag("online-search"))
             // Login resolves an existing session directly to account via the explicit gourl.
             // Starting here avoids loading the whole account site before showing a login form.
-            NavigationBarItem(selected = isAccount, onClick = { web.stopLoading(); web.loadUrl(BilibiliSource.login) }, icon = { Icon(Icons.Outlined.AccountCircle, null) }, label = { Text("账号") }, modifier = Modifier.testTag("online-account"))
+            NavigationBarItem(selected = isAccount, onClick = { web.stopLoading(); web.loadUrl(BilibiliSource.login) }, icon = { Icon(Icons.Outlined.AccountCircle, "账号") }, label = { Text("账号") }, modifier = Modifier.testTag("online-account"))
         }
     }
     if (enterLink) AlertDialog(onDismissRequest = { enterLink = false }, title = { Text("打开 B 站视频") },
