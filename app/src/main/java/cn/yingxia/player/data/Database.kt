@@ -14,7 +14,8 @@ data class VideoEntity(
     val accessible: Boolean = true, val hidden: Boolean = false, val favorite: Boolean = false,
     val positionMs: Long = 0, val lastPlayedAt: Long = 0,
     val subtitleUri: String? = null, val subtitleName: String? = null,
-    val displayName: String? = null,
+    val displayName: String? = null, val rotation: Int = 0,
+    val mirrored: Boolean = false, val cropBars: Boolean = false,
 )
 @Entity(tableName = "bookmarks", indices = [Index("videoId")])
 data class BookmarkEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -30,6 +31,10 @@ data class BookmarkEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
     @Query("UPDATE videos SET hidden=:hidden WHERE id IN (:ids)") suspend fun hidden(ids: List<String>, hidden: Boolean)
     @Query("UPDATE videos SET favorite=:favorite WHERE id IN (:ids)") suspend fun favorite(ids: List<String>, favorite: Boolean)
     @Query("UPDATE videos SET displayName=:name WHERE id=:id") suspend fun rename(id: String, name: String)
+    @Query("UPDATE videos SET rotation=:rotation, mirrored=:mirrored, cropBars=:crop WHERE id=:id")
+    suspend fun picture(id: String, rotation: Int, mirrored: Boolean, crop: Boolean)
+    @Query("UPDATE videos SET favorite=:favorite, positionMs=:position, lastPlayedAt=:played, displayName=:displayName, rotation=:rotation, mirrored=:mirrored, cropBars=:crop WHERE id=:id")
+    suspend fun restore(id: String, favorite: Boolean, position: Long, played: Long, displayName: String?, rotation: Int, mirrored: Boolean, crop: Boolean)
     @Query("UPDATE videos SET positionMs=:position, lastPlayedAt=:time WHERE id=:id") suspend fun progress(id: String, position: Long, time: Long)
     @Query("UPDATE videos SET subtitleUri=:uri, subtitleName=:name WHERE id=:id") suspend fun subtitle(id: String, uri: String, name: String)
     @Query("SELECT * FROM bookmarks ORDER BY id DESC") fun observeBookmarks(): Flow<List<BookmarkEntity>>
@@ -40,7 +45,7 @@ data class BookmarkEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
     @Query("DELETE FROM videos WHERE id=:id") suspend fun removeAlias(id: String)
     @Query("UPDATE videos SET positionMs=0, lastPlayedAt=0") suspend fun clearHistory()
 }
-@Database(entities = [VideoEntity::class, BookmarkEntity::class], version = 2, exportSchema = true)
+@Database(entities = [VideoEntity::class, BookmarkEntity::class], version = 3, exportSchema = true)
 abstract class VideoDatabase : RoomDatabase() { abstract fun videos(): VideoDao }
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -48,10 +53,17 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("ALTER TABLE videos ADD COLUMN displayName TEXT")
     }
 }
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE videos ADD COLUMN rotation INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE videos ADD COLUMN mirrored INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE videos ADD COLUMN cropBars INTEGER NOT NULL DEFAULT 0")
+    }
+}
 
 fun VideoEntity.domain() = VideoItem(VideoId(id), uri, name, folder, folderKey, durationMs,
     sizeBytes, width, height, addedAt, source, accessible, hidden, favorite, positionMs,
-    lastPlayedAt, subtitleUri, subtitleName, displayName)
+    lastPlayedAt, subtitleUri, subtitleName, displayName, rotation, mirrored, cropBars)
 fun VideoItem.entity() = VideoEntity(id.value, uri, name, folder, folderKey, durationMs,
     sizeBytes, width, height, addedAt, source, accessible, hidden, favorite, positionMs,
-    lastPlayedAt, subtitleUri, subtitleName, displayName)
+    lastPlayedAt, subtitleUri, subtitleName, displayName, rotation, mirrored, cropBars)

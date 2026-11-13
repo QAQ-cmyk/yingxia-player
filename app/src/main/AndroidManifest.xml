@@ -11,9 +11,13 @@
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
     <application android:name=".YingXiaApplication" android:label="映匣" android:theme="@style/Theme.YingXia"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true" android:allowAudioPlaybackCapture="false">
+        <provider android:name=".BackupFileProvider" android:authorities="${applicationId}.files"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden">
             <intent-filter>

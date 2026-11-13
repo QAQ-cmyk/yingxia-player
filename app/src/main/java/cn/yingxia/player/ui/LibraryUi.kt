@@ -150,7 +150,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     }
     val requestAccess = { permissions.launch(mediaPermissions()) }
     val importFile = { openFile.launch(Unit) }
-    val showSearch = page != "hidden" && page != "settings" && page != "bookmarks" && !(tab == 3 && page.isEmpty()) && !(tab == 1 && folder == null && page.isEmpty())
+    val showSearch = page != "hidden" && page != "settings" && page != "bookmarks" && page != "backup" && !(tab == 3 && page.isEmpty()) && !(tab == 1 && folder == null && page.isEmpty())
     SideEffect { onNavigationVisible(!searchFocused || !showSearch) }
     DisposableEffect(Unit) { onDispose { onNavigationVisible(true) } }
     BackHandler(selected.isNotEmpty() || page.isNotEmpty() || folder != null) {
@@ -164,7 +164,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         else -> videos
     }
     val visible = remember(current, query, order, filter, page, tab) {
-        val filtered = current.filter { query.isBlank() || it.displayTitle().contains(query, true) || it.name.contains(query, true) || it.folder.contains(query, true) }
+        val filtered = current.filter { matchesLibraryQuery(it.displayTitle(), it.name, it.folder, query) }
             .filter { tab != 0 || page.isNotEmpty() || filter != 2 || it.positionMs > 0 && it.durationMs - it.positionMs > 5000 }
         order.apply(filtered)
     }
@@ -186,7 +186,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
-            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "transfer" -> "同一 Wi-Fi 互传"; "cloud" -> "云端传输"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
+            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "backup" -> "备份与恢复"; "transfer" -> "同一 Wi-Fi 互传"; "cloud" -> "云端传输"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
                 else Spacer(Modifier.width(12.dp))
@@ -237,6 +237,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }, label = "library-screen") { current ->
             when (current) {
                 "settings" -> SettingsPage(vm)
+                "backup" -> BackupPage(vm)
                 "transfer" -> TransferPage(vm)
                 "cloud" -> CloudPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
@@ -511,6 +512,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     MenuRow(Icons.Outlined.VisibilityOff, "隐藏管理", "查看与恢复隐藏的视频", { onPage("hidden") })
                     MenuRow(Icons.Outlined.Wifi, "同一 Wi-Fi 互传", "附近的映匣互相收发视频", { onPage("transfer") })
                     MenuRow(Icons.Outlined.CloudUpload, "云端传输", "用你自己的 WebDAV 搬运视频", { onPage("cloud") })
+                    MenuRow(Icons.Outlined.SaveAlt, "备份与恢复", "导出收藏、进度和设置", { onPage("backup") })
                 }
             }
         }
@@ -549,8 +551,18 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         item { SettingsTitle("默认播放速度"); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PlaybackRules.speeds.forEach { speed -> FilterChip(settings.speed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }) } } }
         item { SettingsTitle("长按临时加速"); Row { listOf(2f, 3f).forEach { speed -> FilterChip(settings.holdSpeed == speed, { scope.launch { vm.graph.settings.setHoldSpeed(speed) } }, label = { Text(speedText(speed)) }, modifier = Modifier.padding(end = 8.dp)) } }; Text("松手恢复原速度；当前速度更快时不会降速。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { SettingsTitle("字幕字号"); FlowRow { listOf(.75f, 1f, 1.25f, 1.5f).forEach { scale -> FilterChip(settings.subtitleScale == scale, { scope.launch { vm.graph.settings.setSubtitleScale(scale) } }, label = { Text(when (scale) { .75f -> "小"; 1f -> "标准"; 1.25f -> "大"; else -> "特大" }) }, modifier = Modifier.padding(end = 8.dp)) } } }
+        item { SettingsTitle("手势灵敏度"); FlowRow { listOf(0.7f to "低", 1f to "标准", 1.4f to "高").forEach { (value, label) -> FilterChip(settings.gestureSensitivity == value, { scope.launch { vm.graph.settings.setGestureSensitivity(value) } }, label = { Text(label) }, modifier = Modifier.padding(end = 8.dp)) } }; Text("低一些更不容易误滑进度。双指放大不受这项影响。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("播放时防误触", style = MaterialTheme.typography.titleMedium)
+                    Text("播放中先挡住单击和滑动，点画面左侧的锁可以解开。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(settings.touchGuard, { scope.launch { vm.graph.settings.setTouchGuard(it) } })
+            }
+        }
         item { OutlinedButton(onClick = { context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("管理系统相册权限") }; Text("多次拒绝授权后，可在系统设置中重新允许访问。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        item { SettingsTitle("使用提示"); Text("• 点击画面显示控制，双击播放或暂停，左右滑动调节进度。\n• 全屏时左侧调亮度，右侧调音量；长按画面临时加速。\n• 长按视频卡片可以多选，方便收藏、隐藏或移动。\n• 隐藏可以在底部提示里撤销，不会删除手机里的文件。\n• 视频与记录只存在这台手机，卸载会清除设置与记录。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { SettingsTitle("使用提示"); Text("• 点击画面显示控制，双击播放或暂停，左右滑动调节进度。\n• 双指捏合放大画面，不改进度和亮度。播放工具里可以旋转、镜像和裁掉黑边。\n• 全屏时左侧调亮度，右侧调音量；长按画面临时加速。\n• 搜索可以用拼音首字母，例如 pjh。\n• 长按视频卡片可以多选。隐藏可以撤销，不会删除文件。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { OutlinedButton(onClick = { clearConfirm = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("清除播放历史与续播进度") } }
     }
     if (clearConfirm) AlertDialog(onDismissRequest = { clearConfirm = false }, title = { Text("清除播放历史？") }, text = { Text("播放记录和续播进度会被清除。收藏、书签和视频文件不受影响。") },
