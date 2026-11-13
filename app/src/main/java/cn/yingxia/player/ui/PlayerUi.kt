@@ -62,6 +62,7 @@ import kotlin.math.roundToInt
     var controls by rememberSaveable { mutableStateOf(true) }
     var locked by rememberSaveable { mutableStateOf(false) }
     var sheet by rememberSaveable { mutableStateOf<String?>(null) }
+    var casting by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<Long?>(null) }
@@ -75,6 +76,7 @@ import kotlin.math.roundToInt
     val video = state.video ?: return
     val current = videos.firstOrNull { it.id == video.id } ?: video
     val remaining by vm.graph.timer.remainingMs.collectAsStateWithLifecycle()
+    val untilEnd by vm.graph.timer.untilEnd.collectAsStateWithLifecycle()
     val latestState by rememberUpdatedState(state)
     val close = {
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -170,6 +172,7 @@ import kotlin.math.roundToInt
                     PlayerIcon(Icons.Outlined.Home, "回到列表", close, size = 22)
                     Text(current.displayTitle(), Modifier.weight(1f).padding(horizontal = 4.dp), color = Color.White.copy(alpha = .92f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     TextButton(onClick = { sheet = "speed" }, modifier = Modifier.testTag("speed-button").heightIn(min = 40.dp)) { Text(speedText(state.baseSpeed), color = Color.White, maxLines = 1) }
+                    PlayerIcon(Icons.Outlined.Cast, "投屏", { casting = true }, size = 22)
                     PlayerIcon(Icons.Outlined.MoreHoriz, "播放工具", { sheet = "tools" }, size = 22)
                 }
             }
@@ -232,7 +235,7 @@ import kotlin.math.roundToInt
                     item {
                         if (state.loop != null || remaining > 0) FlowRow(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (state.loop != null) AssistChip(onClick = { sheet = "loop" }, label = { Text("A-B 循环中") })
-                            if (remaining > 0) AssistChip(onClick = { sheet = "sleep" }, label = { Text("${durationText(remaining)} 后暂停") })
+                            if (remaining > 0) AssistChip(onClick = { sheet = "sleep" }, label = { Text(if (untilEnd) "播完当前后暂停" else "${durationText(remaining)} 后暂停") })
                         }
                     }
                     item {
@@ -297,6 +300,7 @@ import kotlin.math.roundToInt
             }
         }
     }
+    if (casting) CastDialog { casting = false }
     if (renaming) RenameVideoDialog(renameText, { renaming = false }) { name ->
         vm.rename(current.id, name); renaming = false
     }
