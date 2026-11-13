@@ -176,7 +176,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (!searchFocused || !showSearch) NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
+            if (!searchFocused || !showSearch) NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 titles.forEachIndexed { i, title ->
                     NavigationBarItem(selected = tab == i, onClick = { tab = i; page = ""; folder = null; query = ""; selected = emptySet(); filter = 0 },
                         icon = { Icon(icons[i], title) }, label = { Text(title) },
@@ -189,14 +189,13 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
             val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
-            Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
                 else Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(if (selected.isNotEmpty()) "已选择 ${selected.size} 项" else subTitle.ifEmpty { if (tab == 0) "映匣" else titles[tab] },
-                        style = if (tab == 0 && page.isEmpty() && selected.isEmpty() && folder == null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (selected.isEmpty() && tab == 0 && page.isEmpty() && folder == null) Text("视频只留在这台手机",
+                    Text(if (selected.isNotEmpty()) "已选择 ${selected.size} 项" else subTitle.ifEmpty { if (tab == 0) "本地视频" else titles[tab] },
+                        style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (selected.isEmpty() && tab == 0 && page.isEmpty() && folder == null) Text("只保存在这台手机，不会上传",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (selected.isNotEmpty()) TextButton(onClick = { selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("取消") }
@@ -278,7 +277,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         placeholder = { Text("搜索视频或文件夹", style = MaterialTheme.typography.bodyMedium) },
         leadingIcon = { Icon(Icons.Outlined.Search, null, modifier = Modifier.size(22.dp)) },
         trailingIcon = if (query.isNotEmpty()) ({ IconButton(onClick = { onQuery("") }) { Icon(Icons.Outlined.Close, "清除搜索") } }) else null,
-        shape = RoundedCornerShape(20.dp), colors = TextFieldDefaults.colors(
+        shape = RoundedCornerShape(14.dp), colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer, unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
             focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent))
 }
@@ -291,8 +290,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     val hidden = listKind == "hidden"
     val history = listKind == "history"
     val last = all.filter { it.positionMs > 3000 && it.durationMs - it.positionMs > 5000 }.maxByOrNull { it.lastPlayedAt }
-    LazyVerticalGrid(GridCells.Adaptive(156.dp), Modifier.fillMaxSize().testTag("video-grid"),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 28.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
+    LazyVerticalGrid(GridCells.Adaptive(155.dp), Modifier.fillMaxSize().testTag("video-grid"),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         if (!hidden && access != LibraryAccess.FULL) item(span = { GridItemSpan(maxLineSpan) }) {
             Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(14.dp)) {
                 Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -311,18 +310,18 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }
         }
         if (showContinue && last != null) item(span = { GridItemSpan(maxLineSpan) }) {
-            Surface(onClick = { vm.open(last, all) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Surface(onClick = { vm.open(last, all) }, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.width(112.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(9.dp))) {
                         Thumbnail(last)
                         WatchProgress(last, Modifier.align(Alignment.BottomCenter))
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text("接着上次，继续看", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                        Text("接着上次，继续看", color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.labelMedium)
                         Text(last.name.substringBeforeLast('.'), maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = 4.dp))
                         Text("已看到 ${durationText(last.positionMs)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
-                    Icon(Icons.Outlined.PlayCircleOutline, "继续播放", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Outlined.PlayCircleOutline, "继续播放", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(28.dp))
                 }
             }
         }
@@ -369,7 +368,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 @Composable fun WatchProgress(video: VideoItem, modifier: Modifier = Modifier) {
     if (video.positionMs > 0 && video.durationMs > 0) LinearProgressIndicator(
         progress = { (video.positionMs.toFloat() / video.durationMs).coerceIn(0f, 1f) },
-        modifier = modifier.fillMaxWidth().height(3.dp), color = Accent, trackColor = Color.Black.copy(alpha = .35f), drawStopIndicator = {})
+        modifier = modifier.fillMaxWidth().height(3.dp), color = BrandPink, trackColor = Color.Black.copy(alpha = .45f), drawStopIndicator = {})
 }
 
 @Composable fun Thumbnail(video: VideoItem, modifier: Modifier = Modifier) {
@@ -384,9 +383,9 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     onClick: () -> Unit, onLong: () -> Unit, onFavorite: () -> Unit, onHide: () -> Unit, onQueue: () -> Unit,
     onMove: () -> Unit, onDelete: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).combinedClickable(onClick = onClick, onLongClick = onLong).testTag("video-${video.id.value}")
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = onClick, onLongClick = onLong).testTag("video-${video.id.value}")
         .semantics { if (selecting || hidden) stateDescription = if (selected) "已选中" else "未选中" }) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp))) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp))) {
             Thumbnail(video)
             Surface(color = Color.Black.copy(alpha = .65f), shape = RoundedCornerShape(4.dp), modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp)) {
                 Text(durationText(video.durationMs), Modifier.padding(horizontal = 5.dp, vertical = 2.dp), color = Color.White, fontSize = 11.sp)
@@ -396,7 +395,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     if (selected) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(4.dp))
                     else Icon(Icons.Outlined.RadioButtonUnchecked, null, tint = Color.White, modifier = Modifier.padding(3.dp))
                 }
-            } else if (video.favorite) Icon(Icons.Outlined.Favorite, "已收藏", tint = Accent, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(16.dp))
+            } else if (video.favorite) Icon(Icons.Outlined.Favorite, "已收藏", tint = BrandPink, modifier = Modifier.align(Alignment.TopEnd).padding(7.dp).size(18.dp))
             WatchProgress(video, Modifier.align(Alignment.BottomCenter))
         }
         Text(video.name.substringBeforeLast('.', video.name), maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
@@ -443,7 +442,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             TextButton(onClick = onCreate) { Icon(Icons.Outlined.CreateNewFolder, null); Text("新建文件夹") }
         } }
         items(managed, key = { "managed:${it.uri}" }) { target ->
-            Surface(onClick = { onFolder(target.uri) }, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Surface(onClick = { onFolder(target.uri) }, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .5f)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.FolderOpen, null, tint = MaterialTheme.colorScheme.primary)
                     Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -456,7 +455,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
         if (folders.isEmpty() && managed.isEmpty()) item { EmptyState("还没有文件夹", "授权相册或添加视频后，文件夹会自动整理在这里") }
         items(folders, key = { it.key }) { group ->
-            Surface(onClick = { onFolder(group.key) }, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Surface(onClick = { onFolder(group.key) }, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(54.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp)) }
                     Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -473,7 +472,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 @Composable private fun ProfilePage(videos: List<VideoItem>, bookmarkCount: Int, onPage: (String) -> Unit, onImport: () -> Unit) {
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item {
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(24.dp)) {
+            Surface(color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = .55f), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(color = MaterialTheme.colorScheme.surface, shape = CircleShape, modifier = Modifier.size(54.dp)) { Icon(Icons.Outlined.PlayCircleOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(12.dp)) }

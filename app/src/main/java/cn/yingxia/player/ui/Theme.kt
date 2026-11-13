@@ -6,47 +6,41 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import cn.yingxia.player.core.ThemeMode
 
-/** Warm amber used on video, where the surface color scheme does not apply. */
-val Accent = Color(0xFFE08A4F)
-
+val BrandPink = Color(0xFFFB7299)
 private val Light = lightColorScheme(
-    primary = Color(0xFFC45C26), onPrimary = Color.White,
-    primaryContainer = Color(0xFFF6E4D4), onPrimaryContainer = Color(0xFF6A3414),
-    secondary = Color(0xFF6E6258), secondaryContainer = Color(0xFFEFE8E1), onSecondaryContainer = Color(0xFF3E342C),
-    background = Color(0xFFF7F4EF), surface = Color(0xFFF7F4EF),
-    surfaceContainer = Color(0xFFEFEBE4), surfaceContainerLow = Color(0xFFFFFCF8),
-    surfaceContainerHigh = Color(0xFFE7E1D8), surfaceVariant = Color(0xFFE8E2D9),
-    onBackground = Color(0xFF1C1B19), onSurface = Color(0xFF1C1B19),
-    onSurfaceVariant = Color(0xFF5E5952), outline = Color(0xFFD9D3C9), outlineVariant = Color(0xFFE4DED4))
+    primary = Color(0xFFC13765), onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFE4ED), onPrimaryContainer = Color(0xFF802342),
+    secondary = Color(0xFF99516A), secondaryContainer = Color(0xFFFFEDF3), onSecondaryContainer = Color(0xFF802342),
+    background = Color(0xFFFFFFFF), surface = Color(0xFFFFFFFF),
+    surfaceContainer = Color(0xFFF7F7F9), surfaceContainerLow = Color(0xFFFAFAFC),
+    surfaceContainerHigh = Color(0xFFF0F1F4), surfaceVariant = Color(0xFFF2F3F5),
+    onBackground = Color(0xFF23252D), onSurface = Color(0xFF23252D),
+    onSurfaceVariant = Color(0xFF5A5C66), outlineVariant = Color(0xFFE3E4EA))
 private val Dark = darkColorScheme(
-    primary = Color(0xFFF0A36A), onPrimary = Color(0xFF3D220C),
-    primaryContainer = Color(0xFF5A3218), onPrimaryContainer = Color(0xFFFFE3CF),
-    secondary = Color(0xFFD2C4B6), secondaryContainer = Color(0xFF3A332C), onSecondaryContainer = Color(0xFFF0E6DA),
-    background = Color(0xFF12110F), surface = Color(0xFF12110F),
-    surfaceContainer = Color(0xFF24221E), surfaceContainerLow = Color(0xFF1C1A17),
-    surfaceContainerHigh = Color(0xFF2E2B26), surfaceVariant = Color(0xFF2A2723),
-    onBackground = Color(0xFFF6F2EC), onSurface = Color(0xFFF6F2EC),
-    onSurfaceVariant = Color(0xFFC9C2B8), outline = Color(0xFF4A453E), outlineVariant = Color(0xFF3A352F))
+    primary = Color(0xFFFFA1BF), onPrimary = Color(0xFF5E1530),
+    primaryContainer = Color(0xFF512333), onPrimaryContainer = Color(0xFFFFDFE9),
+    secondary = Color(0xFFE8B1C5), secondaryContainer = Color(0xFF412A34), onSecondaryContainer = Color(0xFFFFDFE9),
+    background = Color(0xFF111216), surface = Color(0xFF17181D),
+    surfaceContainer = Color(0xFF202128), surfaceContainerLow = Color(0xFF191A20),
+    surfaceContainerHigh = Color(0xFF292B33), surfaceVariant = Color(0xFF252630),
+    onBackground = Color(0xFFF0EFF4), onSurface = Color(0xFFF0EFF4),
+    onSurfaceVariant = Color(0xFFB5B5C1), outlineVariant = Color(0xFF32333C))
 
 @Composable fun YingXiaTheme(mode: ThemeMode, content: @Composable () -> Unit) {
     val dark = mode == ThemeMode.DARK || mode == ThemeMode.SYSTEM && isSystemInDarkTheme()
     val baseline = Typography()
     MaterialTheme(colorScheme = if (dark) Dark else Light,
         typography = baseline.copy(
-            headlineSmall = baseline.headlineSmall.copy(fontWeight = FontWeight.Medium, fontSize = 26.sp, lineHeight = 32.sp),
-            titleLarge = baseline.titleLarge.copy(fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp),
-            titleMedium = baseline.titleMedium.copy(fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 22.sp),
-            titleSmall = baseline.titleSmall.copy(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
-            bodyLarge = baseline.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp),
-            bodyMedium = baseline.bodyMedium.copy(fontSize = 15.sp, lineHeight = 22.sp),
-            bodySmall = baseline.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-            labelLarge = baseline.labelLarge.copy(fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 18.sp),
-            labelMedium = baseline.labelMedium.copy(fontWeight = FontWeight.Medium),
-            labelSmall = baseline.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp)), content = content)
+            headlineLarge = baseline.headlineLarge.copy(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 30.sp),
+            titleLarge = baseline.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp),
+            titleMedium = baseline.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            bodyMedium = baseline.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+            labelSmall = baseline.labelSmall.copy(fontSize = 11.sp)), content = content)
 }
 
 fun <T> motionTween(durationMillis: Int = 220) = tween<T>(durationMillis, easing = FastOutSlowInEasing)
