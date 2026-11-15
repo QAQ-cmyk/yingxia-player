@@ -62,7 +62,6 @@ import kotlin.math.roundToInt
     var controls by rememberSaveable { mutableStateOf(true) }
     var locked by rememberSaveable { mutableStateOf(false) }
     var sheet by rememberSaveable { mutableStateOf<String?>(null) }
-    var casting by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<Long?>(null) }
@@ -132,7 +131,6 @@ import kotlin.math.roundToInt
             key(video.id) {
                 AndroidView(factory = { PlayerGestureView(it) }, modifier = Modifier.fillMaxSize(), update = { view ->
                     view.snapshot = { latestState }; view.fullscreen = fullscreen; view.locked = shielded; view.holdSpeed = settings.holdSpeed
-                    view.sensitivity = settings.gestureSensitivity
                     view.zoom = zoom; view.panX = panX; view.panY = panY
                     view.onTransform = { next, x, y -> zoom = next; panX = x; panY = y }
                     view.command = vm::command; view.tap = { controls = !controls }; view.preview = { preview = it }
@@ -141,7 +139,7 @@ import kotlin.math.roundToInt
                             volume = audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume
                             verticalStart = if (mode == GestureMode.BRIGHTNESS) brightness else volume
                         } else {
-                            val value = (verticalStart + delta * 1.2f * settings.gestureSensitivity).coerceIn(0f, 1f)
+                            val value = (verticalStart + delta * 1.2f).coerceIn(0f, 1f)
                             if (mode == GestureMode.BRIGHTNESS) {
                                 brightness = value.coerceAtLeast(.02f)
                                 activity.window.attributes = activity.window.attributes.apply { screenBrightness = brightness }
@@ -180,7 +178,6 @@ import kotlin.math.roundToInt
                     PlayerIcon(Icons.Outlined.Home, "回到列表", close, size = 22)
                     Text(current.displayTitle(), Modifier.weight(1f).padding(horizontal = 4.dp), color = Color.White.copy(alpha = .92f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     TextButton(onClick = { sheet = "speed" }, modifier = Modifier.testTag("speed-button").heightIn(min = 40.dp)) { Text(speedText(state.baseSpeed), color = Color.White, maxLines = 1) }
-                    PlayerIcon(Icons.Outlined.Cast, "投屏", { casting = true }, size = 22)
                     PlayerIcon(Icons.Outlined.MoreHoriz, "播放工具", { sheet = "tools" }, size = 22)
                 }
             }
@@ -322,7 +319,6 @@ import kotlin.math.roundToInt
             }
         }
     }
-    if (casting) CastDialog { casting = false }
     if (renaming) RenameVideoDialog(renameText, { renaming = false }) { name ->
         vm.rename(current.id, name); renaming = false
     }

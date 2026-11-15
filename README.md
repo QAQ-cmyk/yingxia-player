@@ -1,20 +1,32 @@
-# 映匣 1.4.0
+# 映匣 1.5.0
 
-中文 Android 本地视频播放器，支持 Android 8.0（API 26）及以上。Kotlin + Compose + Media3，Room 保存关联记录，DataStore 保存偏好。视频和记录都留在手机里，应用不联网。
+中文 Android 本地视频播放器，支持 Android 8.0（API 26）及以上。Kotlin + Compose + Media3，Room 保存关联记录，DataStore 保存偏好。没有账号。观看记录和视频默认留在这台手机上。
 
-[下载 1.4.0 调试包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.4.0/YingXia-1.4.0-debug.apk) · [1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk) · [版本发布页](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [安装说明](delivery/安装与使用.md) · [测试记录](delivery/测试记录.md)
+[1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk) · [已发布的版本](https://github.com/QAQ-cmyk/yingxia-player/releases) · [安装说明](delivery/安装与使用.md) · [测试记录](delivery/测试记录.md)
 
-1.1.0 至 1.2.1 曾内置 B 站网页。该功能已经移除，不再提供在线浏览、网页登录或广告过滤。`delivery/v1.*-notes/` 只保留当时的说明。
+1.5.0 是当前源码版本，需要自行构建。已发布的调试包仍是 1.4.0；debug 签名不能覆盖已经安装的 1.2.1 正式签名包。
 
-## 播放器功能
+1.1.0 至 1.2.1 曾内置 B 站网页。该功能已经移除，不再提供在线浏览、网页登录或广告过滤。1.5.0 同时去掉系统投屏和 WebDAV 云端传输。`delivery/v1.*-notes/` 只保留当时的说明。
 
-相册全部/部分授权、文件选择、搜索排序、文件夹、收藏；八档倍速、长按加速、进度拖动、互斥手势；全屏、亮度音量、锁定、续播和队列；SRT/VTT 与内嵌字幕、A-B 循环、时间书签、睡眠定时；批量隐藏恢复和深色模式。双指可以放大画面，播放工具里可以裁掉黑边、旋转和水平镜像，旋转和镜像记在每条视频上。播放与外观里可以调节手势灵敏度，并打开播放时防误触。搜索支持拼音首字母。我的页面可以导出或恢复收藏、进度和设置，备份不含视频文件。
+## 现在有什么
 
-本地视频不会上传。隐藏只影响应用内显示；「删除原文件」则会真正删除手机文件。
+相册全部/部分授权、文件选择、搜索排序、文件夹、收藏；八档倍速、长按加速、进度拖动；全屏、亮度音量、锁定、续播和队列；SRT/VTT 与内嵌字幕、A-B 循环、时间书签、睡眠定时；批量隐藏、收藏、移动和删除确认；深色模式。双指可以放大当前这一次播放，播放工具里可以裁掉黑边、旋转和水平镜像，旋转和镜像记在每条视频上。播放与外观里可以打开播放时防误触。搜索支持汉字和拼音首字母。
+
+「我的」里可以在同一 Wi-Fi 上和另一台映匣互传视频。接收页要保持打开，文件写到 Movies/YingXia，不经过服务器。也可以把收藏、进度、显示名称、旋转镜像和播放设置导出成一个文本文件，或从这样的文件恢复。备份不含视频，也不含密码。
+
+## 已经去掉
+
+- B 站网页、登录和广告过滤。
+- 投屏到电视或电脑。
+- WebDAV / 云端或 NAS 传输，以及本机保存的 WebDAV 地址和密码。
+- 清晰度、放大到 4K、音质增强。
+- 手势灵敏度的低/标准/高选项。防误触还在，手势使用一套固定的手感。
+
+隐藏只影响应用内显示；「删除原文件」则会真正删除手机文件。应用没有统计、崩溃上报或广告。
 
 ## 安装与交付
 
-1.4.0 发布页上的 `YingXia-1.4.0-debug.apk` 使用 debug 签名，只能装到测试机，不能覆盖已经安装的 1.2.1 正式签名包。正式覆盖升级仍使用 [1.2.1 签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)，不要先卸载。截图、安装说明和测试记录位于仓库的 `delivery/`。APK 和本机构建缓存不纳入 Git 历史。
+正式覆盖升级仍使用 [1.2.1 签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)，不要先卸载。1.5.0 的 debug 包只能装到测试机。截图、安装说明和测试记录位于仓库的 `delivery/`。APK 和本机构建缓存不纳入 Git 历史。
 
 ## 构建
 
@@ -30,6 +42,6 @@ Windows 建议英文路径。首次下载构建依赖需要网络；SDK、缓存
 
 ## 结构与依据
 
-`core` 公共协议；`data` 媒体、记录与真实文件操作；`playback` 播放适配；`features` 注册功能；`ui` 页面与手势。详情见 `docs/扩展接口.md`。
+`core` 公共协议；`data` 媒体、记录与真实文件操作；`playback` 播放适配；`features` 注册功能；`ui` 页面与手势；`transfer` 同一 Wi-Fi 互传。详情见 `docs/扩展接口.md` 和 `docs/网络功能参考.md`。
 
 实际测试范围见 `delivery/测试记录.md`。模拟器结果不代表所有手机或编码格式均已通过。
