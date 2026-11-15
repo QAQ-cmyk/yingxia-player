@@ -205,24 +205,6 @@ class PlayerIntegrationTest {
         assertNull(player.state.value.loop)
     }
 
-    @Test fun chineseSrtVttTrackSwitchOffAndInvalidEncoding() = runBlocking {
-        open()
-        val provider = LocalSubtitleProvider(context)
-        val srt = provider.load(fixtureUri("中文.srt", "1\n00:00:00,000 --> 00:00:29,000\n你好，映匣！\n".toByteArray()))
-        player.execute(PlayerCommand.AttachSubtitle(srt)).getOrThrow()
-        eventually { player.state.value.subtitles.isNotEmpty() }
-        eventually { player.cues.value.any { it.text?.contains("你好") == true } }
-        player.execute(PlayerCommand.SelectSubtitle(null))
-        eventually { player.cues.value.isEmpty() && player.state.value.subtitles.none { it.selected } }
-        player.execute(PlayerCommand.SelectSubtitle(player.state.value.subtitles.first().id))
-        eventually { player.state.value.subtitles.any { it.selected } }
-        val vtt = provider.load(fixtureUri("中文.vtt", "WEBVTT\n\n00:00:00.000 --> 00:00:29.000\n学习片段\n".toByteArray()))
-        player.execute(PlayerCommand.AttachSubtitle(vtt))
-        eventually { player.cues.value.any { it.text?.contains("学习") == true } }
-        assertTrue(runCatching { provider.load(fixtureUri("坏字幕.srt", byteArrayOf(0xff.toByte(), 0xfe.toByte()))) }.isFailure)
-        assertTrue(runCatching { provider.load(fixtureUri("无时间轴.srt", "没有时间轴".toByteArray())) }.isFailure)
-    }
-
     @Test fun bookmarksEditDeleteAndMissingFileRetainsRecords() = runBlocking {
         repository.setFavorite(setOf(second.id), true)
         repository.saveBookmark(second.id, 3000, "原备注")
@@ -270,17 +252,6 @@ class PlayerIntegrationTest {
         delay(400)
         assertFalse(player.state.value.isPlaying)
         assertEquals(player.state.value.baseSpeed, player.state.value.effectiveSpeed)
-    }
-
-    @Test fun embeddedChineseSubtitleCanBeSelectedAndDisabled() = runBlocking {
-        val bytes = instrument.context.assets.open("fixture-subtitled.mp4").use { it.readBytes() }
-        val item = repository.importVideo(fixtureUri("embedded.mp4", bytes))
-        player.execute(PlayerCommand.Open(item.id, listOf(item.id))).getOrThrow()
-        eventually { player.state.value.subtitles.isNotEmpty() }
-        player.execute(PlayerCommand.SelectSubtitle(player.state.value.subtitles.first().id)).getOrThrow()
-        eventually { player.cues.value.any { it.text?.contains("内嵌字幕") == true } }
-        player.execute(PlayerCommand.SelectSubtitle(null))
-        eventually { player.cues.value.isEmpty() }
     }
 
     @Test fun largeBatchHideRestoreAndCorruptFileFailure() = runBlocking {

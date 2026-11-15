@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -150,7 +151,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     }
     val requestAccess = { permissions.launch(mediaPermissions()) }
     val importFile = { openFile.launch(Unit) }
-    val showSearch = page != "hidden" && page != "settings" && page != "bookmarks" && page != "backup" && !(tab == 3 && page.isEmpty()) && !(tab == 1 && folder == null && page.isEmpty())
+    val showSearch = page != "hidden" && page != "settings" && page != "bookmarks" && page != "backup" && page != "scan" && !(tab == 3 && page.isEmpty()) && !(tab == 1 && folder == null && page.isEmpty())
     SideEffect { onNavigationVisible(!searchFocused || !showSearch) }
     DisposableEffect(Unit) { onDispose { onNavigationVisible(true) } }
     BackHandler(selected.isNotEmpty() || page.isNotEmpty() || folder != null) {
@@ -186,14 +187,21 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
-            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "backup" -> "备份与恢复"; "transfer" -> "同一 Wi-Fi 互传"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
+            val nestedTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "backup" -> "备份与恢复"; "scan" -> "检查视频"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
+            val parentTitle = when {
+                page.isNotEmpty() -> titles.getOrElse(tab) { "首页" }
+                folder != null -> "文件夹"
+                else -> ""
+            }
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
                 else Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(if (selected.isNotEmpty()) "已选择 ${selected.size} 项" else subTitle.ifEmpty { if (tab == 0) "本地视频" else titles[tab] },
+                    if (selected.isEmpty() && parentTitle.isNotEmpty()) Text(parentTitle, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                    Text(if (selected.isNotEmpty()) "已选择 ${selected.size} 项" else nestedTitle.ifEmpty { if (tab == 0) "本地视频" else titles[tab] },
                         style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (selected.isEmpty() && tab == 0 && page.isEmpty() && folder == null) Text("只保存在这台手机，不会上传",
+                    if (selected.isEmpty() && parentTitle.isNotEmpty()) Text("点左上角返回上一层", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    else if (selected.isEmpty() && tab == 0 && page.isEmpty() && folder == null) Text("只保存在这台手机，无需联网",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (selected.isNotEmpty()) TextButton(onClick = { selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("取消") }
@@ -238,7 +246,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             when (current) {
                 "settings" -> SettingsPage(vm)
                 "backup" -> BackupPage(vm)
-                "transfer" -> TransferPage(vm)
+                "scan" -> LibraryScanPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
                 "tab3" -> ProfilePage(videos, bookmarks.size, { page = it }, importFile)
                 "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }) { folder = it; query = "" }
@@ -509,23 +517,23 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     MenuRow(Icons.Outlined.History, "播放历史", "从上次离开的地方继续", { onPage("history") })
                     MenuRow(Icons.Outlined.Bookmarks, "时间书签", "记下值得重看的瞬间", { onPage("bookmarks") })
                     MenuRow(Icons.Outlined.VisibilityOff, "隐藏管理", "查看与恢复隐藏的视频", { onPage("hidden") })
-                    MenuRow(Icons.Outlined.Wifi, "同一 Wi-Fi 互传", "只在局域网里，两台映匣互传", { onPage("transfer") })
+                    MenuRow(Icons.AutoMirrored.Outlined.FactCheck, "检查视频", "找出内容相同和打不开的文件", { onPage("scan") })
                     MenuRow(Icons.Outlined.SaveAlt, "备份与恢复", "导出收藏、进度和设置", { onPage("backup") })
                 }
             }
         }
         item {
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(18.dp)) {
-                Column { MenuRow(Icons.Outlined.Tune, "播放与外观", "倍速、字幕、浅色与深色", { onPage("settings") }); MenuRow(Icons.Outlined.AddCircleOutline, "打开本地视频", "从文件中选择", onImport) }
+                Column { MenuRow(Icons.Outlined.Tune, "播放与外观", "倍速、浅色与深色、防误触", { onPage("settings") }); MenuRow(Icons.Outlined.AddCircleOutline, "打开本地视频", "从文件中选择", onImport) }
             }
         }
         item {
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("隐私", style = MaterialTheme.typography.titleMedium)
-                    Text("映匣没有账号。观看记录和视频不会上传。", style = MaterialTheme.typography.bodyMedium)
-                    Text("备份是你自己保存或分享的一个文本文件，可以用编辑器打开查看。里面有收藏、进度和播放设置，没有视频本身。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("同一 Wi-Fi 互传只在局域网里、两台都打开了映匣的手机之间进行，不经过映匣的服务器。离开该页面后接收会停止。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("无需联网，可完全离线使用。映匣没有账号，也不会上传观看记录或视频。", style = MaterialTheme.typography.bodyMedium)
+                    Text("备份是保存在这台手机上的文本文件，可以用编辑器打开。里面没有视频。用系统分享时，文件交给你选的应用，映匣自己不会发送。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("底部四个入口是第一层。点进去的历史、设置、检查和文件夹是第二层，左上角返回上一层。播放是单独的一层，返回就回到列表。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -554,7 +562,6 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         item { SettingsTitle("外观"); FlowRow { ThemeMode.entries.forEach { mode -> FilterChip(settings.theme == mode, { scope.launch { vm.graph.settings.setTheme(mode) } }, label = { Text(when (mode) { ThemeMode.SYSTEM -> "跟随系统"; ThemeMode.LIGHT -> "浅色"; ThemeMode.DARK -> "深色" }) }, modifier = Modifier.padding(end = 8.dp)) } } }
         item { SettingsTitle("默认播放速度"); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PlaybackRules.speeds.forEach { speed -> FilterChip(settings.speed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }) } } }
         item { SettingsTitle("长按临时加速"); Row { listOf(2f, 3f).forEach { speed -> FilterChip(settings.holdSpeed == speed, { scope.launch { vm.graph.settings.setHoldSpeed(speed) } }, label = { Text(speedText(speed)) }, modifier = Modifier.padding(end = 8.dp)) } }; Text("松手恢复原速度；当前速度更快时不会降速。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        item { SettingsTitle("字幕字号"); FlowRow { listOf(.75f, 1f, 1.25f, 1.5f).forEach { scale -> FilterChip(settings.subtitleScale == scale, { scope.launch { vm.graph.settings.setSubtitleScale(scale) } }, label = { Text(when (scale) { .75f -> "小"; 1f -> "标准"; 1.25f -> "大"; else -> "特大" }) }, modifier = Modifier.padding(end = 8.dp)) } } }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
@@ -565,7 +572,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }
         }
         item { OutlinedButton(onClick = { context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("管理系统相册权限") }; Text("多次拒绝授权后，可在系统设置中重新允许访问。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        item { SettingsTitle("使用提示"); Text("• 点击画面显示控制，双击播放或暂停，左右滑动调节进度。\n• 双指捏合放大画面，不改进度和亮度。播放工具里可以旋转、镜像和裁掉黑边。\n• 全屏时左侧调亮度，右侧调音量；长按画面临时加速。\n• 搜索可以用拼音首字母，例如 pjh。\n• 长按视频卡片可以多选。隐藏可以撤销，不会删除文件。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item { SettingsTitle("使用提示"); Text("• 底部四个标签是第一层。点进历史、设置或文件夹是第二层，左上角返回。\n• 点一下画面显示控制，点两下播放或暂停，左右滑调节进度。\n• 双指捏合只放大这一次播放。播放工具里可以裁掉黑边。\n• 全屏时左侧调亮度，右侧调音量；长按才出现加速。\n• 搜索可以用拼音首字母，例如 pjh。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { OutlinedButton(onClick = { clearConfirm = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("清除播放历史与续播进度") } }
     }
     if (clearConfirm) AlertDialog(onDismissRequest = { clearConfirm = false }, title = { Text("清除播放历史？") }, text = { Text("播放记录和续播进度会被清除。收藏、书签和视频文件不受影响。") },
