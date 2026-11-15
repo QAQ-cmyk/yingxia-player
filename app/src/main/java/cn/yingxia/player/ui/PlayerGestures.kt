@@ -18,7 +18,6 @@ internal class PlayerGestureView(context: Context) : View(context) {
     var fullscreen = false
     var locked = false
     var holdSpeed = 2f
-    var sensitivity = 1f
     var zoom = 1f
     var panX = 0f
     var panY = 0f
@@ -55,7 +54,7 @@ internal class PlayerGestureView(context: Context) : View(context) {
     }
     init { isClickable = true; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
     override fun performClick(): Boolean { super.performClick(); tap(); return true }
-    private fun dragSlop() = slop * gestureSlopScale(sensitivity)
+    private fun dragSlop() = slop
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (locked) { cancelGesture(); return true }
         when (event.actionMasked) {

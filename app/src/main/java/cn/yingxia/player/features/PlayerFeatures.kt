@@ -68,11 +68,6 @@ class BookmarkFeature(private val controller: PlaybackController, private val re
         s.video?.let { repository.saveBookmark(it.id, s.positionMs, note) }
     }
 }
-class SubtitleFeature : PlayerFeature {
-    override val id = "subtitles"
-    override val title = "字幕"
-    override val order = 0
-}
 class FeatureRegistry(controller: PlaybackController, scope: CoroutineScope, contributions: List<PlayerFeature>) {
     val features = contributions.sortedBy { it.order }
     init {

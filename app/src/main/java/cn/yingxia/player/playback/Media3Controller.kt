@@ -2,10 +2,7 @@
 package cn.yingxia.player.playback
 
 import android.content.Context
-import android.net.Uri
 import androidx.media3.common.*
-import androidx.media3.common.text.Cue
-import androidx.media3.common.text.CueGroup
 import androidx.media3.exoplayer.ExoPlayer
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.SettingsRepository
@@ -20,12 +17,12 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     override val state: StateFlow<PlaybackState> = mutableState.asStateFlow()
     private val mutableEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 32)
     override val events = mutableEvents.asSharedFlow()
-    internal val cues = MutableStateFlow<List<Cue>>(emptyList())
     internal val aspectRatio = MutableStateFlow(16f / 9f)
     internal val surfacePlayer: ExoPlayer = ExoPlayer.Builder(context).build().apply {
         setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
         setHandleAudioBecomingNoisy(true)
         setSeekParameters(androidx.media3.exoplayer.SeekParameters.EXACT)
+        trackSelectionParameters = trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
     }
     private var autoAdvance = false
     private var lastSavedAt = 0L
@@ -64,8 +61,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                     }
                 }
             }
-            override fun onTracksChanged(tracks: Tracks) { updateTracks(tracks) }
-            override fun onCues(cueGroup: CueGroup) { cues.value = cueGroup.cues }
             override fun onPlayerError(error: PlaybackException) {
                 endBoost()
                 val failure = when (error.errorCode) {
@@ -156,8 +151,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                     mutableState.update { it.copy(loop = range) }
                     if (range != null) { surfacePlayer.seekTo(range.startMs); surfacePlayer.play() }
                 }
-                is PlayerCommand.AttachSubtitle -> attachSubtitle(command.attachment)
-                is PlayerCommand.SelectSubtitle -> selectSubtitle(command.id)
                 PlayerCommand.Close -> close()
             }
             Result.success(Unit)
@@ -179,8 +172,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         val speed = state.value.baseSpeed
         isClosing = true
         surfacePlayer.stop()
-        surfacePlayer.trackSelectionParameters = surfacePlayer.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT).setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).build()
-        cues.value = emptyList()
         mutableState.value = PlaybackState(video, safeQueue, durationMs = video.durationMs, baseSpeed = speed, effectiveSpeed = speed, repeatMode = mode, buffering = true)
         surfacePlayer.setMediaItem(mediaItem(video))
         surfacePlayer.seekTo(start?.let { PlaybackRules.seek(it, video.durationMs) } ?: PlaybackRules.resume(video.positionMs, video.durationMs))
@@ -192,48 +183,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         updatePosition()
         saveProgress()
     }
-    private fun mediaItem(video: VideoItem, attachment: SubtitleAttachment? = null): MediaItem {
-        val builder = MediaItem.Builder().setMediaId(video.id.value).setUri(video.uri)
-        val subtitle = attachment ?: video.subtitleUri?.let {
-            if (Uri.parse(it).scheme == "file" && !java.io.File(Uri.parse(it).path ?: "").exists()) null
-            else SubtitleAttachment(it, video.subtitleName ?: "外挂字幕", if (it.endsWith(".vtt")) "text/vtt" else "application/x-subrip")
-        }
-        if (subtitle != null) builder.setSubtitleConfigurations(listOf(MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.uri))
-            .setMimeType(subtitle.mimeType).setLabel(subtitle.name).setSelectionFlags(C.SELECTION_FLAG_DEFAULT).build()))
-        return builder.build()
-    }
-    private suspend fun attachSubtitle(attachment: SubtitleAttachment) {
-        val s = state.value
-        val video = s.video ?: return
-        repository.saveSubtitle(video.id, attachment)
-        val position = surfacePlayer.currentPosition
-        val playing = surfacePlayer.playWhenReady
-        endBoost()
-        val updated = video.copy(subtitleUri = attachment.uri, subtitleName = attachment.name)
-        mutableState.update { it.copy(video = updated) }
-        surfacePlayer.trackSelectionParameters = surfacePlayer.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).clearOverridesOfType(C.TRACK_TYPE_TEXT).build()
-        surfacePlayer.setMediaItem(mediaItem(updated, attachment), position)
-        surfacePlayer.prepare()
-        surfacePlayer.playWhenReady = playing
-    }
-    private fun updateTracks(tracks: Tracks) {
-        val list = tracks.groups.mapIndexedNotNull { i, group ->
-            if (group.type != C.TRACK_TYPE_TEXT) null else {
-                val format = group.getTrackFormat(0)
-                SubtitleTrack(i.toString(), format.label ?: format.language?.takeIf { it != "und" } ?: "字幕 ${i + 1}", group.isSelected)
-            }
-        }
-        mutableState.update { it.copy(subtitles = list) }
-    }
-    private fun selectSubtitle(id: String?) {
-        val builder = surfacePlayer.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT).setTrackTypeDisabled(C.TRACK_TYPE_TEXT, id == null)
-        if (id != null) {
-            val group = surfacePlayer.currentTracks.groups.getOrNull(id.toIntOrNull() ?: -1) ?: return
-            builder.setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
-        }
-        surfacePlayer.trackSelectionParameters = builder.build()
-        if (id == null) cues.value = emptyList()
-    }
+    private fun mediaItem(video: VideoItem): MediaItem = MediaItem.Builder().setMediaId(video.id.value).setUri(video.uri).build()
     private suspend fun advance(manual: Boolean = false) {
         val s = state.value
         val current = s.video?.id ?: return
@@ -270,7 +220,6 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         saveProgress(); endBoost()
         isClosing = true
         surfacePlayer.stop(); surfacePlayer.clearMediaItems()
-        cues.value = emptyList()
         mutableState.value = PlaybackState(baseSpeed = state.value.baseSpeed, effectiveSpeed = state.value.baseSpeed, repeatMode = state.value.repeatMode)
         isClosing = false
         mutableEvents.tryEmit(PlayerEvent.Closed)
