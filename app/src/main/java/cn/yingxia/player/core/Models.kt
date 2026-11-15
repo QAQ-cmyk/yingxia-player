@@ -25,12 +25,6 @@ fun matchesLibraryQuery(title: String, name: String, folder: String, query: Stri
     if (needle.isEmpty()) return false
     return listOf(title, name).any { PinyinInitials.of(it).contains(needle) }
 }
-/** Higher sensitivity means a shorter drag starts a gesture. 0.7 low, 1 standard, 1.4 high. */
-fun gestureSlopScale(sensitivity: Float) = when {
-    sensitivity < 0.85f -> 1.75f
-    sensitivity > 1.15f -> 0.62f
-    else -> 1f
-}
 data class Bookmark(val id: Long, val videoId: VideoId, val positionMs: Long, val note: String)
 data class SubtitleAttachment(val uri: String, val name: String, val mimeType: String)
 data class SubtitleTrack(val id: String, val name: String, val selected: Boolean)
@@ -73,7 +67,7 @@ data class PlaybackState(
 )
 data class UserSettings(val theme: ThemeMode = ThemeMode.SYSTEM, val speed: Float = 1f,
     val holdSpeed: Float = 2f, val subtitleScale: Float = 1f, val sort: SortOrder = SortOrder.NEWEST,
-    val gestureSensitivity: Float = 1f, val touchGuard: Boolean = false)
+    val touchGuard: Boolean = false)
 
 sealed interface PlayerCommand {
     data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null) : PlayerCommand

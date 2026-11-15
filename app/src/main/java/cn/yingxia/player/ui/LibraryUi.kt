@@ -186,7 +186,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
-            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "backup" -> "备份与恢复"; "transfer" -> "同一 Wi-Fi 互传"; "cloud" -> "云端传输"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
+            val subTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "backup" -> "备份与恢复"; "transfer" -> "同一 Wi-Fi 互传"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
                 else Spacer(Modifier.width(12.dp))
@@ -239,7 +239,6 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 "settings" -> SettingsPage(vm)
                 "backup" -> BackupPage(vm)
                 "transfer" -> TransferPage(vm)
-                "cloud" -> CloudPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
                 "tab3" -> ProfilePage(videos, bookmarks.size, { page = it }, importFile)
                 "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }) { folder = it; query = "" }
@@ -510,8 +509,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     MenuRow(Icons.Outlined.History, "播放历史", "从上次离开的地方继续", { onPage("history") })
                     MenuRow(Icons.Outlined.Bookmarks, "时间书签", "记下值得重看的瞬间", { onPage("bookmarks") })
                     MenuRow(Icons.Outlined.VisibilityOff, "隐藏管理", "查看与恢复隐藏的视频", { onPage("hidden") })
-                    MenuRow(Icons.Outlined.Wifi, "同一 Wi-Fi 互传", "附近的映匣互相收发视频", { onPage("transfer") })
-                    MenuRow(Icons.Outlined.CloudUpload, "云端传输", "用你自己的 WebDAV 搬运视频", { onPage("cloud") })
+                    MenuRow(Icons.Outlined.Wifi, "同一 Wi-Fi 互传", "只在局域网里，两台映匣互传", { onPage("transfer") })
                     MenuRow(Icons.Outlined.SaveAlt, "备份与恢复", "导出收藏、进度和设置", { onPage("backup") })
                 }
             }
@@ -522,11 +520,17 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }
         }
         item {
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Shield, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                Text("  视频只保存在这台手机", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("隐私", style = MaterialTheme.typography.titleMedium)
+                    Text("映匣没有账号。观看记录和视频不会上传。", style = MaterialTheme.typography.bodyMedium)
+                    Text("备份是你自己保存或分享的一个文本文件，可以用编辑器打开查看。里面有收藏、进度和播放设置，没有视频本身。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("同一 Wi-Fi 互传只在局域网里、两台都打开了映匣的手机之间进行，不经过映匣的服务器。离开该页面后接收会停止。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            Text("映匣 ${BuildConfig.VERSION_NAME}", Modifier.fillMaxWidth().padding(top = 10.dp), textAlign = TextAlign.Center, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            Text("映匣 ${BuildConfig.VERSION_NAME}", Modifier.fillMaxWidth(), textAlign = TextAlign.Center, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -551,7 +555,6 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         item { SettingsTitle("默认播放速度"); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PlaybackRules.speeds.forEach { speed -> FilterChip(settings.speed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }) } } }
         item { SettingsTitle("长按临时加速"); Row { listOf(2f, 3f).forEach { speed -> FilterChip(settings.holdSpeed == speed, { scope.launch { vm.graph.settings.setHoldSpeed(speed) } }, label = { Text(speedText(speed)) }, modifier = Modifier.padding(end = 8.dp)) } }; Text("松手恢复原速度；当前速度更快时不会降速。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item { SettingsTitle("字幕字号"); FlowRow { listOf(.75f, 1f, 1.25f, 1.5f).forEach { scale -> FilterChip(settings.subtitleScale == scale, { scope.launch { vm.graph.settings.setSubtitleScale(scale) } }, label = { Text(when (scale) { .75f -> "小"; 1f -> "标准"; 1.25f -> "大"; else -> "特大" }) }, modifier = Modifier.padding(end = 8.dp)) } } }
-        item { SettingsTitle("手势灵敏度"); FlowRow { listOf(0.7f to "低", 1f to "标准", 1.4f to "高").forEach { (value, label) -> FilterChip(settings.gestureSensitivity == value, { scope.launch { vm.graph.settings.setGestureSensitivity(value) } }, label = { Text(label) }, modifier = Modifier.padding(end = 8.dp)) } }; Text("低一些更不容易误滑进度。双指放大不受这项影响。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {

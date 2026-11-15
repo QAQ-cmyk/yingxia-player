@@ -39,7 +39,7 @@ import java.io.File
     }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text("备份里有收藏、播放进度、显示名称、画面旋转，以及倍速、排序、手势这些设置。没有视频文件，也不含网盘密码。不需要账号。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("备份里有收藏、播放进度、显示名称、画面旋转，以及倍速、排序和防误触这些设置。这是一个可以打开查看的文本文件，没有视频，也没有账号。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item { Button(onClick = { export.launch("YingXia-backup.json") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("保存备份文件") } }
         item {

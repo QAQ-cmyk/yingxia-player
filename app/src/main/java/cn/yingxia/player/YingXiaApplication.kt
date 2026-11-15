@@ -34,6 +34,7 @@ class AppGraph(application: Application) {
     val timer = SleepTimerFeature(player, scope)
     val bookmarks = BookmarkFeature(player, repository)
     val features = FeatureRegistry(player, scope, listOf(SubtitleFeature(), loop, bookmarks, timer))
+    init { scope.launch { settings.clearRetiredPreferences() } }
     private var refreshJob: Job? = null
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {

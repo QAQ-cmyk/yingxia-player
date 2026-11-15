@@ -14,12 +14,8 @@ class SettingsRepository(private val context: Context) {
     private val hold = floatPreferencesKey("hold_speed")
     private val scale = floatPreferencesKey("subtitle_scale")
     private val sort = stringPreferencesKey("library_sort")
-    private val sensitivity = floatPreferencesKey("gesture_sensitivity")
     private val touchGuard = booleanPreferencesKey("touch_guard")
     private val folders = stringSetPreferencesKey("storage_folders")
-    private val davUrl = stringPreferencesKey("webdav_url")
-    private val davUser = stringPreferencesKey("webdav_user")
-    private val davPass = stringPreferencesKey("webdav_pass")
     val storageFolders: Flow<List<StorageFolder>> = context.preferences.data.catch {
         if (it is IOException) emit(emptyPreferences()) else throw it
     }.map { p ->
@@ -38,30 +34,25 @@ class SettingsRepository(private val context: Context) {
         PlaybackRules.speed(p[speed] ?: 1f), if (p[hold] == 3f) 3f else 2f,
         (p[scale] ?: 1f).coerceIn(.75f, 1.5f),
         runCatching { SortOrder.valueOf(p[sort] ?: SortOrder.NEWEST.name) }.getOrDefault(SortOrder.NEWEST),
-        gestureLevel(p[sensitivity] ?: 1f), p[touchGuard] ?: false) }
+        p[touchGuard] ?: false) }
     suspend fun setTheme(value: ThemeMode) { context.preferences.edit { it[theme] = value.name } }
     suspend fun setSpeed(value: Float) { context.preferences.edit { it[speed] = PlaybackRules.speed(value) } }
     suspend fun setHoldSpeed(value: Float) { context.preferences.edit { it[hold] = if (value == 3f) 3f else 2f } }
     suspend fun setSubtitleScale(value: Float) { context.preferences.edit { it[scale] = value.coerceIn(.75f, 1.5f) } }
     suspend fun setSort(value: SortOrder) { context.preferences.edit { it[sort] = value.name } }
-    suspend fun setGestureSensitivity(value: Float) { context.preferences.edit { it[sensitivity] = gestureLevel(value) } }
     suspend fun setTouchGuard(value: Boolean) { context.preferences.edit { it[touchGuard] = value } }
     suspend fun replacePlayback(settings: UserSettings) {
         setTheme(settings.theme); setSpeed(settings.speed); setHoldSpeed(settings.holdSpeed)
-        setSubtitleScale(settings.subtitleScale); setSort(settings.sort)
-        setGestureSensitivity(settings.gestureSensitivity); setTouchGuard(settings.touchGuard)
+        setSubtitleScale(settings.subtitleScale); setSort(settings.sort); setTouchGuard(settings.touchGuard)
     }
-    val webDav: Flow<WebDavConfig> = context.preferences.data.catch {
-        if (it is IOException) emit(emptyPreferences()) else throw it
-    }.map { WebDavConfig(it[davUrl].orEmpty(), it[davUser].orEmpty(), it[davPass].orEmpty()) }
-    suspend fun setWebDav(url: String, user: String, password: String) { context.preferences.edit {
-        it[davUrl] = url.trim(); it[davUser] = user.trim(); it[davPass] = password
+    /** Drops credentials and toggles removed in 1.5.0 so they are not left in DataStore. */
+    suspend fun clearRetiredPreferences() { context.preferences.edit {
+        it.remove(stringPreferencesKey("webdav_url"))
+        it.remove(stringPreferencesKey("webdav_user"))
+        it.remove(stringPreferencesKey("webdav_pass"))
+        it.remove(floatPreferencesKey("gesture_sensitivity"))
+        it.remove(booleanPreferencesKey("clarity"))
+        it.remove(booleanPreferencesKey("audio_enhance"))
+        it.remove(booleanPreferencesKey("upscale_4k"))
     } }
-}
-
-data class WebDavConfig(val url: String = "", val user: String = "", val password: String = "")
-fun gestureLevel(value: Float) = when {
-    value < 0.85f -> 0.7f
-    value > 1.15f -> 1.4f
-    else -> 1f
 }
