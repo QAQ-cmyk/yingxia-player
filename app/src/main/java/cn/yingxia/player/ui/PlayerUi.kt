@@ -127,7 +127,7 @@ import kotlin.math.roundToInt
     LaunchedEffect(feedback) { if (feedback != null) { delay(1000); feedback = null } }
     Column(Modifier.fillMaxSize().background(Color.Black).then(if (fullscreen) Modifier else Modifier.statusBarsPadding())) {
         Box(Modifier.fillMaxWidth().then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
-            Media3VideoSurface(vm.graph.player, settings.subtitleScale, current.rotation, current.mirrored, current.cropBars, zoom, panX, panY, Modifier.fillMaxSize())
+            Media3VideoSurface(vm.graph.player, current.cropBars, zoom, panX, panY, Modifier.fillMaxSize())
             key(video.id) {
                 AndroidView(factory = { PlayerGestureView(it) }, modifier = Modifier.fillMaxSize(), update = { view ->
                     view.snapshot = { latestState }; view.fullscreen = fullscreen; view.locked = shielded; view.holdSpeed = settings.holdSpeed
@@ -237,7 +237,7 @@ import kotlin.math.roundToInt
                                 ToolShortcut(Icons.Outlined.BookmarkBorder, "书签", { sheet = "bookmarks" })
                                 ToolShortcut(Icons.Outlined.Tune, "播放工具", { sheet = "tools" })
                             }
-                            Text("点击画面显示控制，双击播放或暂停，左右滑动调节进度。双指捏合可以放大，不会改进度或亮度。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                            Text("点一下显示控制，点两下播放或暂停，左右滑调节进度。双指捏合只放大画面。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                     item {
@@ -287,21 +287,16 @@ import kotlin.math.roundToInt
                 "tools" -> {
                     PanelTitle("播放工具", "为观影，也为每一次认真学习")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        vm.graph.features.features.filter { it.available(state) }.forEach { feature ->
-                            BuiltInFeaturePanels[feature.id]?.let { ui -> OutlinedButton(onClick = { sheet = feature.id }, modifier = Modifier.heightIn(min = 48.dp)) { Icon(ui.icon, null, Modifier.size(20.dp)); Text("  ${feature.title}") } }
+                        vm.graph.tools.filter { it.feature.available(state) }.forEach { tool ->
+                            OutlinedButton(onClick = { sheet = tool.feature.id }, modifier = Modifier.heightIn(min = 48.dp)) { Icon(tool.icon, null, Modifier.size(20.dp)); Text("  ${tool.feature.title}") }
                         }
                     }
                     Spacer(Modifier.height(16.dp))
                     Text("画面", style = MaterialTheme.typography.titleSmall)
-                    Text("旋转和镜像记在这条视频上。双指捏合只在这次播放里放大，松手后的缩放不会影响进度和亮度。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { vm.savePicture(video.id, current.rotation - 90, current.mirrored, current.cropBars) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("左转") }
-                        OutlinedButton(onClick = { vm.savePicture(video.id, current.rotation + 90, current.mirrored, current.cropBars) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("右转") }
-                        OutlinedButton(onClick = { vm.savePicture(video.id, current.rotation, !current.mirrored, current.cropBars) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (current.mirrored) "取消镜像" else "水平镜像") }
-                        if (zoom > 1.01f) OutlinedButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }, modifier = Modifier.heightIn(min = 48.dp)) { Text("还原缩放") }
-                    }
-                    ToolSwitch("裁掉黑边", current.cropBars, "按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。") {
-                        vm.savePicture(video.id, current.rotation, current.mirrored, it)
+                    Text("双指捏合只在这次播放里放大，不会同时拖进度或调亮度。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (zoom > 1.01f) OutlinedButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }, modifier = Modifier.padding(top = 8.dp).heightIn(min = 48.dp)) { Text("还原缩放") }
+                    ToolSwitch("裁掉黑边", current.cropBars, "按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。只裁掉画面外面的黑边位置，不会补出新的细节。") {
+                        vm.savePicture(video.id, it)
                     }
                     Text("播放顺序", style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { RepeatMode.entries.forEach { mode -> FilterChip(state.repeatMode == mode, { vm.command(PlayerCommand.SetRepeat(mode)) }, label = { Text(repeatLabel(mode)) }) } }
@@ -315,7 +310,7 @@ import kotlin.math.roundToInt
                     Text("不会删除文件。如果正在播放这条视频，播放会结束。可以在底部提示里撤销。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedButton(onClick = { sheet = null; vm.hide(setOf(video.id), true) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp)) { Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(20.dp)); Text("  隐藏当前视频") }
                 }
-                else -> BuiltInFeaturePanels[sheet]?.panel?.invoke(vm, state, closeSheet)
+                else -> vm.graph.tools.firstOrNull { it.feature.id == sheet }?.panel?.invoke(vm, state, closeSheet)
             }
         }
     }

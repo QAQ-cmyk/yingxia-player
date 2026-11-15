@@ -31,7 +31,7 @@ data class SubtitleTrack(val id: String, val name: String, val selected: Boolean
 data class StorageFolder(val uri: String, val name: String)
 data class LibraryRecord(val id: String, val uri: String, val name: String, val sizeBytes: Long,
     val favorite: Boolean, val positionMs: Long, val lastPlayedAt: Long, val displayName: String?,
-    val rotation: Int, val mirrored: Boolean, val cropBars: Boolean)
+    val cropBars: Boolean)
 enum class RepeatMode { SEQUENCE, ONE, ALL }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class LibraryAccess { FULL, PARTIAL, NONE }
@@ -62,12 +62,10 @@ data class PlaybackState(
     val isPlaying: Boolean = false, val buffering: Boolean = false,
     val baseSpeed: Float = 1f, val effectiveSpeed: Float = 1f,
     val boosting: Boolean = false, val repeatMode: RepeatMode = RepeatMode.SEQUENCE,
-    val loop: LoopRange? = null, val subtitles: List<SubtitleTrack> = emptyList(),
-    val failure: String? = null,
+    val loop: LoopRange? = null, val failure: String? = null,
 )
 data class UserSettings(val theme: ThemeMode = ThemeMode.SYSTEM, val speed: Float = 1f,
-    val holdSpeed: Float = 2f, val subtitleScale: Float = 1f, val sort: SortOrder = SortOrder.NEWEST,
-    val touchGuard: Boolean = false)
+    val holdSpeed: Float = 2f, val sort: SortOrder = SortOrder.NEWEST, val touchGuard: Boolean = false)
 
 sealed interface PlayerCommand {
     data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null) : PlayerCommand
@@ -83,8 +81,6 @@ sealed interface PlayerCommand {
     data class Enqueue(val ids: List<VideoId>) : PlayerCommand
     data class SetRepeat(val mode: RepeatMode) : PlayerCommand
     data class SetLoop(val range: LoopRange?) : PlayerCommand
-    data class AttachSubtitle(val attachment: SubtitleAttachment) : PlayerCommand
-    data class SelectSubtitle(val id: String?) : PlayerCommand
     data object Close : PlayerCommand
 }
 sealed interface PlayerEvent {
@@ -99,6 +95,10 @@ interface PlaybackController {
     val events: Flow<PlayerEvent>
     suspend fun execute(command: PlayerCommand): Result<Unit>
 }
+/**
+ * 本机视频来源。实现后加入 `AppGraph.extraSources`，下次扫描会并入资料库。
+ * A local video source. Add it to `AppGraph.extraSources`. Do not use the network.
+ */
 interface MediaSource {
     val sourceId: String
     suspend fun query(): List<VideoItem>
@@ -119,17 +119,17 @@ interface VideoRepository {
     suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean)
     suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean)
     suspend fun rename(id: VideoId, displayName: String)
-    suspend fun savePicture(id: VideoId, rotation: Int, mirrored: Boolean, cropBars: Boolean)
+    suspend fun savePicture(id: VideoId, cropBars: Boolean)
     suspend fun saveProgress(id: VideoId, positionMs: Long)
     suspend fun restoreRecords(rows: List<LibraryRecord>)
-    suspend fun saveSubtitle(id: VideoId, attachment: SubtitleAttachment)
     suspend fun saveBookmark(videoId: VideoId, positionMs: Long, note: String, id: Long = 0)
     suspend fun deleteBookmark(id: Long)
     suspend fun clearHistory()
 }
-interface SubtitleProvider { suspend fun load(uri: String): SubtitleAttachment }
-
-/** Domain contribution; a UI panel is registered separately, never inside the playback engine. */
+/**
+ * 播放工具。实现后放进 `yingxiaTools()`，播放工具列表会出现入口和面板。
+ * A player tool. Register it in `yingxiaTools()` and it shows up. No network, no external APK.
+ */
 interface PlayerFeature {
     val id: String
     val title: String
