@@ -15,51 +15,27 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cn.yingxia.player.AppViewModel
 import cn.yingxia.player.core.*
+import cn.yingxia.player.features.BookmarkFeature
+import cn.yingxia.player.features.LoopFeature
+import cn.yingxia.player.features.SleepTimerFeature
 import kotlinx.coroutines.launch
 
-/** UI contributions are compiled into the app; adding one does not change playback code. */
-data class PlayerFeatureUi(val icon: ImageVector, val panel: @Composable (AppViewModel, PlaybackState, () -> Unit) -> Unit)
-val BuiltInFeaturePanels = mapOf(
-    "subtitles" to PlayerFeatureUi(Icons.Outlined.Subtitles) { vm, state, _ -> SubtitlePanel(vm, state) },
-    "loop" to PlayerFeatureUi(Icons.Outlined.Repeat) { vm, state, _ -> LoopPanel(vm, state) },
-    "bookmarks" to PlayerFeatureUi(Icons.Outlined.BookmarkBorder) { vm, state, _ -> BookmarkPanel(vm, state) },
-    "sleep" to PlayerFeatureUi(Icons.Outlined.Bedtime) { vm, _, _ -> SleepPanel(vm) },
+/**
+ * 一个播放工具的界面。在 [yingxiaTools] 里登记后，播放工具列表会显示入口。
+ * One player tool. Register it in [yingxiaTools] and the tools sheet shows it.
+ */
+data class PlayerTool(
+    val feature: PlayerFeature,
+    val icon: ImageVector,
+    val panel: @Composable (AppViewModel, PlaybackState, () -> Unit) -> Unit,
 )
 
-@Composable private fun SubtitlePanel(vm: AppViewModel, state: PlaybackState) {
-    val scope = rememberCoroutineScope()
-    val settings by vm.settings.collectAsStateWithLifecycle()
-    var loading by remember { mutableStateOf(false) }
-    val select = rememberLauncherForActivityResult(LocalDocumentContract("*/*")) { uri ->
-        if (uri != null) scope.launch {
-            loading = true
-            try {
-                runCatching { vm.graph.subtitles.load(uri.toString()) }
-                    .onSuccess { vm.command(PlayerCommand.AttachSubtitle(it)); vm.message("字幕已加载") }
-                    .onFailure { vm.message(it.message ?: "字幕读取失败") }
-            } finally { loading = false }
-        }
-    }
-    PanelTitle("字幕", "支持内嵌轨道与 UTF-8 编码的 SRT、VTT 字幕")
-    TextButton(onClick = { vm.command(PlayerCommand.SelectSubtitle(null)) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-        Icon(if (state.subtitles.none { it.selected }) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked, null, Modifier.size(22.dp)); Text("  关闭字幕")
-    }
-    state.subtitles.forEach { track ->
-        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { vm.command(PlayerCommand.SelectSubtitle(track.id)) }, verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(track.selected, onClick = { vm.command(PlayerCommand.SelectSubtitle(track.id)) })
-            Text(track.name, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-    }
-    if (state.subtitles.isEmpty()) Text("这个视频暂无内嵌字幕，可以从文件添加。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp))
-    OutlinedButton(onClick = { select.launch(Unit) }, enabled = !loading, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-        Icon(Icons.Outlined.Add, null); Text(if (loading) "  正在读取…" else "  选择本地字幕")
-    }
-    Text("字幕字号", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 20.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(.75f, 1f, 1.25f, 1.5f).forEach { scale -> FilterChip(settings.subtitleScale == scale, { scope.launch { vm.graph.settings.setSubtitleScale(scale) } },
-            label = { Text(when (scale) { .75f -> "小"; 1f -> "标准"; 1.25f -> "大"; else -> "特大" }) }) }
-    }
-}
+/** 内置工具。要加功能，在这个列表追加一项即可，不必改播放器核心。 */
+fun yingxiaTools(loop: LoopFeature, bookmarks: BookmarkFeature, timer: SleepTimerFeature) = listOf(
+    PlayerTool(loop, Icons.Outlined.Repeat) { vm, state, _ -> LoopPanel(vm, state) },
+    PlayerTool(bookmarks, Icons.Outlined.BookmarkBorder) { vm, state, _ -> BookmarkPanel(vm, state) },
+    PlayerTool(timer, Icons.Outlined.Bedtime) { vm, _, _ -> SleepPanel(vm) },
+)
 
 @Composable private fun LoopPanel(vm: AppViewModel, state: PlaybackState) {
     val scope = rememberCoroutineScope()

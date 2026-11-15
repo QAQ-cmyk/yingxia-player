@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.DeleteOutcome
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 
 class AppViewModel(val graph: AppGraph) : ViewModel() {
     val videos = graph.repository.videos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -18,6 +20,8 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     val folderKeys = combine(folders, videos) { folders, _ -> graph.files.folderKeys(folders) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
     val fileOperation = MutableStateFlow(FileOperationState())
+    val libraryScan = MutableStateFlow(LibraryScanState())
+    private var scanJob: Job? = null
     private var fileItems = emptyList<VideoItem>()
     private var fileTarget: StorageFolder? = null
     private var fileIndex = 0
@@ -116,11 +120,39 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     fun favorite(ids: Set<VideoId>, favorite: Boolean) {
         viewModelScope.launch { graph.repository.setFavorite(ids, favorite); notify(if (favorite) "已加入收藏" else "已取消收藏") }
     }
-    fun savePicture(id: VideoId, rotation: Int, mirrored: Boolean, cropBars: Boolean) {
+    fun savePicture(id: VideoId, cropBars: Boolean) {
         viewModelScope.launch {
-            runCatching { graph.repository.savePicture(id, rotation, mirrored, cropBars) }
+            runCatching { graph.repository.savePicture(id, cropBars) }
                 .onFailure { notify(it.message ?: "无法保存画面设置") }
         }
+    }
+    fun startLibraryScan() {
+        if (scanJob?.isActive == true) return
+        scanJob = viewModelScope.launch {
+            val videos = graph.repository.allVideos().filter { !it.hidden && it.accessible }
+            val keys = mutableListOf<Pair<VideoItem, String>>()
+            val unreadable = mutableListOf<Pair<VideoItem, String>>()
+            videos.forEachIndexed { index, video ->
+                ensureActive()
+                libraryScan.value = LibraryScanState(true, index, videos.size, video.displayTitle())
+                var bad: String? = null
+                var key: String? = null
+                graph.checks.forEach { check ->
+                    val hit = runCatching { check.inspect(video) { graph.files.openStream(video) } }.getOrNull()
+                    when (hit) {
+                        is CheckHit.Unreadable -> bad = hit.reason
+                        is CheckHit.ContentKey -> if (key == null) key = hit.key
+                        null -> Unit
+                    }
+                }
+                if (bad != null) unreadable += video to bad!! else if (key != null) keys += video to key!!
+            }
+            libraryScan.value = LibraryScanState(false, videos.size, videos.size, "检查完成", duplicateGroups(keys), unreadable)
+        }
+    }
+    fun cancelLibraryScan() {
+        scanJob?.cancel()
+        libraryScan.value = libraryScan.value.copy(running = false, label = "已取消")
     }
     fun restoreBackup(text: String) {
         viewModelScope.launch {
@@ -162,3 +194,11 @@ data class FileOperationState(val busy: Boolean = false, val message: String = "
 
 /** A short message. [actionLabel] is shown on the snackbar when the action can be undone. */
 data class UserNotice(val text: String, val actionLabel: String? = null, val onAction: (() -> Unit)? = null)
+data class LibraryScanState(
+    val running: Boolean = false,
+    val done: Int = 0,
+    val total: Int = 0,
+    val label: String = "还没有检查",
+    val duplicates: List<List<VideoItem>> = emptyList(),
+    val unreadable: List<Pair<VideoItem, String>> = emptyList(),
+)

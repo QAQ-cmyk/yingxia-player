@@ -84,7 +84,8 @@ class MediaStoreSource(private val context: Context) : MediaSource {
     }
 }
 
-class LocalVideoRepository(private val context: Context, private val db: VideoDatabase) : VideoRepository {
+class LocalVideoRepository(private val context: Context, private val db: VideoDatabase,
+    private val extraSources: List<MediaSource> = emptyList()) : VideoRepository {
     private val dao = db.videos()
     private val source = MediaStoreSource(context)
     private val mutex = Mutex()
@@ -123,9 +124,7 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                     val merged = old.copy(id = to, favorite = old.favorite || existing?.favorite == true,
                         hidden = old.hidden || existing?.hidden == true, positionMs = recent.positionMs, lastPlayedAt = recent.lastPlayedAt,
                         displayName = old.displayName ?: existing?.displayName,
-                        rotation = if (old.rotation != 0) old.rotation else existing?.rotation ?: 0,
-                        mirrored = old.mirrored || existing?.mirrored == true,
-                        cropBars = old.cropBars || existing?.cropBars == true)
+                        rotation = 0, mirrored = false, cropBars = old.cropBars || existing?.cropBars == true)
                     dao.upsert(listOf(merged)); dao.relocateBookmarks(from, to); dao.removeAlias(from)
                     latest.remove(from); latest[to] = merged
                 }
@@ -137,13 +136,20 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                         hidden = old?.hidden ?: false, favorite = old?.favorite ?: false,
                         positionMs = old?.positionMs ?: 0, lastPlayedAt = old?.lastPlayedAt ?: 0,
                         subtitleUri = old?.subtitleUri, subtitleName = old?.subtitleName,
-                        displayName = old?.displayName, rotation = old?.rotation ?: 0,
-                        mirrored = old?.mirrored ?: false, cropBars = old?.cropBars ?: false)
+                        displayName = old?.displayName, rotation = 0, mirrored = false, cropBars = old?.cropBars ?: false)
                 })
                 // A persisted document grant remains usable even without broad gallery access.
                 val scannedIds = fresh.map { it.id.value }.toSet()
                 dao.upsert(imports.map { it.copy(id = aliases[it.id] ?: it.id) }.filter { it.id !in scannedIds }.map { checked ->
                     (latest[checked.id] ?: checked).copy(accessible = checked.accessible)
+                })
+                val extra = extraSources.flatMap { candidate -> runCatching { candidate.query() }.getOrDefault(emptyList()) }
+                if (extra.isNotEmpty()) dao.upsert(extra.map { video ->
+                    val old = dao.get(video.id.value)
+                    video.entity().copy(hidden = old?.hidden ?: false, favorite = old?.favorite ?: video.favorite,
+                        positionMs = old?.positionMs ?: video.positionMs, lastPlayedAt = old?.lastPlayedAt ?: video.lastPlayedAt,
+                        displayName = old?.displayName ?: video.displayName, rotation = 0, mirrored = false,
+                        cropBars = old?.cropBars ?: video.cropBars, subtitleUri = null, subtitleName = null)
                 })
             }
             scanError.value = null
@@ -223,15 +229,15 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     override suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean) = db.withTransaction {
         ids.map { it.value }.chunked(900).forEach { dao.favorite(it, favorite) }
     }
-    override suspend fun savePicture(id: VideoId, rotation: Int, mirrored: Boolean, cropBars: Boolean) {
+    override suspend fun savePicture(id: VideoId, cropBars: Boolean) {
         check(dao.get(id.value) != null) { "找不到这个视频" }
-        dao.picture(id.value, quarterTurn(rotation), mirrored, cropBars)
+        dao.crop(id.value, cropBars)
     }
     override suspend fun restoreRecords(rows: List<LibraryRecord>) = db.withTransaction {
         rows.forEach { row ->
             val saved = dao.get(row.id) ?: dao.byUri(row.uri) ?: return@forEach
             dao.restore(saved.id, row.favorite, row.positionMs.coerceAtLeast(0), row.lastPlayedAt.coerceAtLeast(0),
-                row.displayName ?: saved.displayName, quarterTurn(row.rotation), row.mirrored, row.cropBars)
+                row.displayName ?: saved.displayName, row.cropBars)
         }
     }
     override suspend fun rename(id: VideoId, displayName: String) {
@@ -242,7 +248,6 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         dao.rename(id.value, trimmed)
     }
     override suspend fun saveProgress(id: VideoId, positionMs: Long) { dao.progress(id.value, positionMs.coerceAtLeast(0), System.currentTimeMillis()) }
-    override suspend fun saveSubtitle(id: VideoId, attachment: SubtitleAttachment) { dao.subtitle(id.value, attachment.uri, attachment.name) }
     override suspend fun saveBookmark(videoId: VideoId, positionMs: Long, note: String, id: Long) {
         val video = requirePlayable(videoId)
         dao.bookmark(BookmarkEntity(id, videoId.value, PlaybackRules.seek(positionMs, video.durationMs), note.trim().take(200)))
@@ -258,8 +263,8 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                 val old = dao.get(original.id.value) ?: original.entity()
                 val moved = imported.entity().copy(folder = folderName, folderKey = "managed:$folderName",
                     favorite = old.favorite, hidden = old.hidden, positionMs = old.positionMs,
-                    lastPlayedAt = old.lastPlayedAt, subtitleUri = old.subtitleUri, subtitleName = old.subtitleName,
-                    displayName = old.displayName, rotation = old.rotation, mirrored = old.mirrored, cropBars = old.cropBars)
+                    lastPlayedAt = old.lastPlayedAt, subtitleUri = null, subtitleName = null,
+                    displayName = old.displayName, rotation = 0, mirrored = false, cropBars = old.cropBars)
                 dao.upsert(listOf(moved))
                 if (old.id != moved.id) { dao.unavailable(old.id); dao.relocateBookmarks(old.id, moved.id) }
                 moved.domain()

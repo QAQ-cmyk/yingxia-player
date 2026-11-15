@@ -10,18 +10,17 @@ data class RestorePlan(val settings: UserSettings, val matched: List<LibraryReco
 object LibraryBackup {
     fun export(videos: List<VideoItem>, settings: UserSettings): String {
         val records = JSONArray()
-        videos.filter { it.favorite || it.positionMs > 0 || it.lastPlayedAt > 0 || !it.displayName.isNullOrBlank() || it.rotation != 0 || it.mirrored || it.cropBars }
+        videos.filter { it.favorite || it.positionMs > 0 || it.lastPlayedAt > 0 || !it.displayName.isNullOrBlank() || it.cropBars }
             .forEach { video ->
                 records.put(JSONObject()
                     .put("id", video.id.value).put("uri", video.uri).put("name", video.name).put("sizeBytes", video.sizeBytes)
                     .put("favorite", video.favorite).put("positionMs", video.positionMs).put("lastPlayedAt", video.lastPlayedAt)
                     .put("displayName", video.displayName ?: "")
-                    .put("rotation", video.rotation).put("mirrored", video.mirrored).put("cropBars", video.cropBars))
+                    .put("cropBars", video.cropBars))
             }
         val prefs = JSONObject()
             .put("theme", settings.theme.name).put("speed", settings.speed.toDouble()).put("holdSpeed", settings.holdSpeed.toDouble())
-            .put("subtitleScale", settings.subtitleScale.toDouble()).put("sort", settings.sort.name)
-            .put("gestureSensitivity", settings.gestureSensitivity.toDouble()).put("touchGuard", settings.touchGuard)
+            .put("sort", settings.sort.name).put("touchGuard", settings.touchGuard)
         return JSONObject().put("kind", "yingxia-backup").put("version", 1).put("settings", prefs).put("records", records).toString()
     }
 
@@ -33,9 +32,7 @@ object LibraryBackup {
             theme = runCatching { ThemeMode.valueOf(prefs.optString("theme", "SYSTEM")) }.getOrDefault(ThemeMode.SYSTEM),
             speed = PlaybackRules.speed(prefs.optDouble("speed", 1.0).toFloat()),
             holdSpeed = if (prefs.optDouble("holdSpeed", 2.0).toFloat() == 3f) 3f else 2f,
-            subtitleScale = prefs.optDouble("subtitleScale", 1.0).toFloat().coerceIn(.75f, 1.5f),
             sort = runCatching { SortOrder.valueOf(prefs.optString("sort", "NEWEST")) }.getOrDefault(SortOrder.NEWEST),
-            gestureSensitivity = gestureLevel(prefs.optDouble("gestureSensitivity", 1.0).toFloat()),
             touchGuard = prefs.optBoolean("touchGuard", false),
         )
         val records = root.optJSONArray("records") ?: JSONArray()
@@ -44,8 +41,7 @@ object LibraryBackup {
                 val row = records.getJSONObject(i)
                 add(LibraryRecord(row.optString("id"), row.optString("uri"), row.optString("name"), row.optLong("sizeBytes"),
                     row.optBoolean("favorite"), row.optLong("positionMs"), row.optLong("lastPlayedAt"),
-                    row.optString("displayName").ifBlank { null }, quarterTurn(row.optInt("rotation")),
-                    row.optBoolean("mirrored"), row.optBoolean("cropBars")))
+                    row.optString("displayName").ifBlank { null }, row.optBoolean("cropBars")))
             }
         }
         return LibraryBackupFile(settings, rows)

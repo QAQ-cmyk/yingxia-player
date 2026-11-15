@@ -22,6 +22,7 @@ sealed interface DeleteOutcome {
 
 /** All writes are user initiated. A move keeps the source until the destination is re-read and verified. */
 class LocalFileManager(private val context: Context) {
+    fun openStream(video: VideoItem) = context.contentResolver.openInputStream(Uri.parse(video.uri))
     private val resolver get() = context.contentResolver
 
     suspend fun folderKeys(folders: List<StorageFolder>): Map<String, Set<String>> = withContext(Dispatchers.IO) {

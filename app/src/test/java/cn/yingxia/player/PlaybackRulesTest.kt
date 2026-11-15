@@ -66,16 +66,21 @@ class PlaybackRulesTest {
         assertTrue(matchesLibraryQuery("啤酒花", "beer.mp4", "电影", "pjh"))
         assertTrue(matchesLibraryQuery("Notes", "readme.mp4", "旅行", "旅行"))
         assertFalse(matchesLibraryQuery("啤酒花", "beer.mp4", "电影", "zzz"))
-        assertEquals(1.75f, gestureSlopScale(0.7f), 0.01f)
-        assertEquals(1f, gestureSlopScale(1f), 0.01f)
-        assertEquals(0.62f, gestureSlopScale(1.4f), 0.01f)
         assertEquals(270, quarterTurn(-90))
     }
     @Test fun backupRoundTripKeepsFavoritesProgressAndSettingsWithoutVideoBytes() {
         val video = VideoItem(VideoId("ms:1"), "content://media/1", "啤酒花.mp4", "电影", "k", 1_000, 20, favorite = true, positionMs = 4_000, displayName = "花")
-        val settings = UserSettings(theme = ThemeMode.DARK, gestureSensitivity = 0.7f, touchGuard = true, sort = SortOrder.NAME_ASC)
+        val settings = UserSettings(theme = ThemeMode.DARK, touchGuard = true, sort = SortOrder.NAME_ASC)
         val text = LibraryBackup.export(listOf(video), settings)
         assertFalse(text.contains("ftyp"))
+        assertFalse(text.contains("webdav"))
+        assertFalse(text.contains("\"rotation\""))
+        assertFalse(text.contains("\"mirrored\""))
+        val older = """{"kind":"yingxia-backup","version":1,"settings":{"theme":"DARK","speed":1,"holdSpeed":2,"subtitleScale":1.25,"sort":"NAME_ASC","touchGuard":true},"records":[{"id":"ms:1","uri":"content://media/1","name":"啤酒花.mp4","sizeBytes":20,"favorite":true,"positionMs":4000,"lastPlayedAt":0,"displayName":"花","rotation":90,"mirrored":true,"cropBars":true}]}"""
+        val parsed = LibraryBackup.parse(older)
+        assertEquals(1, parsed.records.size)
+        assertTrue(parsed.records.single().cropBars)
+        assertTrue(parsed.settings.touchGuard)
         val plan = LibraryBackup.plan(listOf(video), LibraryBackup.parse(text))
         assertEquals(ThemeMode.DARK, plan.settings.theme)
         assertTrue(plan.settings.touchGuard)
@@ -84,6 +89,14 @@ class PlaybackRulesTest {
         assertTrue(plan.matched[0].favorite)
         assertEquals(0, plan.skipped)
         assertEquals(1, LibraryBackup.plan(emptyList(), LibraryBackup.parse(text)).skipped)
+    }
+    @Test fun duplicateGroupsNeedTwoCopiesOfTheSameKey() {
+        fun clip(name: String) = VideoItem(VideoId(name), "content://$name", name, "文件夹", "k", 1, 1)
+        val a = clip("a"); val b = clip("b"); val c = clip("c")
+        val groups = duplicateGroups(listOf(a to "h", b to "other", c to "h"))
+        assertEquals(1, groups.size)
+        assertEquals(setOf("a", "c"), groups.single().map { it.name }.toSet())
+        assertTrue(duplicateGroups(listOf(a to "only")).isEmpty())
     }
     @Test fun permissionRequestsMatchAndroid8_13_14_16() {
         assertArrayEquals(arrayOf("android.permission.READ_EXTERNAL_STORAGE"), mediaPermissions(26))
