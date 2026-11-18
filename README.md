@@ -4,9 +4,9 @@
 
 它不打算在编码格式覆盖上和 MX Player 或 VLC 比。能在这台手机上正常打开的本地视频，用一套清楚的中文界面看完，就够了。
 
-[下载 1.5.1 调试包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.5.1/YingXia-1.5.1-debug.apk) · [1.5.1 发布页](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.5.1) · [1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)
+[下载 1.6.1 正式安装包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.6.1/YingXia-1.6.1.apk) · [1.6.1 更新说明](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.6.1) · [下载完整源码](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.6.1/YingXia-1.6.1-source.zip)
 
-`YingXia-1.5.1-debug.apk` 是 debug 签名（versionName 1.5.1，versionCode 11）。它只能装到测试机，**不能覆盖**已经安装的 [1.2.1 正式签名包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.2.1/YingXia-1.2.1.apk)。要覆盖升级日常使用的正式包，请继续用 1.2.1，不要先卸载。
+`YingXia-1.6.1.apk` 使用与 1.2.1、1.6.0 相同的正式签名，可覆盖升级同签名正式版并保留数据。此前的 `1.5.1-debug` 等调试包签名不同，**不能直接覆盖升级**。遇到签名冲突请停止，不要直接卸载有数据的旧版；先导出普通记录，保险箱视频需另行恢复到相册，普通记录备份不包含保险箱。详见 [安装与使用](delivery/v1.6.1-notes/安装与使用.md)。
 
 源码以 [MIT 许可证](LICENSE) 发布。Copyright 2026 QAQ-cmyk。
 
@@ -37,6 +37,16 @@
 播放器底部是上一条、播放、下一条，进度条贴在画面最下沿。只有按住画面时才会出现 2×。外面是粉白界面，桌面图标是珊瑚红底的快门。
 
 隐藏只影响映匣里的列表。「删除原文件」会删除手机里的文件，并经过确认。
+
+### 新增：加密保险箱（1.6.1）
+
+「我的 → 加密保险箱」设置独立密码。视频卡片菜单的「移入加密保险箱」或多选工具栏的「加密」可以批量导入：先生成加密副本并完整校验，再请求系统移除相册原件。只有移除成功，所选原件才不再出现在相册；取消系统授权会保留原件，并显示待完成状态。
+
+视频内容、文件名和私密播放记录都仅保存在本机应用私有目录，禁用系统云备份与迁移，没有保险箱账号、联网权限或服务器。保险箱复用普通播放器的操作：八档倍速、长按加速、滑动/进度条定位、双击暂停、全屏、亮度音量、防误触、双指缩放、裁黑边、播放队列、A-B 循环、定时暂停、收藏、续播和时间书签。播放不产生明文临时视频；私密播放记录单独加密，不进入普通资料库或备份。退出或切到后台自动锁定，保险箱页面禁止截图与录屏。恢复文件位于 `Movies/映匣恢复/`，恢复后仍保留保险箱副本。
+
+**请记住密码：忘记密码无法找回。卸载应用或清空数据会删除保险箱视频，请先恢复到相册。普通记录备份不包含保险箱。** 云相册、回收站、其他视频副本和已导出的旧备份不会被自动清理。加密导入完成后，会清除普通资料库中该视频的收藏、进度及书签，避免明文记录残留在新的记录备份里。
+
+1.6.1 的 [更新说明](delivery/v1.6.1-notes/更新说明.md)、[测试记录](delivery/v1.6.1-notes/测试记录.md) 与 [SHA-256 校验值](delivery/SHA256SUMS-1.6.1.txt) 均随源码提供。使用说明与格式接口见 [加密保险箱](docs/加密保险箱.md)。
 
 ## 页面怎么走
 

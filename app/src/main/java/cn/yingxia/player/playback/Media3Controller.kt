@@ -12,7 +12,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 class Media3Controller(context: Context, private val repository: VideoRepository,
-    private val settings: SettingsRepository, private val scope: CoroutineScope) : PlaybackController {
+    private val settings: SettingsRepository, private val scope: CoroutineScope,
+    private val source: ((VideoItem) -> androidx.media3.exoplayer.source.MediaSource)? = null) : PlaybackController {
     private val mutableState = MutableStateFlow(PlaybackState())
     override val state: StateFlow<PlaybackState> = mutableState.asStateFlow()
     private val mutableEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 32)
@@ -27,6 +28,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     private var autoAdvance = false
     private var lastSavedAt = 0L
     private var isClosing = false
+    private var released = false
     private val openMutex = Mutex()
 
     init {
@@ -103,6 +105,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     }
 
     override suspend fun execute(command: PlayerCommand): Result<Unit> = withContext(Dispatchers.Main.immediate) {
+        if (released) return@withContext Result.failure(IllegalStateException("播放会话已结束"))
         try {
             when (command) {
                 is PlayerCommand.Open -> openMutex.withLock { open(command.id, command.queue, command.positionMs) }
@@ -173,7 +176,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         isClosing = true
         surfacePlayer.stop()
         mutableState.value = PlaybackState(video, safeQueue, durationMs = video.durationMs, baseSpeed = speed, effectiveSpeed = speed, repeatMode = mode, buffering = true)
-        surfacePlayer.setMediaItem(mediaItem(video))
+        if (source != null) surfacePlayer.setMediaSource(source.invoke(video)) else surfacePlayer.setMediaItem(mediaItem(video))
         surfacePlayer.seekTo(start?.let { PlaybackRules.seek(it, video.durationMs) } ?: PlaybackRules.resume(video.positionMs, video.durationMs))
         surfacePlayer.setPlaybackSpeed(speed)
         surfacePlayer.prepare()
@@ -208,7 +211,11 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         val video = state.value.video ?: return
         val position = surfacePlayer.currentPosition.coerceAtLeast(0)
         lastSavedAt = System.currentTimeMillis()
-        scope.launch { repository.saveProgress(video.id, position) }
+        scope.launch {
+            try { repository.saveProgress(video.id, position) }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.UNKNOWN, "本次播放进度未保存，请检查可用存储空间"))) }
+        }
     }
     private fun endBoost() {
         if (!state.value.boosting) return
@@ -227,5 +234,17 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     private fun report(failure: PlayerFailure) {
         mutableState.update { it.copy(failure = failure.message, buffering = false) }
         mutableEvents.tryEmit(PlayerEvent.Error(failure))
+    }
+
+    /** Owner must cancel its session scope first, then flush this snapshot before destroying keys. */
+    fun release(): PlaybackState {
+        if (released) return state.value
+        val last = state.value.copy(positionMs = surfacePlayer.currentPosition.coerceAtLeast(0))
+        isClosing = true
+        endBoost()
+        surfacePlayer.release()
+        released = true
+        mutableState.value = PlaybackState()
+        return last
     }
 }

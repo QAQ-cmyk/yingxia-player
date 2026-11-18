@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="cn.yingxia.player.VaultCryptoTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-18T06:21:56.131Z" hostname="LAPTOP-ECS64FIC" time="0.959">
+  <properties/>
+  <testcase name="lockClosesExistingReadersAndPreventsNewReads" classname="cn.yingxia.player.VaultCryptoTest" time="0.219"/>
+  <testcase name="tamperedAndTruncatedVideosDoNotVerify" classname="cn.yingxia.player.VaultCryptoTest" time="0.116"/>
+  <testcase name="multiSegmentRoundTripAndRandomSeeking" classname="cn.yingxia.player.VaultCryptoTest" time="0.189"/>
+  <testcase name="configAndMetadataTamperingAreRejected" classname="cn.yingxia.player.VaultCryptoTest" time="0.144"/>
+  <testcase name="passwordRoundTripRejectsWrongPasswordAndWipesInput" classname="cn.yingxia.player.VaultCryptoTest" time="0.265"/>
+  <testcase name="interruptedEncryptionNeverChangesTheInput" classname="cn.yingxia.player.VaultCryptoTest" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

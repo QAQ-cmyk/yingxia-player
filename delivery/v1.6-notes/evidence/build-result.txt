@@ -1,0 +1,12 @@
+> Task :app:assembleDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebug
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///C:/Users/H/Documents/Codex/yingxia-vault-build/app/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+
+BUILD SUCCESSFUL in 46s
+132 actionable tasks: 32 executed, 100 up-to-date

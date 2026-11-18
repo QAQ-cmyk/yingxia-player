@@ -19,10 +19,12 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() { super.onResume(); model.refresh() }
     override fun onStop() {
+        if (!isChangingConfigurations) graph.vault.lock()
         if (!isChangingConfigurations) graph.scope.launch { graph.player.execute(PlayerCommand.Pause) }
         super.onStop()
     }
     override fun onDestroy() {
+        if (isFinishing) graph.vault.close()
         if (isFinishing) graph.scope.launch { graph.player.execute(PlayerCommand.Close) }
         super.onDestroy()
     }

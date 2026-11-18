@@ -1,0 +1,10 @@
+Performing Incremental Install
+Performing Streamed Install
+Success
+Starting: Intent { cmp=cn.yingxia.player/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: cn.yingxia.player/.MainActivity
+TotalTime: 1208
+WaitTime: 1212
+Complete

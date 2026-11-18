@@ -40,6 +40,7 @@ data class BookmarkEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0,
     @Query("SELECT * FROM bookmarks ORDER BY id DESC") fun observeBookmarks(): Flow<List<BookmarkEntity>>
     @Upsert suspend fun bookmark(bookmark: BookmarkEntity)
     @Query("DELETE FROM bookmarks WHERE id=:id") suspend fun deleteBookmark(id: Long)
+    @Query("DELETE FROM bookmarks WHERE videoId=:videoId") suspend fun deleteVideoBookmarks(videoId: String)
     @Query("UPDATE bookmarks SET videoId=:destination WHERE videoId=:source") suspend fun relocateBookmarks(source: String, destination: String)
     @Query("UPDATE videos SET accessible=0 WHERE id=:id") suspend fun unavailable(id: String)
     @Query("DELETE FROM videos WHERE id=:id") suspend fun removeAlias(id: String)

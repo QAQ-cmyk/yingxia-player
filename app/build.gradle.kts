@@ -11,8 +11,8 @@ android {
         applicationId = "cn.yingxia.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.5.1"
+        versionCode = 13
+        versionName = "1.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -40,6 +40,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.6.1")
     implementation("androidx.media3:media3-ui:1.6.1")
     implementation("androidx.media3:media3-ui-compose:1.6.1")
+    implementation("com.google.crypto.tink:tink-android:1.24.0")
     implementation("androidx.room:room-runtime:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
     ksp("androidx.room:room-compiler:2.7.1")

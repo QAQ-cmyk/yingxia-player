@@ -216,6 +216,15 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         return "ms:$volume:$id"
     }
     override suspend fun allVideos() = dao.all().map { it.domain() }
+    /** Completed vault moves must not leak names or notes through ordinary history/JSON backups. */
+    suspend fun forgetEncryptedSource(video: VideoItem) = mutex.withLock {
+        db.withTransaction {
+            dao.all().filter { it.id == video.id.value || it.uri == video.uri }.forEach {
+                dao.deleteVideoBookmarks(it.id)
+                dao.removeAlias(it.id)
+            }
+        }
+    }
     override suspend fun get(id: VideoId) = dao.get(id.value)?.domain()
     override suspend fun requirePlayable(id: VideoId): VideoItem {
         val video = get(id) ?: throw PlayerFailure(FailureKind.SOURCE_MISSING, "找不到这个视频")

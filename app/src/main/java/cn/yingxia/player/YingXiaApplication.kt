@@ -35,6 +35,7 @@ class AppGraph(application: Application) {
     val settings = SettingsRepository(application)
     val files = LocalFileManager(application)
     val player = Media3Controller(application, repository, settings, scope)
+    val vault = cn.yingxia.player.vault.VaultCoordinator(application, repository, files, player, scope, settings)
     val loop = LoopFeature(player)
     val timer = SleepTimerFeature(player, scope)
     val bookmarks = BookmarkFeature(player, repository)

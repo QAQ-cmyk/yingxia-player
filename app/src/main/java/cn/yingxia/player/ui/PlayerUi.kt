@@ -57,6 +57,11 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable fun PlayerPage(vm: AppViewModel, state: PlaybackState, settings: UserSettings) {
+    val session = remember(vm) { PlayerUiSession.ordinary(vm) }
+    PlayerPage(session, state, settings)
+}
+
+@Composable fun PlayerPage(vm: PlayerUiSession, state: PlaybackState, settings: UserSettings) {
     val activity = LocalActivity.current ?: return
     val fullscreen = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var controls by rememberSaveable { mutableStateOf(true) }
@@ -79,8 +84,8 @@ import kotlin.math.roundToInt
     var guardDismissed by remember(video.id) { mutableStateOf(false) }
     val shielded = locked || (settings.touchGuard && state.isPlaying && !guardDismissed)
     val current = videos.firstOrNull { it.id == video.id } ?: video
-    val remaining by vm.graph.timer.remainingMs.collectAsStateWithLifecycle()
-    val untilEnd by vm.graph.timer.untilEnd.collectAsStateWithLifecycle()
+    val remaining by vm.timer.remainingMs.collectAsStateWithLifecycle()
+    val untilEnd by vm.timer.untilEnd.collectAsStateWithLifecycle()
     val latestState by rememberUpdatedState(state)
     val close = {
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -107,6 +112,7 @@ import kotlin.math.roundToInt
         val originalBrightness = activity.window.attributes.screenBrightness
         onDispose {
             activity.window.attributes = activity.window.attributes.apply { screenBrightness = originalBrightness }
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             WindowCompat.getInsetsController(activity.window, activity.window.decorView).show(WindowInsetsCompat.Type.systemBars())
             vm.command(PlayerCommand.EndBoost)
@@ -127,7 +133,7 @@ import kotlin.math.roundToInt
     LaunchedEffect(feedback) { if (feedback != null) { delay(1000); feedback = null } }
     Column(Modifier.fillMaxSize().background(Color.Black).then(if (fullscreen) Modifier else Modifier.statusBarsPadding())) {
         Box(Modifier.fillMaxWidth().then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
-            Media3VideoSurface(vm.graph.player, current.cropBars, zoom, panX, panY, Modifier.fillMaxSize())
+            Media3VideoSurface(vm.player, current.cropBars, zoom, panX, panY, Modifier.fillMaxSize())
             key(video.id) {
                 AndroidView(factory = { PlayerGestureView(it) }, modifier = Modifier.fillMaxSize(), update = { view ->
                     view.snapshot = { latestState }; view.fullscreen = fullscreen; view.locked = shielded; view.holdSpeed = settings.holdSpeed
@@ -222,8 +228,8 @@ import kotlin.math.roundToInt
                     item {
                         Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = RoundedCornerShape(5.dp), color = MaterialTheme.colorScheme.primaryContainer) { Text("本地视频", Modifier.padding(horizontal = 7.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
-                                Text("  ${fileSize(video.sizeBytes)} · ${video.width} × ${video.height}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                                Surface(shape = RoundedCornerShape(5.dp), color = MaterialTheme.colorScheme.primaryContainer) { Text(if (vm.privateSession) "加密视频" else "本地视频", Modifier.padding(horizontal = 7.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
+                                Text("  ${fileSize(video.sizeBytes)}" + if (video.width > 0 && video.height > 0) " · ${video.width} × ${video.height}" else "", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -259,7 +265,9 @@ import kotlin.math.roundToInt
                     items(queue, key = { it.id.value }) { item ->
                         Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable { vm.open(item, queue) }.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.width(104.dp).height(60.dp)) {
-                                Thumbnail(item, Modifier.fillMaxSize())
+                                if (vm.privateSession) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                } else Thumbnail(item, Modifier.fillMaxSize())
                                 if (item.id == video.id) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f)), contentAlignment = Alignment.Center) {
                                     Icon(Icons.Outlined.GraphicEq, "正在播放", tint = BrandPink)
                                 }
@@ -287,7 +295,7 @@ import kotlin.math.roundToInt
                 "tools" -> {
                     PanelTitle("播放工具", "为观影，也为每一次认真学习")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        vm.graph.tools.filter { it.feature.available(state) }.forEach { tool ->
+                        vm.tools.filter { it.feature.available(state) }.forEach { tool ->
                             OutlinedButton(onClick = { sheet = tool.feature.id }, modifier = Modifier.heightIn(min = 48.dp)) { Icon(tool.icon, null, Modifier.size(20.dp)); Text("  ${tool.feature.title}") }
                         }
                     }
@@ -306,11 +314,17 @@ import kotlin.math.roundToInt
                     Text("音量", style = MaterialTheme.typography.titleSmall)
                     Slider(volume, { volume = it; audio.setStreamVolume(AudioManager.STREAM_MUSIC, (it * maxVolume).roundToInt(), 0) },
                         modifier = Modifier.semantics { stateDescription = "音量 ${(volume * 100).roundToInt()}%" })
-                    Text("从列表中隐藏", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleSmall)
-                    Text("不会删除文件。如果正在播放这条视频，播放会结束。可以在底部提示里撤销。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedButton(onClick = { sheet = null; vm.hide(setOf(video.id), true) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp)) { Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(20.dp)); Text("  隐藏当前视频") }
+                    if (vm.privateSession) {
+                        Text("仅保存在这台手机", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleSmall)
+                        Text("视频、续播、收藏和书签均加密保存，不进入普通历史或备份。离开应用自动锁定。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(onClick = close, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp)) { Icon(Icons.Outlined.Lock, null, Modifier.size(20.dp)); Text("  返回保险箱") }
+                    } else {
+                        Text("从列表中隐藏", modifier = Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleSmall)
+                        Text("不会删除文件。如果正在播放这条视频，播放会结束。可以在底部提示里撤销。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedButton(onClick = { sheet = null; vm.hide(setOf(video.id), true) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 48.dp)) { Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(20.dp)); Text("  隐藏当前视频") }
+                    }
                 }
-                else -> vm.graph.tools.firstOrNull { it.feature.id == sheet }?.panel?.invoke(vm, state, closeSheet)
+                else -> vm.tools.firstOrNull { it.feature.id == sheet }?.panel?.invoke(vm, state, closeSheet)
             }
         }
     }

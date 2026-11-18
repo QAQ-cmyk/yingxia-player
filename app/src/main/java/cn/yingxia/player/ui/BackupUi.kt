@@ -1,6 +1,7 @@
 package cn.yingxia.player.ui
 
 import android.content.Intent
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -16,10 +17,19 @@ import cn.yingxia.player.data.LibraryBackup
 import kotlinx.coroutines.launch
 import java.io.File
 
+private class LocalBackupExport : ActivityResultContracts.CreateDocument("application/json") {
+    override fun createIntent(context: Context, input: String): Intent =
+        super.createIntent(context, input).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+}
+private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
+    override fun createIntent(context: Context, input: Array<String>): Intent =
+        super.createIntent(context, input).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+}
+
 @Composable fun BackupPage(vm: AppViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+    val export = rememberLauncherForActivityResult(LocalBackupExport()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {
@@ -29,7 +39,7 @@ import java.io.File
                 .onFailure { vm.message(it.message ?: "无法保存备份") }
         }
     }
-    val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val import = rememberLauncherForActivityResult(LocalBackupImport()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {

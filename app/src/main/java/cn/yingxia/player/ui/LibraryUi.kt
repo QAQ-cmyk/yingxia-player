@@ -108,6 +108,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     if (library) LibraryScaffold(vm) { libraryNav = it } else PlayerPage(vm, player, settings)
                 }
                 FileOperationHost(vm)
+                VaultHost(vm)
                 SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding().padding(start = 16.dp, end = 16.dp, bottom = snackbarLift))
             }
         }
@@ -230,6 +231,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                             }
                         }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("播放所选") }
                         TextButton(onClick = { vm.hide(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("隐藏") }
+                        TextButton(onClick = { vm.graph.vault.show(visible.filter { it.id in selected }); selected = emptySet() }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("加密") }
                         TextButton(onClick = { moving = true; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 48.dp), colors = actionColors) { Text("移动") }
                         TextButton(onClick = { moving = false; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 48.dp), colors = dangerColors) { Text("删除") }
                     }
@@ -248,7 +250,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 "backup" -> BackupPage(vm)
                 "scan" -> LibraryScanPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
-                "tab3" -> ProfilePage(videos, bookmarks.size, { page = it }, importFile)
+                "tab3" -> ProfilePage(videos, bookmarks.size, { if (it == "vault") vm.graph.vault.show() else page = it }, importFile)
                 "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }) { folder = it; query = "" }
                 else -> {
                     val openedFolder = current.removePrefix("folder:").takeIf { current.startsWith("folder:") }
@@ -368,7 +370,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 }, onLong = { onSelect(selected + video.id) },
                 onFavorite = { vm.favorite(setOf(video.id), !video.favorite) }, onRename = { onRename(video) },
                 onHide = { vm.hide(setOf(video.id), !hidden) }, onQueue = { vm.open(video, listOf(video)) },
-                onMove = { onFileAction(video, true) }, onDelete = { onFileAction(video, false) })
+                onMove = { onFileAction(video, true) }, onDelete = { onFileAction(video, false) }, onEncrypt = { vm.graph.vault.show(listOf(video)) })
         }
     }
 }
@@ -389,7 +391,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 
 @Composable private fun VideoCard(video: VideoItem, selected: Boolean, selecting: Boolean, hidden: Boolean, modifier: Modifier = Modifier,
     onClick: () -> Unit, onLong: () -> Unit, onFavorite: () -> Unit, onRename: () -> Unit, onHide: () -> Unit, onQueue: () -> Unit,
-    onMove: () -> Unit, onDelete: () -> Unit) {
+    onMove: () -> Unit, onDelete: () -> Unit, onEncrypt: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = onClick, onLongClick = onLong).testTag("video-${video.id.value}")
         .semantics { if (selecting || hidden) stateDescription = if (selected) "已选中" else "未选中" }) {
@@ -422,6 +424,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                         DropdownMenuItem(text = { Text("重命名") }, onClick = { menu = false; onRename() }, leadingIcon = { Icon(Icons.Outlined.Edit, null) })
                         DropdownMenuItem(text = { Text("单独播放") }, onClick = { menu = false; onQueue() }, leadingIcon = { Icon(Icons.Outlined.PlayCircleOutline, null) })
                         DropdownMenuItem(text = { Text("移动到文件夹") }, onClick = { menu = false; onMove() }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) })
+                        DropdownMenuItem(text = { Text("移入加密保险箱") }, onClick = { menu = false; onEncrypt() }, leadingIcon = { Icon(Icons.Outlined.Lock, null) })
                         DropdownMenuItem(text = { Text("删除原文件", color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; onDelete() }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) })
                     }
                     DropdownMenuItem(text = { Text(if (hidden) "恢复显示" else "隐藏视频") }, onClick = { menu = false; onHide() }, leadingIcon = { Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null) })
@@ -517,6 +520,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     MenuRow(Icons.Outlined.History, "播放历史", "从上次离开的地方继续", { onPage("history") })
                     MenuRow(Icons.Outlined.Bookmarks, "时间书签", "记下值得重看的瞬间", { onPage("bookmarks") })
                     MenuRow(Icons.Outlined.VisibilityOff, "隐藏管理", "查看与恢复隐藏的视频", { onPage("hidden") })
+                    MenuRow(Icons.Outlined.Lock, "加密保险箱", "密码保护，移除相册原件后仅在此播放", { onPage("vault") })
                     MenuRow(Icons.AutoMirrored.Outlined.FactCheck, "检查视频", "找出内容相同和打不开的文件", { onPage("scan") })
                     MenuRow(Icons.Outlined.SaveAlt, "备份与恢复", "导出收藏、进度和设置", { onPage("backup") })
                 }
