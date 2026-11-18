@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -84,51 +87,63 @@ import cn.yingxia.player.vault.*
                 SnackbarHost(playbackNotice, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
             }
         } else Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
-            Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { if (state.playing != null) vault.stopPlaying() else vault.close() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "退出保险箱") }
                 Column(Modifier.weight(1f)) {
                     Text("加密保险箱", style = MaterialTheme.typography.titleLarge)
                     Text(if (state.unlocked) "离开应用会自动锁定" else "只有你知道密码", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (state.unlocked) IconButton(onClick = { vault.lock() }) { Icon(Icons.Outlined.Lock, "立即锁定") }
+                if (state.unlocked) FilledTonalIconButton(onClick = { vault.lock() }, modifier = Modifier.padding(end = 8.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.tertiary)) {
+                    Icon(Icons.Outlined.Lock, "立即锁定")
+                }
             }
             if (!state.unlocked) {
                 VaultPassword(state, vault::unlock, Modifier.weight(1f))
 
             } else {
-                LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
-                        if (state.damagedRecords > 0) Text("有 ${state.damagedRecords} 条记录无法解密，相关文件已保留。其他视频仍可使用。", color = MaterialTheme.colorScheme.error)
-                        Text("加密视频不参与普通搜索、收藏或记录备份。这里只显示名称，不生成明文封面。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Button(onClick = { choose = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 48.dp)) {
-                            Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("加密本地视频")
+                        SectionCard(padding = 18.dp) {
+                            if (state.damagedRecords > 0) Text("有 ${state.damagedRecords} 条记录无法解密，相关文件已保留。其他视频仍可使用。", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(bottom = 8.dp))
+                            Text("加密视频不参与普通搜索、收藏或记录备份。这里只显示名称，不生成明文封面。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                            Button(onClick = { choose = true }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 48.dp)) {
+                                Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("加密本地视频")
+                            }
                         }
                     }
                     if (state.entries.isEmpty()) item {
                         Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Outlined.Lock, null, Modifier.size(52.dp), tint = MaterialTheme.colorScheme.primary)
-                            Text("保险箱还是空的", Modifier.padding(top = 16.dp), style = MaterialTheme.typography.titleMedium)
-                            Text("从本地视频中选择，或在卡片菜单中移入。", Modifier.padding(top = 8.dp))
+                            IconBadge(Icons.Outlined.Lock, size = 72.dp, container = MaterialTheme.colorScheme.tertiaryContainer, tint = MaterialTheme.colorScheme.tertiary)
+                            Text("保险箱还是空的", Modifier.padding(top = 18.dp), style = MaterialTheme.typography.titleMedium)
+                            Text("从本地视频中选择，或在卡片菜单中移入。", Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     items(state.entries, key = { it.id }) { entry ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(entry.name, style = MaterialTheme.typography.titleMedium)
-                                Text("${durationText(entry.duration)} · ${entry.bytes / 1048576} MB", style = MaterialTheme.typography.bodySmall)
-                                Text(if (!entry.sourceRemoved) "原件移除尚未确认，相册可能仍可见" else if (entry.restoredAt > 0) "已恢复过相册副本；保险箱仍保留" else "已加密，相册原件已移除",
-                                    color = if (!entry.sourceRemoved) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodySmall)
-                                Row {
-                                    TextButton(onClick = { vault.play(entry) }, enabled = !state.busy) { Text("播放") }
-                                    TextButton(onClick = { restore = entry }, enabled = !state.busy) { Text("恢复到相册") }
-                                    IconButton(onClick = { deleting = entry }, enabled = !state.busy) { Icon(Icons.Outlined.DeleteOutline, "删除保险箱副本") }
+                        SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconBadge(Icons.Outlined.Lock, size = 44.dp, container = MaterialTheme.colorScheme.tertiaryContainer, tint = MaterialTheme.colorScheme.tertiary)
+                                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                    Text(entry.name, style = MaterialTheme.typography.titleMedium)
+                                    Text("${durationText(entry.duration)} · ${entry.bytes / 1048576} MB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                                 }
-                                if (!entry.sourceRemoved) OutlinedButton(onClick = { vault.retryRemoval(entry.id) }, enabled = !state.busy) { Text("继续移除相册原件") }
                             }
+                            Text(if (!entry.sourceRemoved) "原件移除尚未确认，相册可能仍可见" else if (entry.restoredAt > 0) "已恢复过相册副本；保险箱仍保留" else "已加密，相册原件已移除",
+                                color = if (!entry.sourceRemoved) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp))
+                            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                FilledTonalButton(onClick = { vault.play(entry) }, enabled = !state.busy, shape = CircleShape) {
+                                    Icon(Icons.Outlined.PlayArrow, null, Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("播放")
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                TextButton(onClick = { restore = entry }, enabled = !state.busy) { Text("恢复到相册") }
+                                Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { deleting = entry }, enabled = !state.busy) { Icon(Icons.Outlined.DeleteOutline, "删除保险箱副本", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            }
+                            if (!entry.sourceRemoved) OutlinedButton(onClick = { vault.retryRemoval(entry.id) }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.padding(top = 6.dp)) { Text("继续移除相册原件") }
                         }
                     }
-                    item { Text("忘记密码无法找回。卸载应用或清空数据会删除保险箱视频；操作前请先恢复到相册。系统相册的云端备份、回收站和其他副本需要你另行处理。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    item { Text("忘记密码无法找回。卸载应用或清空数据会删除保险箱视频；操作前请先恢复到相册。系统相册的云端备份、回收站和其他副本需要你另行处理。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp)) }
                 }
             }
             if (state.busy) Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -174,23 +189,28 @@ import cn.yingxia.player.vault.*
     var password by remember(state.epoch) { mutableStateOf("") }
     var confirmation by remember(state.epoch) { mutableStateOf("") }
     var acknowledged by remember(state.epoch) { mutableStateOf(false) }
-    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Icon(Icons.Outlined.Lock, null, Modifier.size(52.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(if (state.configured) "输入密码解锁" else "设置保险箱密码", style = MaterialTheme.typography.headlineSmall)
-        Text(if (state.configured) "密码只用于本机解密，不会上传。没有忘记密码或重置入口。" else "至少 8 个字符，建议使用较长的独立密码。请保存在你能找回的安全位置。")
-        OutlinedTextField(password, { password = it.take(128) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("vault-password"), label = { Text("保险箱密码") }, singleLine = true,
-            visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password))
-        if (!state.configured) {
-            OutlinedTextField(confirmation, { confirmation = it.take(128) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth().testTag("vault-password-confirm"), label = { Text("再次输入密码") }, singleLine = true,
+    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SectionCard(padding = 22.dp, modifier = Modifier.fillMaxWidth()) {
+            IconBadge(Icons.Outlined.Lock, size = 56.dp, container = MaterialTheme.colorScheme.tertiaryContainer, tint = MaterialTheme.colorScheme.tertiary)
+            Text(if (state.configured) "输入密码解锁" else "设置保险箱密码", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
+            Text(if (state.configured) "密码只用于本机解密，不会上传。没有忘记密码或重置入口。" else "至少 8 个字符，建议使用较长的独立密码。请保存在你能找回的安全位置。",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 16.dp))
+            OutlinedTextField(password, { password = it.take(128) }, enabled = !state.busy, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().testTag("vault-password"), label = { Text("保险箱密码") }, singleLine = true,
                 visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password))
-            Row(Modifier.fillMaxWidth().clickable { acknowledged = !acknowledged }, verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(acknowledged, { acknowledged = it })
-                Text("我已了解：忘记密码无法恢复；卸载应用、清空数据会丢失视频。普通记录备份不包含保险箱。", style = MaterialTheme.typography.bodyMedium)
+            if (!state.configured) {
+                OutlinedTextField(confirmation, { confirmation = it.take(128) }, enabled = !state.busy, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag("vault-password-confirm"), label = { Text("再次输入密码") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password))
+                Row(Modifier.fillMaxWidth().padding(top = 12.dp).clickable { acknowledged = !acknowledged }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(acknowledged, { acknowledged = it })
+                    Text("我已了解：忘记密码无法恢复；卸载应用、清空数据会丢失视频。普通记录备份不包含保险箱。", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            Button(onClick = { val chars = password.toCharArray(); password = ""; confirmation = ""; unlock(chars) },
+                enabled = !state.busy && password.length >= 8 && (state.configured || password == confirmation && acknowledged),
+                shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 18.dp).heightIn(min = 48.dp).testTag("vault-unlock")) {
+                Text(if (state.configured) "解锁" else "创建保险箱", fontWeight = FontWeight.SemiBold)
             }
         }
-        Button(onClick = { val chars = password.toCharArray(); password = ""; confirmation = ""; unlock(chars) },
-            enabled = !state.busy && password.length >= 8 && (state.configured || password == confirmation && acknowledged),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("vault-unlock")) { Text(if (state.configured) "解锁" else "创建保险箱") }
     }
 }
 
