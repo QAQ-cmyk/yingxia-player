@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
@@ -61,6 +62,7 @@ import cn.yingxia.player.vault.*
         onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
     var recoveryAction by remember(state.epoch) { mutableStateOf<RecoveryAction?>(null) }
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     BackHandler { if (recoveryAction != null) recoveryAction = null else if (state.playing != null) vault.stopPlaying() else vault.close() }
     val playbackNotice = remember(state.epoch) { SnackbarHostState() }
     LaunchedEffect(state.playing != null, state.message, state.epoch) {
@@ -89,7 +91,7 @@ import cn.yingxia.player.vault.*
             }
         } else Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { if (recoveryAction != null) recoveryAction = null else if (state.playing != null) vault.stopPlaying() else vault.close() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "退出保险箱") }
+                IconButton(onClick = { backDispatcher?.onBackPressed() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, if (recoveryAction != null) "返回" else "退出保险箱") }
                 Column(Modifier.weight(1f)) {
                     Text("加密保险箱", style = MaterialTheme.typography.titleLarge)
                     Text(if (state.unlocked) "离开应用会自动锁定" else "只有你知道密码", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -101,9 +103,9 @@ import cn.yingxia.player.vault.*
             }
             val action = recoveryAction
             if (action != null) {
-                RecoveryForm(action, Modifier.weight(1f), onCancel = { recoveryAction = null }) { password, answers ->
+                RecoveryForm(action, state.recoveryQuestionIds, Modifier.weight(1f), onCancel = { recoveryAction = null }) { password, ids, answers ->
                     recoveryAction = null
-                    vault.updateRecovery(action, password, answers)
+                    vault.updateRecovery(action, password, ids, answers)
                 }
             } else if (!state.unlocked) {
                 VaultPassword(state, vault::unlock, { recoveryAction = RecoveryAction.RESET }, Modifier.weight(1f))

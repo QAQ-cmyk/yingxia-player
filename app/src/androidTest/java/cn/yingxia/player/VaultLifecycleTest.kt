@@ -126,9 +126,28 @@ class VaultLifecycleTest {
             assertEquals("安全播放界面的私密书签", reopened.repository.bookmarks.value.single().note)
             withContext(Dispatchers.Main) { graph.vault.stopPlaying() }
             ui.onNodeWithText("设置密保问题").performScrollTo().performClick()
+            val chosen = listOf(6, 1, 4)
+            fun option(id: Int) = ui.onNodeWithTag("recovery-question-" + id)
+            val next = ui.onNodeWithTag("recovery-next")
+            ui.onNodeWithTag("recovery-answer-0").assertDoesNotExist()
+            next.assertIsNotEnabled()
+            chosen.forEach { option(it).performScrollTo().performClick() }
+            option(2).assertIsNotEnabled()
+            option(4).performScrollTo().performClick()
+            next.assertIsNotEnabled()
+            option(5).performScrollTo().performClick()
+            next.performClick()
+            ui.onNodeWithTag("recovery-answer-2").performTextInput("discard this answer")
+            ui.onNodeWithContentDescription("返回").performClick()
+            option(5).performScrollTo().performClick()
+            option(4).performScrollTo().performClick()
+            next.performClick()
+            ui.onNodeWithTag("recovery-answer-2").assertTextEquals(cn.yingxia.player.vault.recoveryQuestions.getValue(4), "")
             fun fillAnswers() {
                 listOf("island willow", "blue night library", "hello future").forEachIndexed { index, phrase ->
-                    ui.onNodeWithTag("recovery-answer-" + index).performScrollTo().performTextInput(phrase)
+                    ui.onNodeWithTag("recovery-answer-" + index)
+                        .assertTextContains(cn.yingxia.player.vault.recoveryQuestions.getValue(chosen[index]))
+                        .performScrollTo().performTextInput(phrase)
                 }
             }
             fillAnswers()
@@ -138,6 +157,7 @@ class VaultLifecycleTest {
             ui.onNodeWithText("知道了").performClick()
             ui.onNodeWithContentDescription("立即锁定").performClick()
             ui.onNodeWithText("忘记密码？回答密保问题").performScrollTo().performClick()
+            option(6).assertDoesNotExist()
             fillAnswers()
             ui.onNodeWithTag("recovery-password").performScrollTo().performTextInput("my new UI password")
             ui.onNodeWithTag("recovery-confirm").performScrollTo().performTextInput("my new UI password")

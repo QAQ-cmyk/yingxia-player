@@ -18,6 +18,7 @@ class VaultRecoveryTest {
     private val old = "test vault password"
     private val fresh = "new vault password"
     private val phrases = listOf("白帆的小岛", "我的书房 short", "明年的礼物 Seven")
+    private val chosen = listOf(6, 1, 4)
     private fun answers() = phrases.map { it.toCharArray() }
     private lateinit var vault: VaultStore
 
@@ -48,17 +49,22 @@ class VaultRecoveryTest {
         val diskPayload = payload.readBytes()
         val config = File(directory, "keyset.bin")
         val original = config.readBytes()
-        val sidecar = File(directory, "questions-v1.bin")
+        val sidecar = File(directory, "questions-v2.bin")
         assertFalse(vault.recovery.enabled)
-        rejected { vault.recovery.enroll(fresh.toCharArray(), answers()) {} }
+        rejected { vault.recovery.enroll(fresh.toCharArray(), chosen, answers()) {} }
         assertFalse(sidecar.exists())
-        vault.recovery.enroll(old.toCharArray(), answers()) {}
+        vault.recovery.enroll(old.toCharArray(), chosen, answers()) {}
         assertArrayEquals(original, config.readBytes())
         val enrolled = sidecar.readBytes()
+        assertEquals(chosen, VaultStore(context, directory).recovery.questionIds)
         for (phrase in phrases + old) assertFalse(enrolled.toString(Charsets.UTF_8).contains(phrase))
         vault.lock()
         vault = VaultStore(context, directory)
         assertTrue(vault.recovery.enabled)
+        sidecar.writeBytes(enrolled.copyOf().apply { this[32] = 7 })
+        rejected { vault.recovery.reset(answers(), fresh.toCharArray()) {} }
+        assertArrayEquals(original, config.readBytes())
+        sidecar.writeBytes(enrolled)
         rejected { vault.recovery.reset(answers().reversed(), fresh.toCharArray()) {} }
         rejected { vault.recovery.reset(answers(), fresh.toCharArray()) { error("cancelled") } }
         assertArrayEquals(original, config.readBytes())
@@ -79,9 +85,13 @@ class VaultRecoveryTest {
     }
 
     @Test fun cooldownSurvivesReopenAndDisableRequiresPassword() {
+        for (invalid in listOf(listOf(1, 1, 4), listOf(1, 2), listOf(1, 2, 255), listOf(1, 2, 3, 4))) {
+            rejected { vault.recovery.enroll(old.toCharArray(), invalid, answers()) {} }
+            assertTrue(vault.recovery.questionIds.isEmpty())
+        }
         val duplicate = List(3) { "一个答案".toCharArray() }
-        rejected { vault.recovery.enroll(old.toCharArray(), duplicate) {} }
-        vault.recovery.enroll(old.toCharArray(), answers()) {}
+        rejected { vault.recovery.enroll(old.toCharArray(), chosen, duplicate) {} }
+        vault.recovery.enroll(old.toCharArray(), chosen, answers()) {}
         repeat(5) {
             rejected { vault.recovery.reset(answers().reversed(), fresh.toCharArray()) {} }
         }
