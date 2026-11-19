@@ -1,38 +1,22 @@
-<div align="center">
-
-<img src="docs/social-preview.png" alt="YingXia Player — Offline Android Video Player & AES-256-GCM Encrypted Vault" width="780">
-
 # YingXia Player · 映匣
 
-**100% Offline Android Video Player with a Real AES-256-GCM Streaming-Encrypted Vault**
+[简体中文](README.zh-CN.md) · **[Download the Android APK](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)**
 
-**English** · [简体中文](README.zh-CN.md)
+I built YingXia because my screen recordings and downloaded videos kept getting buried among the photos on my phone. I wanted to find a clip, watch it, and pick up a longer video where I left off. YingXia runs entirely on your phone and requires no internet permission or account.
+
+**Try it with one recording.** Open a video in your Android gallery, tap **Share → YingXia**, then choose **Watch without history** (本次不记播放记录). The clip starts from the beginning. Your previous resume point and the order of your viewing history stay as they were. You can share just that clip without granting access to your whole library.
+
+![Three screenshots from version 1.7.4 showing the gallery share menu, the play-without-history option, and the video playing.](docs/screenshots/gallery-share.webp)
+
+For a private clip, the same menu can save an encrypted copy to the local vault. The original stays in your gallery until you choose to remove it.
+
+[How vault encryption works](docs/VAULT_ARCHITECTURE.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
 [![Release](https://img.shields.io/github/v/release/QAQ-cmyk/yingxia-player?color=E03E68&label=Release)](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)
 [![Android CI](https://img.shields.io/github/actions/workflow/status/QAQ-cmyk/yingxia-player/android.yml?label=CI%20%26%20Privacy%20Check)](https://github.com/QAQ-cmyk/yingxia-player/actions/workflows/android.yml)
 [![Zero Internet](https://img.shields.io/badge/Network-Zero%20INTERNET%20Permission-7C5CFA)](scripts/check-apk-privacy.py)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)
-
-[📥 Download APK](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [🌐 Website](https://qaq-cmyk.github.io/yingxia-player/) · [🔐 Vault Architecture](docs/VAULT_ARCHITECTURE.md) · [📋 Changelog](CHANGELOG.md) · [🛡️ Security](SECURITY.md)
-
-</div>
-
----
-
-## Why YingXia Player?
-
-Most "private video vault" or "hidden gallery" apps on Android are **closed-source, loaded with ads, demand `INTERNET` permission, push subscriptions, or only use fake hiding** (renaming extensions or `.nomedia`). Meanwhile, default gallery apps bury your screen recordings and lectures under thousands of photos and lack real playback controls.
-
-**YingXia Player** is an auditable, Material 3, strictly offline alternative built with **Kotlin, Jetpack Compose, Media3, and Google Tink**:
-
-| Feature | System Gallery | Typical "Vault" Apps | **YingXia Player** |
-| --- | :---: | :---: | :---: |
-| Network / Ads / Trackers | Often tied to cloud sync | Ads, analytics, `INTERNET` | **Zero `INTERNET` permission · Zero ads · No accounts** (CI-verified) |
-| Private Video Storage | OS / cloud dependent | Often fake hiding or paywalled | **Google Tink AES-256-GCM Streaming AEAD** |
-| Encrypted Playback | — | Often decrypts plaintext temp files | **On-demand in-memory chunk decryption, zero plaintext cache** |
-| Playback & Study Tools | Basic | Minimal | **8 speeds, hold-for-2×/3×, A–B loop, bookmarks, sleep timer** |
-| Open & Verifiable | Closed source | Closed source | **MIT Open Source** + automated APK privacy check |
 
 ---
 

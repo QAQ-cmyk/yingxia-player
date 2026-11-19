@@ -1,38 +1,22 @@
-<div align="center">
-
-<img src="docs/social-preview.png" alt="YingXia Player — 零联网权限与 AES-256-GCM 流式加密视频保险箱" width="780">
-
 # 映匣 · YingXia Player
 
-**零联网权限 · 本地 AES-256-GCM 流式加密视频保险箱 · 清爽无广告的 Android 本地视频播放器**
+[English](README.md) · **[下载安卓安装包](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)**
 
-[English](README.md) · **简体中文**
+我手机里的录屏和下载的视频都堆在系统相册里。想找一小段，得在照片里翻半天；看长视频时，又想下次能接着看。映匣就是我给自己做的本地播放器。视频留在手机上，安装包没有联网权限，打开就能用。
+
+**拿一段录屏试试。** 在手机相册打开视频，点 **分享 → 映匣 → 本次不记播放记录**。视频会从头播放，你之前的续播位置和历史顺序都保留。只分享这一段就行，不用开放整个相册。
+
+![映匣 1.7.4 的三张操作截图：从相册分享给映匣，选择本次不记播放记录，然后直接播放。](docs/screenshots/gallery-share.webp)
+
+想单独收好一段视频，也可以从同一个菜单把加密副本保存到本地保险柜。相册会保留原件，你可以看过箱内的副本后再决定是否删除原件。
+
+[保险柜如何加密](docs/加密保险箱.md) · [更新日志](CHANGELOG.md) · [安全政策](SECURITY.md)
 
 [![Release](https://img.shields.io/github/v/release/QAQ-cmyk/yingxia-player?color=E03E68&label=Release)](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)
 [![Android CI](https://img.shields.io/github/actions/workflow/status/QAQ-cmyk/yingxia-player/android.yml?label=CI%20%26%20Privacy%20Check)](https://github.com/QAQ-cmyk/yingxia-player/actions/workflows/android.yml)
 [![Zero Internet](https://img.shields.io/badge/Network-Zero%20INTERNET%20Permission-7C5CFA)](scripts/check-apk-privacy.py)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
 [![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)
-
-[📥 下载最新 APK](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [🌐 项目官网](https://qaq-cmyk.github.io/yingxia-player/) · [🔐 保险箱安全设计](docs/加密保险箱.md) · [📋 更新日志](CHANGELOG.md) · [🛡️ 安全政策](SECURITY.md)
-
-</div>
-
----
-
-## 为什么做映匣？
-
-市面上绝大多数「私密视频保险箱 / 隐藏相册」App 都有让人头疼的问题：**满屏开屏广告、强制注册登录、申请联网权限、付费订阅，甚至只是改文件后缀名或建 `.nomedia`“假隐藏”**；而系统自带相册会把录屏、网课混在海量照片里，还缺少倍速、A–B 循环和时间书签等顺手的本地播放工具。
-
-**映匣（YingXia Player）** 是一款干干净净、完全离线、经得起源码审查的开源 Android 本地视频播放器（**Kotlin / Jetpack Compose / Media3 / Google Tink**）：
-
-| 对比项 | 系统相册 | 常见商业“隐藏相册” App | **映匣 (YingXia Player)** |
-| --- | :---: | :---: | :---: |
-| 联网权限 / 广告 / 遥测 | 常绑定云同步 | 多含广告 SDK 与联网权限 | **零联网权限 · 零广告 · 零账号**（CI 自动校验） |
-| 私密视频保护方式 | 依赖云端或系统私密空间 | 常见改后缀/隐藏目录或收费 | **Google Tink AES-256-GCM 真流式加密** |
-| 加密视频播放方式 | — | 常先解密出明文临时文件 | **按需分段内存解密播放，不落明文缓存** |
-| 观影 / 网课播放工具 | 基础播放 | 往往简陋 | **8 档倍速、长按 2×/3×、A–B 循环、时间书签、睡眠定时** |
-| 开源可审计 | 闭源 | 闭源 | **MIT 完全开源** + 自动 APK 隐私校验脚本 |
 
 ---
 
