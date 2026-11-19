@@ -4,7 +4,7 @@
 
 我做映匣，是因为每次想找昨天的录屏，都要在手机相册里翻过一堆照片和截图。现在打开映匣就能看手机里的视频，点一下接着上次的位置播。**无需账号，播放、搜索和加密都在本机完成。**
 
-**[下载 Android 安装包（已发布版 1.6.1）](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.6.1/YingXia-1.6.1.apk)** · [更新说明与校验文件](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.6.1)
+**[下载 Android 安装包（已发布版 1.7.2）](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.7.2/YingXia-1.7.2.apk)** · [更新说明与校验文件](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.7.2)
 
 | 首页 · 找到录屏 | 播放 · 拖到想看的地方 |
 | :---: | :---: |

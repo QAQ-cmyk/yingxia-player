@@ -4,7 +4,7 @@
 
 I built YingXia because finding yesterday’s screen recording meant scrolling past a gallery full of photos and screenshots. Open the app, pick a video, and resume where you left off. **Playback, search, and vault encryption run on your phone. No account is required.**
 
-**[Download the Android APK (published version 1.6.1)](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.6.1/YingXia-1.6.1.apk)** · [Release notes and checksums](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.6.1)
+**[Download the Android APK (published version 1.7.2)](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.7.2/YingXia-1.7.2.apk)** · [Release notes and checksums](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.7.2)
 
 | Find a recording | Resume playback |
 | :---: | :---: |
