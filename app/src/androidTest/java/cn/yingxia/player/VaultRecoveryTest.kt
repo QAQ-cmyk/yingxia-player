@@ -18,7 +18,7 @@ class VaultRecoveryTest {
     private val old = "test vault password"
     private val fresh = "new vault password"
     private val phrases = listOf("白帆的小岛", "我的书房 short", "明年的礼物 Seven")
-    private val chosen = listOf(6, 1, 4)
+    private val chosen = listOf("第一次录下的雨声在哪里？", "What did I call the blue door?", "月亮收到的礼物 🌙")
     private fun answers() = phrases.map { it.toCharArray() }
     private lateinit var vault: VaultStore
 
@@ -30,7 +30,7 @@ class VaultRecoveryTest {
     @After fun clean() {
         vault.lock()
         val alias = "yingxia.questions.v1." + directory.name
-        KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias) }
+        KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias); deleteEntry("yingxia.prompts.v3." + directory.name) }
         context.deleteSharedPreferences(alias)
         directory.deleteRecursively()
     }
@@ -49,19 +49,20 @@ class VaultRecoveryTest {
         val diskPayload = payload.readBytes()
         val config = File(directory, "keyset.bin")
         val original = config.readBytes()
-        val sidecar = File(directory, "questions-v2.bin")
+        val sidecar = File(directory, "questions-v3.bin")
         assertFalse(vault.recovery.enabled)
         rejected { vault.recovery.enroll(fresh.toCharArray(), chosen, answers()) {} }
         assertFalse(sidecar.exists())
         vault.recovery.enroll(old.toCharArray(), chosen, answers()) {}
         assertArrayEquals(original, config.readBytes())
         val enrolled = sidecar.readBytes()
-        assertEquals(chosen, VaultStore(context, directory).recovery.questionIds)
-        for (phrase in phrases + old) assertFalse(enrolled.toString(Charsets.UTF_8).contains(phrase))
+        assertEquals(chosen, VaultStore(context, directory).recovery.enrolledPrompts())
+        for (phrase in chosen + phrases + old) assertFalse(enrolled.toString(Charsets.UTF_8).contains(phrase))
         vault.lock()
         vault = VaultStore(context, directory)
         assertTrue(vault.recovery.enabled)
-        sidecar.writeBytes(enrolled.copyOf().apply { this[32] = 7 })
+        sidecar.writeBytes(enrolled.copyOf().apply { this[lastIndex] = (this[lastIndex].toInt() xor 1).toByte() })
+        rejected { vault.recovery.enrolledPrompts() }
         rejected { vault.recovery.reset(answers(), fresh.toCharArray()) {} }
         assertArrayEquals(original, config.readBytes())
         sidecar.writeBytes(enrolled)
@@ -85,9 +86,10 @@ class VaultRecoveryTest {
     }
 
     @Test fun cooldownSurvivesReopenAndDisableRequiresPassword() {
-        for (invalid in listOf(listOf(1, 1, 4), listOf(1, 2), listOf(1, 2, 255), listOf(1, 2, 3, 4))) {
+        for (invalid in listOf(chosen.take(2), chosen + "第四题", listOf("a", "a", "b"),
+            listOf("a", "b", " "), listOf("a", "b", "x".repeat(81)), listOf("a", "b", "two\nlines"))) {
             rejected { vault.recovery.enroll(old.toCharArray(), invalid, answers()) {} }
-            assertTrue(vault.recovery.questionIds.isEmpty())
+            assertFalse(vault.recovery.enabled)
         }
         val duplicate = List(3) { "一个答案".toCharArray() }
         rejected { vault.recovery.enroll(old.toCharArray(), chosen, duplicate) {} }

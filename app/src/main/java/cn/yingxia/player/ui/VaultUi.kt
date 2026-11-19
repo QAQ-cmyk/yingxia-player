@@ -62,6 +62,9 @@ import cn.yingxia.player.vault.*
         onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
     var recoveryAction by remember(state.epoch) { mutableStateOf<RecoveryAction?>(null) }
+    LaunchedEffect(state.recoveryEnabled) {
+        if (state.recoveryEnabled && recoveryAction == RecoveryAction.ENROLL) recoveryAction = null
+    }
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     BackHandler { if (recoveryAction != null) recoveryAction = null else if (state.playing != null) vault.stopPlaying() else vault.close() }
     val playbackNotice = remember(state.epoch) { SnackbarHostState() }
@@ -103,9 +106,9 @@ import cn.yingxia.player.vault.*
             }
             val action = recoveryAction
             if (action != null) {
-                RecoveryForm(action, state.recoveryQuestionIds, Modifier.weight(1f), onCancel = { recoveryAction = null }) { password, ids, answers ->
-                    recoveryAction = null
-                    vault.updateRecovery(action, password, ids, answers)
+                RecoveryForm(action, vault::recoveryPrompts, state.busy, Modifier.weight(1f), onCancel = { recoveryAction = null }) { password, prompts, answers ->
+                    if (action != RecoveryAction.ENROLL) recoveryAction = null
+                    vault.updateRecovery(action, password, prompts, answers)
                 }
             } else if (!state.unlocked) {
                 VaultPassword(state, vault::unlock, { recoveryAction = RecoveryAction.RESET }, Modifier.weight(1f))

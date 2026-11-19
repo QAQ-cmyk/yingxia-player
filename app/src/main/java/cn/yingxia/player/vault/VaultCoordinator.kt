@@ -20,15 +20,13 @@ import java.util.concurrent.atomic.AtomicLong
 internal enum class RecoveryAction { ENROLL, DISABLE, RESET }
 
 data class VaultUiState(
-    val recoveryQuestionIds: List<Int> = emptyList(),
+    val recoveryEnabled: Boolean = false,
     val visible: Boolean = false, val configured: Boolean = false, val unlocked: Boolean = false,
     val busy: Boolean = false, val progress: String = "", val message: String? = null,
     val entries: List<VaultEntry> = emptyList(), val importItems: List<VideoItem> = emptyList(),
     val consent: DeleteOutcome.Consent? = null, val consentToken: Long = 0,
     val playing: VaultEntry? = null, val epoch: Long = 0, val damagedRecords: Int = 0,
-) {
-    val recoveryEnabled: Boolean get() = recoveryQuestionIds.isNotEmpty()
-}
+)
 
 /** One foreground operation at a time; backgrounding cancels IO and destroys the unlocked session. */
 class VaultCoordinator(
@@ -37,7 +35,7 @@ class VaultCoordinator(
     private val settings: cn.yingxia.player.data.SettingsRepository,
 ) {
     val store = VaultStore(context)
-    val state = MutableStateFlow(VaultUiState(configured = store.configured, recoveryQuestionIds = store.recovery.questionIds))
+    val state = MutableStateFlow(VaultUiState(configured = store.configured, recoveryEnabled = store.recovery.enabled))
     private var job: Job? = null
     private var previousJob: Job? = null
     private val epoch = AtomicLong(0)
@@ -51,7 +49,7 @@ class VaultCoordinator(
 
     fun show(items: List<VideoItem> = emptyList()) {
         if (state.value.busy) return
-        state.update { it.copy(visible = true, configured = store.configured, recoveryQuestionIds = store.recovery.questionIds, importItems = items.filter { item -> item.accessible }, message = null) }
+        state.update { it.copy(visible = true, configured = store.configured, recoveryEnabled = store.recovery.enabled, importItems = items.filter { item -> item.accessible }, message = null) }
         scope.launch { ordinaryPlayer.execute(PlayerCommand.Close) }
     }
     fun close() { lock(); state.update { it.copy(visible = false) } }
@@ -61,7 +59,7 @@ class VaultCoordinator(
         try { releasePlayer?.invoke() } finally {
             releasePlayer = null; playback = null
             store.lock(); queue = emptyList()
-            state.value = VaultUiState(visible = state.value.visible, configured = store.configured, recoveryQuestionIds = store.recovery.questionIds, epoch = epoch.get())
+            state.value = VaultUiState(visible = state.value.visible, configured = store.configured, recoveryEnabled = store.recovery.enabled, epoch = epoch.get())
         }
     }
     fun dismissMessage() { state.update { it.copy(message = null) } }
@@ -85,7 +83,11 @@ class VaultCoordinator(
         }
     }
 
-    internal fun updateRecovery(action: RecoveryAction, password: CharArray, questionIds: List<Int>, answers: List<CharArray>) {
+    internal suspend fun recoveryPrompts(): List<String> = withContext(Dispatchers.IO) {
+        store.recovery.enrolledPrompts()
+    }
+
+    internal fun updateRecovery(action: RecoveryAction, password: CharArray, prompts: List<String>, answers: List<CharArray>) {
         fun clear() { password.fill('\u0000'); answers.forEach { it.fill('\u0000') } }
         val lockedAction = action == RecoveryAction.RESET
         if (!state.value.visible || !state.value.configured || state.value.busy || job?.isActive == true ||
@@ -95,7 +97,7 @@ class VaultCoordinator(
                 val worker = currentCoroutineContext()
                 val beforeCommit: () -> Unit = { worker.ensureActive(); if (!lockedAction) store.requireSession().requireOpen() }
                 when (action) {
-                    RecoveryAction.ENROLL -> store.recovery.enroll(password, questionIds, answers, beforeCommit)
+                    RecoveryAction.ENROLL -> store.recovery.enroll(password, prompts, answers, beforeCommit)
                     RecoveryAction.DISABLE -> store.recovery.disable(password, beforeCommit)
                     RecoveryAction.RESET -> store.recovery.reset(answers, password, beforeCommit)
                 }
@@ -105,7 +107,7 @@ class VaultCoordinator(
                 RecoveryAction.DISABLE -> "密保已关闭，以后需要密码才能打开保险箱。"
                 RecoveryAction.RESET -> "密码已重设。请用新密码解锁，然后按需重新设置密保。"
             }
-            state.update { it.copy(recoveryQuestionIds = store.recovery.questionIds, message = message) }
+            state.update { it.copy(recoveryEnabled = store.recovery.enabled, message = message) }
         }
         job?.invokeOnCompletion { clear() }
     }

@@ -24,7 +24,7 @@ I built YingXia because finding yesterday’s screen recording meant scrolling p
 | --- | --- |
 | Play or hide a video | The original stays in its folder. Hiding filters the app’s lists. The system gallery can still display the file. |
 | Move a video into the vault | The video, its name, and private playback records are encrypted in app-private storage. Playback decrypts on demand. Leaving the app locks the vault. If you decline removal, the gallery keeps its copy. |
-| Enter the wrong password | The encrypted files stay on disk. In 1.7.1, unlock the vault, choose three of nine questions, then enter an answer for each. Answer those same questions on the same phone to set a new password. Without prior setup, the original password is required. |
+| Enter the wrong password | The encrypted files stay on disk. In 1.7.2, unlock the vault and write three recovery questions of your own, then enter an answer for each. You can also use or edit a suggested question. Answer those same questions on the same phone to set a new password. Without prior setup, the original password is required. |
 | Switch phones or uninstall | Unlock the vault, select **恢复到相册** (Restore to gallery), then copy the restored videos to storage you control. Uninstalling or clearing app data deletes the vault. The ordinary records backup excludes it. |
 
 The release APK requests no internet permission. There are no accounts, ads, or analytics. Your gallery’s cloud sync, its trash, and files you choose to share with other apps are managed separately. [Security details](SECURITY.md) · [Verify the APK](CONTRIBUTING.md#verify-the-apk)
