@@ -176,27 +176,44 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                 dao.upsert(listOf(updated))
                 return@withContext updated.domain()
             }
-            var name = "导入的视频"
-            var size = 0L
-            context.contentResolver.query(parsed, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
-                if (c.moveToFirst()) {
-                    name = c.getString(0) ?: name
-                    if (!c.isNull(1)) size = c.getLong(1)
-                }
-            }
-            val retriever = MediaMetadataRetriever()
-            val item = try {
-                retriever.setDataSource(context, parsed)
-                fun number(key: Int) = retriever.extractMetadata(key)?.toLongOrNull() ?: 0
-                VideoItem(VideoId(mediaId ?: "uri:${stableHash(uri)}"), uri, name, "手动添加", "documents",
-                    number(MediaMetadataRetriever.METADATA_KEY_DURATION), size,
-                    number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt(), number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt(),
-                    System.currentTimeMillis(), "document")
-            } catch (_: Exception) { throw PlayerFailure(FailureKind.UNSUPPORTED_FORMAT, "无法读取这个视频，请选择有效的视频文件") }
-            finally { retriever.release() }
+            val item = readDocument(parsed, VideoId(mediaId ?: "uri:${stableHash(uri)}"))
             dao.upsert(listOf(item.entity()))
             item
         }
+    }
+
+    /** Inspect the granted URI without importing it or changing an existing library record. */
+    internal suspend fun sharedVideo(uri: Uri): VideoItem = withContext(Dispatchers.IO) {
+        val canonical = canonicalVideoUri(context, uri)
+        val mediaId = mediaIdentity(canonical ?: uri)
+        val known = mediaId?.let { dao.get(it) } ?: dao.byUri(canonical?.toString() ?: uri.toString()) ?: dao.byUri(uri.toString())
+        if (known?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, "这个视频已隐藏，请先在隐藏管理中恢复")
+        val id = VideoId(known?.id ?: mediaId ?: "uri:${stableHash(uri.toString())}")
+        readDocument(uri, id, shared = true)
+    }
+
+    private fun readDocument(parsed: Uri, id: VideoId, shared: Boolean = false): VideoItem {
+        var name = "导入的视频"
+        var size = 0L
+        val fields = arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
+        context.contentResolver.query(parsed, fields, null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                c.getColumnIndex(OpenableColumns.DISPLAY_NAME).takeIf { it >= 0 }?.let { name = c.getString(it) ?: name }
+                c.getColumnIndex(OpenableColumns.SIZE).takeIf { it >= 0 && !c.isNull(it) }?.let { size = c.getLong(it) }
+            }
+        }
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, parsed)
+            fun number(key: Int) = retriever.extractMetadata(key)?.toLongOrNull() ?: 0
+            if (shared) require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes")
+            VideoItem(id, parsed.toString(), name, if (shared) "相册分享" else "手动添加", "documents",
+                number(MediaMetadataRetriever.METADATA_KEY_DURATION), size,
+                number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt(), number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt(),
+                System.currentTimeMillis(), if (shared) "share" else "document")
+        } catch (_: SecurityException) { throw PlayerFailure(FailureKind.ACCESS_DENIED, "视频授权已失效，请重新选择文件") }
+        catch (_: Exception) { throw PlayerFailure(FailureKind.UNSUPPORTED_FORMAT, "无法读取这个视频，请选择有效的视频文件") }
+        finally { retriever.release() }
     }
     private fun mediaIdentity(input: Uri): String? {
         val mediaUri = if (input.authority == "com.android.providers.media.documents") {
@@ -229,6 +246,12 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     override suspend fun requirePlayable(id: VideoId): VideoItem {
         val video = get(id) ?: throw PlayerFailure(FailureKind.SOURCE_MISSING, "找不到这个视频")
         if (video.hidden) throw PlayerFailure(FailureKind.ACCESS_DENIED, "视频已隐藏，请先恢复后播放")
+        source.resolve(video)
+        return video
+    }
+    override suspend fun requirePlayable(video: VideoItem): VideoItem {
+        if (video.source != "share") return requirePlayable(video.id)
+        if (get(video.id)?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, "视频已隐藏，请先恢复后播放")
         source.resolve(video)
         return video
     }

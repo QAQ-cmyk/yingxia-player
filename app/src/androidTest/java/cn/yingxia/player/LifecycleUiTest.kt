@@ -17,6 +17,44 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class LifecycleUiTest {
     @get:Rule val ui = createAndroidComposeRule<MainActivity>()
+    @Test fun openWithoutHistoryFromCardMenuAndLongPress() = runBlocking {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val context = instrument.targetContext
+        val graph = (context.applicationContext as YingXiaApplication).graph
+        val file = File(context.filesDir, "test-media/private-session-${java.util.UUID.randomUUID()}.mp4")
+        file.parentFile!!.mkdirs()
+        instrument.context.assets.open("fixture.mp4").use { input -> file.outputStream().use { input.copyTo(it) } }
+        val video = graph.repository.importVideo(FileProvider.getUriForFile(context, "${context.packageName}.fixture-provider", file).toString())
+        try {
+            graph.repository.setFavorite(setOf(video.id), true)
+            for (longPress in listOf(false, true)) {
+                ui.onNodeWithTag("nav-2").performClick()
+                val cardTag = "video-${video.id.value}"
+                ui.onNodeWithTag("video-grid").performScrollToNode(hasTestTag(cardTag))
+                if (longPress) ui.onNodeWithTag(cardTag).performTouchInput { longClick() }
+                else ui.onNodeWithContentDescription("更多操作：${video.name}").performClick()
+                ui.onNodeWithText("本次不记播放记录").performClick()
+                ui.waitUntil(15000) { graph.player.state.value.isPlaying }
+                ui.onNodeWithTag("lock-vault-now").assertDoesNotExist()
+                ui.activityRule.scenario.recreate()
+                assertFalse(graph.player.state.value.recordHistory)
+                ui.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+                ui.waitUntil(5000) { !graph.player.state.value.isPlaying }
+                ui.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+                ui.onNodeWithContentDescription("本次不记播放记录").assertExists()
+                ui.onNodeWithContentDescription("返回").performClick()
+                ui.waitUntil(5000) { graph.player.state.value.video == null }
+                assertEquals(0L, graph.repository.get(video.id)!!.lastPlayedAt)
+                assertEquals(0L, graph.repository.get(video.id)!!.positionMs)
+            }
+        } finally {
+            graph.player.execute(PlayerCommand.Close)
+            graph.repository.forgetEncryptedSource(video)
+            file.delete()
+        }
+        Unit
+    }
+
     @Test fun rotationRetainsPlaybackBackgroundPausesAndHidingClosesPlayer() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val graph = (context.applicationContext as YingXiaApplication).graph

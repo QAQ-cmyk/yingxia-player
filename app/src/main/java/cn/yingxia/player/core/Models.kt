@@ -63,12 +63,15 @@ data class PlaybackState(
     val baseSpeed: Float = 1f, val effectiveSpeed: Float = 1f,
     val boosting: Boolean = false, val repeatMode: RepeatMode = RepeatMode.SEQUENCE,
     val loop: LoopRange? = null, val failure: String? = null,
+    val recordHistory: Boolean = true,
 )
 data class UserSettings(val theme: ThemeMode = ThemeMode.SYSTEM, val speed: Float = 1f,
     val holdSpeed: Float = 2f, val sort: SortOrder = SortOrder.NEWEST, val touchGuard: Boolean = false)
 
 sealed interface PlayerCommand {
-    data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null) : PlayerCommand
+    data class OpenShared(val video: VideoItem) : PlayerCommand
+    data class Open(val id: VideoId, val queue: List<VideoId>, val positionMs: Long? = null,
+        val recordHistory: Boolean = true) : PlayerCommand
     data object Play : PlayerCommand
     data object Pause : PlayerCommand
     data object Toggle : PlayerCommand
@@ -116,6 +119,7 @@ interface VideoRepository {
     suspend fun importVideo(uri: String): VideoItem
     suspend fun get(id: VideoId): VideoItem?
     suspend fun requirePlayable(id: VideoId): VideoItem
+    suspend fun requirePlayable(video: VideoItem): VideoItem = requirePlayable(video.id)
     suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean)
     suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean)
     suspend fun rename(id: VideoId, displayName: String)

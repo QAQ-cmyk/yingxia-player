@@ -100,6 +100,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }
         }
         var libraryNav by remember { mutableStateOf(true) }
+        var homeGeneration by rememberSaveable { mutableIntStateOf(0) }
         val landscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val showLibrary = player.video == null
         val snackbarLift = when {
@@ -113,14 +114,36 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 AnimatedContent(showLibrary, Modifier.fillMaxSize(), transitionSpec = {
                     fadeIn(motionTween(200)) togetherWith fadeOut(motionTween(150))
                 }, label = "library-player") { library ->
-                    if (library) LibraryScaffold(vm) { libraryNav = it } else PlayerPage(vm, player, settings)
+                    if (library) key(homeGeneration) { LibraryScaffold(vm) { libraryNav = it } }
+                    else key(player.video?.source == "share") { PlayerPage(vm, player, settings) }
                 }
                 FileOperationHost(vm)
-                VaultHost(vm)
+                VaultHost(vm, onLockedToHome = { homeGeneration++ })
+                GalleryShareDialog(vm)
                 SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding().padding(start = 16.dp, end = 16.dp, bottom = snackbarLift))
             }
         }
     }
+}
+
+@Composable private fun GalleryShareDialog(vm: AppViewModel) {
+    val pending by vm.share.collectAsStateWithLifecycle()
+    val share = pending ?: return
+    AlertDialog(onDismissRequest = vm::dismissShare, title = { Text("从相册分享") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when {
+                    share.error != null -> Text(share.error)
+                    share.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("正在读取所选视频…") }
+                    else -> {
+                        Text(if (share.uris.size == 1) "选择怎样打开这个视频" else "已选 ${share.uris.size} 个视频")
+                        if (share.uris.size == 1) Button(onClick = { vm.useShare(false) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("本次不记播放记录") }
+                        OutlinedButton(onClick = { vm.useShare(true) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("放入保险柜") }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = vm::dismissShare) { Text(if (share.error != null) "知道了" else "取消") } })
 }
 
 @Composable private fun LibraryScaffold(vm: AppViewModel, onNavigationVisible: (Boolean) -> Unit) {
@@ -223,6 +246,10 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(if (allVisibleSelected) "取消全选" else "全选") }
                     if (page == "hidden") TextButton(onClick = { vm.hide(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("恢复显示") }
                     else {
+                        if (selected.size == 1) TextButton(onClick = {
+                            visible.firstOrNull { it.id in selected }?.let { vm.open(it, listOf(it), recordHistory = false) }
+                            selected = emptySet()
+                        }, colors = actionColors) { Text("本次不记播放记录") }
                         TextButton(onClick = { vm.favorite(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("收藏") }
                         TextButton(onClick = { vm.favorite(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("取消收藏") }
                         TextButton(onClick = {
@@ -407,6 +434,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 }, onLong = { onSelect(selected + video.id) },
                 onFavorite = { vm.favorite(setOf(video.id), !video.favorite) }, onRename = { onRename(video) },
                 onHide = { vm.hide(setOf(video.id), !hidden) }, onQueue = { vm.open(video, listOf(video)) },
+                onPlayWithoutHistory = { vm.open(video, listOf(video), recordHistory = false) },
                 onMove = { onFileAction(video, true) }, onDelete = { onFileAction(video, false) }, onEncrypt = { vm.graph.vault.show(listOf(video)) })
         }
     }
@@ -428,7 +456,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 
 @Composable private fun VideoCard(video: VideoItem, selected: Boolean, selecting: Boolean, hidden: Boolean, modifier: Modifier = Modifier,
     onClick: () -> Unit, onLong: () -> Unit, onFavorite: () -> Unit, onRename: () -> Unit, onHide: () -> Unit, onQueue: () -> Unit,
-    onMove: () -> Unit, onDelete: () -> Unit, onEncrypt: () -> Unit) {
+    onPlayWithoutHistory: () -> Unit, onMove: () -> Unit, onDelete: () -> Unit, onEncrypt: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).combinedClickable(onClick = onClick, onLongClick = onLong).testTag("video-${video.id.value}")
         .semantics { if (selecting || hidden) stateDescription = if (selected) "已选中" else "未选中" }) {
@@ -466,6 +494,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                         DropdownMenuItem(text = { Text(if (video.favorite) "取消收藏" else "收藏视频") }, onClick = { menu = false; onFavorite() }, leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) })
                         DropdownMenuItem(text = { Text("重命名") }, onClick = { menu = false; onRename() }, leadingIcon = { Icon(Icons.Outlined.Edit, null) })
                         DropdownMenuItem(text = { Text("单独播放") }, onClick = { menu = false; onQueue() }, leadingIcon = { Icon(Icons.Outlined.PlayCircleOutline, null) })
+                        DropdownMenuItem(text = { Text("本次不记播放记录") }, onClick = { menu = false; onPlayWithoutHistory() }, leadingIcon = { Icon(Icons.Outlined.VisibilityOff, null) })
                         DropdownMenuItem(text = { Text("移动到文件夹") }, onClick = { menu = false; onMove() }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) })
                         DropdownMenuItem(text = { Text("移入加密保险箱") }, onClick = { menu = false; onEncrypt() }, leadingIcon = { Icon(Icons.Outlined.Lock, null) })
                         DropdownMenuItem(text = { Text("删除原文件", color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; onDelete() }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = MaterialTheme.colorScheme.error) })

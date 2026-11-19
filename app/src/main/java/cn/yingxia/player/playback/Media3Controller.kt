@@ -108,11 +108,14 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         if (released) return@withContext Result.failure(IllegalStateException("播放会话已结束"))
         try {
             when (command) {
-                is PlayerCommand.Open -> openMutex.withLock { open(command.id, command.queue, command.positionMs) }
-                PlayerCommand.Play -> { if (state.value.video != null) { repository.requirePlayable(state.value.video!!.id); if (surfacePlayer.playbackState == Player.STATE_ENDED) surfacePlayer.seekTo(0); surfacePlayer.play() } }
+                is PlayerCommand.OpenShared -> openMutex.withLock {
+                    open(command.video.id, listOf(command.video.id), 0L, false, command.video)
+                }
+                is PlayerCommand.Open -> openMutex.withLock { open(command.id, command.queue, command.positionMs, command.recordHistory) }
+                PlayerCommand.Play -> { state.value.video?.let { repository.requirePlayable(it); if (surfacePlayer.playbackState == Player.STATE_ENDED) surfacePlayer.seekTo(0); surfacePlayer.play() } }
                 PlayerCommand.Pause -> { endBoost(); surfacePlayer.pause(); saveProgress() }
                 PlayerCommand.Toggle -> if (surfacePlayer.isPlaying) { endBoost(); surfacePlayer.pause() } else {
-                    state.value.video?.let { repository.requirePlayable(it.id); if (surfacePlayer.playbackState == Player.STATE_ENDED) surfacePlayer.seekTo(0); surfacePlayer.play() }
+                    state.value.video?.let { repository.requirePlayable(it); if (surfacePlayer.playbackState == Player.STATE_ENDED) surfacePlayer.seekTo(0); surfacePlayer.play() }
                 }
                 is PlayerCommand.Seek -> {
                     endBoost()
@@ -136,15 +139,17 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 PlayerCommand.EndBoost -> endBoost()
                 PlayerCommand.Next -> advance(manual = true)
                 PlayerCommand.Previous -> {
-                    val s = state.value
-                    val i = s.queue.indexOf(s.video?.id)
-                    s.queue.getOrNull(i - 1)?.let { openMutex.withLock { open(it, s.queue, null) } }
+                    openMutex.withLock {
+                        val s = state.value
+                        val i = s.queue.indexOf(s.video?.id)
+                        s.queue.getOrNull(i - 1)?.let { open(it, s.queue, null, s.recordHistory) }
+                    }
                 }
                 is PlayerCommand.Enqueue -> {
                     val allowed = repository.videos.first().map { it.id }.toSet()
                     val ids = command.ids.filter { it in allowed }
                     val queue = (state.value.queue + ids).distinct()
-                    if (state.value.video == null && queue.isNotEmpty()) openMutex.withLock { open(queue.first(), queue, null) }
+                    if (state.value.video == null && queue.isNotEmpty()) openMutex.withLock { open(queue.first(), queue, null, true) }
                     else mutableState.update { it.copy(queue = queue) }
                 }
                 is PlayerCommand.SetRepeat -> mutableState.update { it.copy(repeatMode = command.mode) }
@@ -165,19 +170,23 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         }
     }
 
-    private suspend fun open(id: VideoId, queue: List<VideoId>, start: Long?) {
-        val video = repository.requirePlayable(id)
-        val visible = repository.videos.first().map { it.id }.toSet()
-        val safeQueue = (queue.filter { it in visible } + id).distinct()
+    private suspend fun open(id: VideoId, queue: List<VideoId>, start: Long?, recordHistory: Boolean, shared: VideoItem? = null) {
+        val transient = shared ?: state.value.video?.takeIf { !recordHistory && it.id == id && it.source == "share" }
+        val video = transient?.let { repository.requirePlayable(it) } ?: repository.requirePlayable(id)
+        val safeQueue = if (transient != null) listOf(id) else {
+            val visible = repository.videos.first().map { it.id }.toSet()
+            (queue.filter { it in visible } + id).distinct()
+        }
         saveProgress()
         endBoost()
         val mode = state.value.repeatMode
         val speed = state.value.baseSpeed
         isClosing = true
         surfacePlayer.stop()
-        mutableState.value = PlaybackState(video, safeQueue, durationMs = video.durationMs, baseSpeed = speed, effectiveSpeed = speed, repeatMode = mode, buffering = true)
+        mutableState.value = PlaybackState(video, safeQueue, durationMs = video.durationMs, baseSpeed = speed, effectiveSpeed = speed, repeatMode = mode, buffering = true, recordHistory = recordHistory)
         if (source != null) surfacePlayer.setMediaSource(source.invoke(video)) else surfacePlayer.setMediaItem(mediaItem(video))
-        surfacePlayer.seekTo(start?.let { PlaybackRules.seek(it, video.durationMs) } ?: PlaybackRules.resume(video.positionMs, video.durationMs))
+        val resumePosition = if (recordHistory) PlaybackRules.resume(video.positionMs, video.durationMs) else 0L
+        surfacePlayer.seekTo(start?.let { PlaybackRules.seek(it, video.durationMs) } ?: resumePosition)
         surfacePlayer.setPlaybackSpeed(speed)
         surfacePlayer.prepare()
         isClosing = false
@@ -194,8 +203,15 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         val next = PlaybackRules.next(s.queue, current, mode)
         if (next == current) { surfacePlayer.seekTo(0); surfacePlayer.play() }
         else if (next != null) {
-            try { openMutex.withLock { open(next, s.queue, 0) } }
-            catch (e: Exception) {
+            try {
+                openMutex.withLock {
+                    if (state.value.video?.id == current && state.value.recordHistory == s.recordHistory) {
+                        open(next, s.queue, 0, s.recordHistory)
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 surfacePlayer.pause()
                 report(e as? PlayerFailure ?: PlayerFailure(FailureKind.SOURCE_MISSING, "下一条视频不可用，请重新选择"))
             }
@@ -208,7 +224,9 @@ class Media3Controller(context: Context, private val repository: VideoRepository
             isPlaying = surfacePlayer.isPlaying, buffering = surfacePlayer.playbackState == Player.STATE_BUFFERING) }
     }
     private fun saveProgress() {
-        val video = state.value.video ?: return
+        val snapshot = state.value
+        if (!snapshot.recordHistory) return
+        val video = snapshot.video ?: return
         val position = surfacePlayer.currentPosition.coerceAtLeast(0)
         lastSavedAt = System.currentTimeMillis()
         scope.launch {

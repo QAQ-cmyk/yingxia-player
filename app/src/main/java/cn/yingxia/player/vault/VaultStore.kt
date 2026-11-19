@@ -29,19 +29,22 @@ data class VaultEntry(
     val bytes: Long, val duration: Long, val sourceId: String, val sourceUri: String,
     val digest: String, val created: Long, val sourceRemoved: Boolean = false,
     val restoredAt: Long = 0, val restorePending: String = "", val removalUri: String = "", val restoreTarget: String = "",
+    val manageOriginalInGallery: Boolean = false,
 ) {
     fun original() = VideoItem(VideoId(sourceId), sourceUri, originalName, "", "", duration, bytes, addedAt = created)
     fun json() = JSONObject().put("version", 1).put("id", id).put("name", name).put("originalName", originalName)
         .put("mime", mime).put("bytes", bytes).put("duration", duration).put("sourceId", sourceId)
         .put("sourceUri", sourceUri).put("digest", digest).put("created", created)
         .put("sourceRemoved", sourceRemoved).put("restoredAt", restoredAt).put("restorePending", restorePending).put("removalUri", removalUri).put("restoreTarget", restoreTarget)
+        .put("manageOriginalInGallery", manageOriginalInGallery)
     companion object {
         fun parse(json: JSONObject): VaultEntry {
             require(json.getInt("version") == 1)
             return VaultEntry(json.getString("id"), json.getString("name"), json.getString("originalName"),
                 json.getString("mime"), json.getLong("bytes"), json.getLong("duration"), json.getString("sourceId"),
                 json.getString("sourceUri"), json.getString("digest"), json.getLong("created"),
-                json.getBoolean("sourceRemoved"), json.optLong("restoredAt"), json.optString("restorePending"), json.optString("removalUri"), json.optString("restoreTarget"))
+                json.getBoolean("sourceRemoved"), json.optLong("restoredAt"), json.optString("restorePending"), json.optString("removalUri"), json.optString("restoreTarget"),
+                json.optBoolean("manageOriginalInGallery"))
         }
     }
 }
@@ -126,8 +129,13 @@ class VaultStore(private val context: Context, val directory: File = File(contex
             verifyFile(unlocked, id, temp, size, hash, check)
             check()
             Files.move(temp.toPath(), committed.toPath(), StandardCopyOption.ATOMIC_MOVE)
-            val entry = VaultEntry(id, video.displayTitle(), video.name, resolver.getType(Uri.parse(video.uri)) ?: "video/mp4",
-                size, video.durationMs, video.id.value, video.uri, hash.hex(), System.currentTimeMillis())
+            val uri = Uri.parse(video.uri)
+            val parts = uri.pathSegments
+            val mediaRow = uri.authority == MediaStore.AUTHORITY && parts.size == 4 &&
+                parts[1] == "video" && parts[2] == "media" && parts.last().toLongOrNull() != null
+            val entry = VaultEntry(id, video.displayTitle(), video.name, resolver.getType(uri) ?: "video/mp4",
+                size, video.durationMs, video.id.value, video.uri, hash.hex(), System.currentTimeMillis(),
+                manageOriginalInGallery = video.source == "share" && !mediaRow)
             save(entry)
             entry
         } finally { temp.delete() }

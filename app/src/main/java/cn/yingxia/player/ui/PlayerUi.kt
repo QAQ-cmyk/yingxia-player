@@ -63,7 +63,7 @@ import kotlin.math.roundToInt
     PlayerPage(session, state, settings)
 }
 
-@Composable fun PlayerPage(vm: PlayerUiSession, state: PlaybackState, settings: UserSettings) {
+@Composable fun PlayerPage(vm: PlayerUiSession, state: PlaybackState, settings: UserSettings, onLockVault: (() -> Unit)? = null) {
     val activity = LocalActivity.current ?: return
     val fullscreen = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var controls by rememberSaveable { mutableStateOf(true) }
@@ -85,7 +85,8 @@ import kotlin.math.roundToInt
     var panY by remember(video.id) { mutableFloatStateOf(0f) }
     var guardDismissed by remember(video.id) { mutableStateOf(false) }
     val shielded = locked || (settings.touchGuard && state.isPlaying && !guardDismissed)
-    val current = videos.firstOrNull { it.id == video.id } ?: video
+    val shared = video.source == "share"
+    val current = if (shared) video else videos.firstOrNull { it.id == video.id } ?: video
     val remaining by vm.timer.remainingMs.collectAsStateWithLifecycle()
     val untilEnd by vm.timer.untilEnd.collectAsStateWithLifecycle()
     val latestState by rememberUpdatedState(state)
@@ -192,6 +193,7 @@ import kotlin.math.roundToInt
                     .then(if (fullscreen) Modifier.statusBarsPadding() else Modifier).then(edge).padding(start = 2.dp, end = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     PlayerIcon(Icons.AutoMirrored.Outlined.ArrowBack, "返回", { if (fullscreen) toggleFull() else close() }, size = 22)
                     Text(current.displayTitle(), Modifier.weight(1f).padding(horizontal = 4.dp), color = Color.White, fontSize = if (fullscreen) 15.sp else 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (!state.recordHistory) Icon(Icons.Outlined.VisibilityOff, "本次不记播放记录", tint = Color.White, modifier = Modifier.size(18.dp))
                     if (fullscreen && state.queue.size > 1) {
                         PlayerIcon(Icons.Outlined.SkipPrevious, "上一条", { playRelative(-1) }, size = 20, compact = true)
                         PlayerIcon(Icons.Outlined.SkipNext, "下一条", { playRelative(1) }, size = 20, compact = true)
@@ -234,7 +236,21 @@ import kotlin.math.roundToInt
             state.failure?.let { error ->
                 Column(Modifier.align(Alignment.Center).padding(24.dp).background(Color.Black.copy(alpha = .82f), RoundedCornerShape(16.dp)).padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    Row(Modifier.padding(top = 4.dp)) { TextButton(onClick = { vm.open(video, videos, state.positionMs) }) { Text("重试", color = BrandPink) }; TextButton(onClick = close) { Text("返回列表", color = Color.White) } }
+                    Row(Modifier.padding(top = 4.dp)) {
+                        TextButton(onClick = { vm.command(PlayerCommand.Open(video.id, state.queue, state.positionMs, state.recordHistory)) }) {
+                            Text("重试", color = BrandPink)
+                        }
+                        TextButton(onClick = close) { Text("返回列表", color = Color.White) }
+                    }
+                }
+            }
+            if (onLockVault != null) {
+                TextButton(onClick = onLockVault, modifier = Modifier.align(Alignment.CenterEnd).then(edge).padding(end = 6.dp)
+                    .heightIn(min = 48.dp).testTag("lock-vault-now"),
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White, containerColor = Color.Black.copy(alpha = .58f))) {
+                    Icon(Icons.Outlined.Lock, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("锁箱", fontSize = 12.sp)
                 }
             }
         }
@@ -245,21 +261,22 @@ import kotlin.math.roundToInt
                         SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(current.displayTitle(), style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                IconButton(onClick = { renameText = current.displayTitle(); renaming = true }, modifier = Modifier.size(32.dp)) {
+                                if (!shared) IconButton(onClick = { renameText = current.displayTitle(); renaming = true }, modifier = Modifier.size(32.dp)) {
                                     Icon(Icons.Outlined.Edit, "重命名", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                 }
                             }
                             val meta = buildString {
                                 append(if (vm.privateSession) "加密视频" else video.folder)
+                                if (!state.recordHistory) append(" · 本次不记播放记录")
                                 append(" · ")
                                 append(fileSize(video.sizeBytes))
                                 if (video.width > 0 && video.height > 0) append(" · ${video.width}×${video.height}")
                             }
                             Text(meta, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                ToolShortcut(if (current.favorite) Icons.Filled.FilledFavorite else Icons.Outlined.FavoriteBorder, if (current.favorite) "已收藏" else "收藏", { vm.favorite(setOf(video.id), !current.favorite) }, current.favorite)
+                                if (!shared) ToolShortcut(if (current.favorite) Icons.Filled.FilledFavorite else Icons.Outlined.FavoriteBorder, if (current.favorite) "已收藏" else "收藏", { vm.favorite(setOf(video.id), !current.favorite) }, current.favorite)
                                 ToolShortcut(Icons.Outlined.Replay, "从头播放", { vm.command(PlayerCommand.Seek(0)) })
-                                ToolShortcut(Icons.Outlined.BookmarkBorder, "书签", { sheet = "bookmarks" })
+                                if (!shared) ToolShortcut(Icons.Outlined.BookmarkBorder, "书签", { sheet = "bookmarks" })
                                 ToolShortcut(Icons.Outlined.Tune, "播放工具", { sheet = "tools" })
                             }
                         }
@@ -284,7 +301,7 @@ import kotlin.math.roundToInt
                             }
                         }
                     }
-                    val queue = state.queue.mapNotNull { id -> videos.firstOrNull { it.id == id } }
+                    val queue = if (shared) listOf(video) else state.queue.mapNotNull { id -> videos.firstOrNull { it.id == id } }
                     items(queue, key = { it.id.value }) { item ->
                         val playing = item.id == video.id
                         Surface(
@@ -296,7 +313,7 @@ import kotlin.math.roundToInt
                                 Box(Modifier.width(96.dp).height(54.dp).clip(RoundedCornerShape(8.dp))) {
                                     if (vm.privateSession) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
                                         Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    } else Thumbnail(item, Modifier.fillMaxSize())
+                                    } else if (!shared) Thumbnail(item, Modifier.fillMaxSize())
                                     if (playing) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .42f)), contentAlignment = Alignment.Center) {
                                         Icon(Icons.Outlined.GraphicEq, "正在播放", tint = BrandPink)
                                     }
@@ -315,6 +332,13 @@ import kotlin.math.roundToInt
     }
     if (sheet != null) ModalBottomSheet(onDismissRequest = { sheet = null }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         val closeSheet = { sheet = null }
+        if (onLockVault != null) {
+            TextButton(onClick = onLockVault, modifier = Modifier.align(Alignment.End).padding(end = 12.dp)) {
+                Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("锁箱并返回首页")
+            }
+        }
         Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 28.dp)) {
             when (sheet) {
                 "speed" -> {
@@ -329,7 +353,7 @@ import kotlin.math.roundToInt
                 "tools" -> {
                     PanelTitle("播放工具", "为观影，也为每一次认真学习")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        vm.tools.filter { it.feature.available(state) }.forEach { tool ->
+                        vm.tools.filter { it.feature.available(state) && (!shared || it.feature.id != "bookmarks") }.forEach { tool ->
                             FilledTonalButton(onClick = { sheet = tool.feature.id }, shape = CircleShape, modifier = Modifier.heightIn(min = 44.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.primary)) {
                                 Icon(tool.icon, null, Modifier.size(18.dp)); Text("  ${tool.feature.title}")
@@ -339,7 +363,7 @@ import kotlin.math.roundToInt
                     Spacer(Modifier.height(14.dp))
                     SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
                         if (zoom > 1.01f) OutlinedButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }, shape = CircleShape, modifier = Modifier.padding(bottom = 8.dp).heightIn(min = 44.dp)) { Text("还原缩放") }
-                        ToolSwitch("裁掉黑边", current.cropBars, "按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。") {
+                        if (!shared) ToolSwitch("裁掉黑边", current.cropBars, "按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。") {
                             vm.savePicture(video.id, it)
                         }
                         HorizontalDivider(Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
@@ -362,7 +386,7 @@ import kotlin.math.roundToInt
                     Spacer(Modifier.height(10.dp))
                     if (vm.privateSession) {
                         OutlinedButton(onClick = close, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)) { Icon(Icons.Outlined.Lock, null, Modifier.size(18.dp)); Text("  返回保险箱") }
-                    } else {
+                    } else if (!shared) {
                         OutlinedButton(onClick = { sheet = null; vm.hide(setOf(video.id), true) }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)) { Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(18.dp)); Text("  隐藏当前视频") }
                     }
                 }

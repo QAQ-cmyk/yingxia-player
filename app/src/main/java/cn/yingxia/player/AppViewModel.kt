@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.DeleteOutcome
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
@@ -16,6 +17,46 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     val bookmarks = graph.repository.bookmarks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settings = graph.settings.settings.stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
     val messages = MutableSharedFlow<UserNotice>(extraBufferCapacity = 8)
+    internal val share = MutableStateFlow<GalleryShare?>(null)
+    private var shareJob: Job? = null
+
+    internal fun receiveShare(incoming: GalleryShare) {
+        dismissShare()
+        if (graph.vault.state.value.busy || fileOperation.value.busy) {
+            share.value = GalleryShare(error = "请先完成当前文件操作，再从相册分享。")
+            return
+        }
+        if (graph.vault.state.value.visible) graph.vault.close()
+        if (graph.player.state.value.isPlaying) command(PlayerCommand.Pause)
+        share.value = incoming
+    }
+
+    internal fun pauseSharePreparation() {
+        shareJob?.cancel()
+        share.value = share.value?.copy(loading = false)
+    }
+    internal fun dismissShare() {
+        shareJob?.cancel()
+        share.value = null
+    }
+    internal fun useShare(forVault: Boolean) {
+        val pending = share.value ?: return
+        if (pending.loading || pending.uris.isEmpty() || !forVault && pending.uris.size != 1) return
+        share.value = pending.copy(loading = true, error = null)
+        shareJob = viewModelScope.launch {
+            try {
+                val items = pending.uris.map { graph.repository.sharedVideo(it) }.distinctBy { it.id }
+                ensureActive()
+                if (forVault) graph.vault.show(items)
+                else graph.player.execute(PlayerCommand.OpenShared(items.single())).getOrThrow()
+                share.value = null
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                val message = if (e is PlayerFailure) e.message else "分享的视频无法读取。请确认原件在手机上，再从相册重新分享。"
+                share.value = GalleryShare(error = message)
+            }
+        }
+    }
     val folders = graph.settings.storageFolders.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val folderKeys = combine(folders, videos) { folders, _ -> graph.files.folderKeys(folders) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -95,15 +136,15 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
         viewModelScope.launch { graph.player.events.collect { if (it is PlayerEvent.Error) notify(it.failure.message) } }
     }
     fun command(command: PlayerCommand) { viewModelScope.launch { graph.player.execute(command) } }
-    fun open(video: VideoItem, queue: List<VideoItem>, position: Long? = null) {
-        if (position == null) {
+    fun open(video: VideoItem, queue: List<VideoItem>, position: Long? = null, recordHistory: Boolean = true) {
+        if (recordHistory && position == null) {
             val at = PlaybackRules.resume(video.positionMs, video.durationMs)
             if (at > 0) {
                 val seconds = at / 1000
                 viewModelScope.launch { notify("从 %02d:%02d 继续播放".format(seconds / 60, seconds % 60)) }
             }
         }
-        command(PlayerCommand.Open(video.id, queue.map { it.id }, position))
+        command(PlayerCommand.Open(video.id, queue.map { it.id }, position, recordHistory))
     }
     fun hide(ids: Set<VideoId>, hidden: Boolean) {
         if (ids.isEmpty()) return

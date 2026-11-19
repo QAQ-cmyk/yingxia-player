@@ -35,6 +35,7 @@ class VaultLifecycleTest {
         graph.settings.setTouchGuard(false)
         var created = false
         try {
+            ui.onNodeWithTag("nav-3").performClick()
             withContext(Dispatchers.Main) { graph.vault.show(listOf(video)) }
             ui.onNodeWithTag("vault-password").performTextInput("UI test password 123")
             ui.onNodeWithTag("vault-password-confirm").performTextInput("UI test password 123")
@@ -54,6 +55,7 @@ class VaultLifecycleTest {
             val privateId = player.state.value.video!!.id
             withTimeout(20000) { while (!player.state.value.isPlaying) delay(50) }
             ui.onNodeWithTag("player-frame").assertExists()
+            ui.onNodeWithTag("lock-vault-now").assertIsDisplayed()
             player.execute(PlayerCommand.SetRepeat(RepeatMode.ONE))
             player.execute(PlayerCommand.SetSpeed(1.25f))
             ui.waitForIdle()
@@ -97,6 +99,7 @@ class VaultLifecycleTest {
             ui.onNode(hasText("收藏") and hasAnyAncestor(hasTestTag("vault-screen")), useUnmergedTree = true).performClick()
             withTimeout(10000) { while (!session.repository.get(privateId)!!.favorite) delay(50) }
             ui.onNode(hasText("书签") and hasAnyAncestor(hasTestTag("vault-screen")), useUnmergedTree = true).performClick()
+            ui.onNodeWithText("锁箱并返回首页").assertIsDisplayed()
             ui.onNodeWithText("备注（可选）").performTextInput("安全播放界面的私密书签")
             ui.onNodeWithText("添加书签", substring = true).performClick()
             withTimeout(10000) { while (session.repository.bookmarks.value.isEmpty()) delay(50) }
@@ -124,7 +127,26 @@ class VaultLifecycleTest {
             assertTrue(reopened.player.state.value.positionMs >= 4200)
             assertTrue(reopened.repository.get(privateId)!!.favorite)
             assertEquals("安全播放界面的私密书签", reopened.repository.bookmarks.value.single().note)
-            withContext(Dispatchers.Main) { graph.vault.stopPlaying() }
+            reopened.player.execute(PlayerCommand.Pause)
+            ui.onNodeWithContentDescription("全屏").performClick()
+            ui.waitUntil(10000) { ui.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+            ui.onNodeWithContentDescription("锁定屏幕").performClick()
+            reopened.player.execute(PlayerCommand.Play)
+            ui.waitUntil(10000) { reopened.player.state.value.isPlaying }
+            ui.onNodeWithTag("lock-vault-now").assertIsDisplayed().performClick()
+            assertFalse(reopened.player.state.value.isPlaying)
+            assertNull(reopened.player.state.value.video)
+            assertNull(graph.vault.store.session)
+            assertNull(graph.vault.playback)
+            assertTrue(reopened.repository.bookmarks.value.isEmpty())
+            ui.onNodeWithTag("vault-screen").assertDoesNotExist()
+            ui.onNodeWithTag("nav-0").assertIsSelected()
+            ui.onNodeWithTag("nav-3").performClick()
+            ui.onNodeWithText("加密保险箱").performScrollTo().performClick()
+            ui.onNodeWithTag("vault-password").performTextInput("UI test password 123")
+            ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
+            ui.waitUntil(60000) { graph.vault.state.value.unlocked && !graph.vault.state.value.busy }
+            assertEquals(privateId.value, graph.vault.state.value.entries.single().id)
             ui.onNodeWithText("设置密保问题").performScrollTo().performClick()
             val chosen = listOf("小时候的树叫什么？", "Where did I keep the map?", "我给雨天起的名字？")
             fun question(index: Int) = ui.onNodeWithTag("recovery-question-" + index)

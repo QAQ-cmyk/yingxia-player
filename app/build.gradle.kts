@@ -11,8 +11,8 @@ android {
         applicationId = "cn.yingxia.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.7.2"
+        versionCode = 18
+        versionName = "1.7.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }

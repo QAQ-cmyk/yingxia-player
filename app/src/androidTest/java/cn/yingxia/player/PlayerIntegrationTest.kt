@@ -103,6 +103,38 @@ class PlayerIntegrationTest {
     }
     private suspend fun eventually(condition: () -> Boolean) = withTimeout(15_000) { while (!condition()) delay(50) }
 
+    @Test fun unrecordedQueuePreservesProgressHistoryAndBookmarks() = runBlocking {
+        repository.saveProgress(fixture.id, 6500)
+        repository.setFavorite(setOf(fixture.id), true)
+        repository.saveBookmark(fixture.id, 2500, "原书签")
+        val saved = repository.get(fixture.id)!!
+        val queue = listOf(fixture.id, second.id)
+        player.execute(PlayerCommand.Open(fixture.id, queue, recordHistory = false)).getOrThrow()
+        eventually { player.state.value.isPlaying }
+        assertTrue(player.state.value.positionMs < 3000)
+        delay(5300) // Exercise the periodic save as well as the explicit save paths.
+        player.execute(PlayerCommand.Seek(player.state.value.durationMs - 500)).getOrThrow()
+        eventually { player.state.value.video?.id == second.id && player.state.value.isPlaying }
+        assertFalse(player.state.value.recordHistory)
+        player.execute(PlayerCommand.Previous).getOrThrow()
+        player.execute(PlayerCommand.Next).getOrThrow()
+        player.execute(PlayerCommand.Pause).getOrThrow()
+        player.execute(PlayerCommand.Seek(8000)).getOrThrow()
+        player.execute(PlayerCommand.Close).getOrThrow()
+        val after = repository.get(fixture.id)!!
+        assertEquals(saved.lastPlayedAt, after.lastPlayedAt)
+        assertEquals(saved.positionMs, after.positionMs)
+        assertTrue(after.favorite)
+        assertEquals("原书签", repository.bookmarks.first().single().note)
+        assertEquals(0L, repository.get(second.id)!!.lastPlayedAt)
+        assertEquals(0L, repository.get(second.id)!!.positionMs)
+        player.execute(PlayerCommand.Open(fixture.id, queue)).getOrThrow()
+        eventually { player.state.value.isPlaying }
+        assertTrue(player.state.value.recordHistory)
+        assertTrue(player.state.value.positionMs in 6500..9000)
+        withTimeout(5000) { while (repository.get(fixture.id)!!.lastPlayedAt <= saved.lastPlayedAt) delay(50) }
+    }
+
     @Test fun allSpeedsTemporaryBoostCancelAndPausedHold() = runBlocking {
         open()
         for (speed in PlaybackRules.speeds) {

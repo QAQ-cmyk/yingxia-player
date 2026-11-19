@@ -41,7 +41,7 @@ import cn.yingxia.player.core.VideoItem
 import cn.yingxia.player.core.displayTitle
 import cn.yingxia.player.vault.*
 
-@Composable fun VaultHost(vm: AppViewModel) {
+@Composable fun VaultHost(vm: AppViewModel, onLockedToHome: () -> Unit) {
     val vault = vm.graph.vault
     val state by vault.state.collectAsStateWithLifecycle()
     val activity = LocalActivity.current ?: return
@@ -89,7 +89,10 @@ import cn.yingxia.player.vault.*
             val playback by session.player.state.collectAsStateWithLifecycle()
             val settings by vm.settings.collectAsStateWithLifecycle()
             Box(Modifier.fillMaxSize()) {
-                PlayerPage(session.ui, playback, settings)
+                PlayerPage(session.ui, playback, settings, onLockVault = {
+                    vault.close()
+                    onLockedToHome()
+                })
                 SnackbarHost(playbackNotice, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
             }
         } else Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
@@ -145,7 +148,7 @@ import cn.yingxia.player.vault.*
                                     Text("${durationText(entry.duration)} · ${entry.bytes / 1048576} MB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                                 }
                             }
-                            Text(if (!entry.sourceRemoved) "原件移除尚未确认，相册可能仍可见" else if (entry.restoredAt > 0) "已恢复过相册副本；保险箱仍保留" else "已加密，相册原件已移除",
+                            Text(if (entry.manageOriginalInGallery) "已保存加密副本，请在来源相册管理原件" else if (!entry.sourceRemoved) "原件移除尚未确认，相册可能仍可见" else if (entry.restoredAt > 0) "已恢复过相册副本；保险箱仍保留" else "已加密，相册原件已移除",
                                 color = if (!entry.sourceRemoved) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp))
                             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -157,7 +160,7 @@ import cn.yingxia.player.vault.*
                                 Spacer(Modifier.weight(1f))
                                 IconButton(onClick = { deleting = entry }, enabled = !state.busy) { Icon(Icons.Outlined.DeleteOutline, "删除保险箱副本", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                             }
-                            if (!entry.sourceRemoved) OutlinedButton(onClick = { vault.retryRemoval(entry.id) }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.padding(top = 6.dp)) { Text("继续移除相册原件") }
+                            if (!entry.sourceRemoved && !entry.manageOriginalInGallery) OutlinedButton(onClick = { vault.retryRemoval(entry.id) }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.padding(top = 6.dp)) { Text("继续移除相册原件") }
                         }
                     }
                     item { Text("卸载或清空应用数据会删除保险箱。换机前请先恢复到相册。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp)) }
@@ -175,9 +178,11 @@ import cn.yingxia.player.vault.*
             confirmButton = { TextButton(onClick = vault::dismissMessage) { Text("知道了") } })
     }
     if (state.unlocked && state.importItems.isNotEmpty() && !state.busy) {
+        val shared = state.importItems.all { it.source == "share" }
         AlertDialog(onDismissRequest = vault::dismissImport, title = { Text("加密 ${state.importItems.size} 个视频") },
-            text = { Text("先加密并完整校验，再请求系统移除相册原件。取消系统授权时，相册原件仍可见。\n\n这些视频在普通列表中的收藏、进度和书签会被清除，以免留下明文记录。\n\n请记住保险箱密码；卸载应用或清空数据会丢失保险箱视频。") },
-            confirmButton = { TextButton(onClick = vault::importConfirmed) { Text("加密并移除原件") } },
+            text = { Text(if (shared) "映匣会在本机加密并校验所选视频。相册仍保留原件；确认箱内可以播放后，可按视频下方提示管理原件。"
+                else "先加密并完整校验，再请求系统移除相册原件。取消系统授权时，相册原件仍可见。\n\n这些视频在普通列表中的收藏、进度和书签会被清除，以免留下明文记录。\n\n请记住保险箱密码；卸载应用或清空数据会丢失保险箱视频。") },
+            confirmButton = { TextButton(onClick = vault::importConfirmed) { Text(if (shared) "保存加密副本" else "加密并移除原件") } },
             dismissButton = { TextButton(onClick = vault::dismissImport) { Text("取消") } })
     }
     restore?.let { entry ->

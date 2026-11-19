@@ -114,15 +114,37 @@ class VaultCoordinator(
 
     fun importConfirmed() {
         if (!state.value.unlocked || state.value.busy) return
-        queue = state.value.importItems
+        val items = state.value.importItems
+        if (items.isEmpty()) return
         state.update { it.copy(importItems = emptyList()) }
+        if (items.all { it.source == "share" }) {
+            run("准备加密") {
+                var done = 0
+                try {
+                    items.forEach { video ->
+                        val prior = state.value.entries.firstOrNull { !it.sourceRemoved && it.sourceUri == video.uri && it.sourceId == video.id.value }
+                        val alreadySaved = prior != null && try {
+                            store.verifyBeforeRemoval(prior)
+                            true
+                        } catch (e: CancellationException) { throw e } catch (_: Exception) { false }
+                        if (!alreadySaved) store.encrypt(video) { progress("${done + 1}/${items.size} · $it") }
+                        done++
+                    }
+                    state.update { it.copy(message = "已加密并校验 $done 个视频。相册原件已保留。") }
+                } catch (e: CancellationException) { throw e }
+                catch (_: Exception) { error("已加密 $done/${items.size} 个视频。其余视频未完成，请检查原件和可用空间。相册原件已保留。") }
+                finally { if (currentCoroutineContext().isActive) refresh() }
+            }
+            return
+        }
+        queue = items
         run("准备加密") { ordinaryPlayer.execute(PlayerCommand.Close); continueImport() }
     }
     private suspend fun continueImport() {
         while (queue.isNotEmpty()) {
             val video = queue.first()
             // A cancelled deletion can be resumed without making another encrypted copy.
-            val existing = state.value.entries.firstOrNull { !it.sourceRemoved && it.sourceId == video.id.value && it.sourceUri == video.uri }
+            val existing = state.value.entries.firstOrNull { !it.sourceRemoved && !it.manageOriginalInGallery && it.sourceId == video.id.value && it.sourceUri == video.uri }
             val entry = existing ?: store.encrypt(video, ::progress)
             refresh()
             if (!removeOriginal(entry)) return
@@ -135,6 +157,7 @@ class VaultCoordinator(
         run("校验加密副本与原件") { removeOriginal(withContext(Dispatchers.IO) { store.load(id) }); refresh() }
     }
     private suspend fun removeOriginal(entry: VaultEntry): Boolean {
+        check(!entry.manageOriginalInGallery) { "请回来源相册管理原件" }
         progress("校验副本与原件，准备请求移除")
         store.verifyBeforeRemoval(entry)
         val removalUri = withContext(Dispatchers.IO) { canonicalVideoUri(context, Uri.parse(entry.sourceUri))?.toString() ?: entry.sourceUri }

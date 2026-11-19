@@ -1,5 +1,6 @@
 package cn.yingxia.player
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,10 +16,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) acceptShare(intent)
         setContent { YingXiaApp(model) }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        acceptShare(intent)
+    }
+    private fun acceptShare(incoming: Intent) {
+        incoming.galleryShare(packageName)?.let { share ->
+            if (incoming === intent) setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
+            model.receiveShare(share)
+        }
     }
     override fun onResume() { super.onResume(); model.refresh() }
     override fun onStop() {
+        if (!isChangingConfigurations) model.pauseSharePreparation()
         if (!isChangingConfigurations) graph.vault.lock()
         if (!isChangingConfigurations) graph.scope.launch { graph.player.execute(PlayerCommand.Pause) }
         super.onStop()

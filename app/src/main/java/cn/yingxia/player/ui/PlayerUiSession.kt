@@ -26,7 +26,7 @@ class PlayerUiSession(
     fun command(command: PlayerCommand) = commandSink(command)
     fun message(text: String) = notice(text)
     fun open(video: VideoItem, queue: List<VideoItem>, position: Long? = null) =
-        command(PlayerCommand.Open(video.id, queue.map { it.id }, position))
+        command(PlayerCommand.Open(video.id, queue.map { it.id }, position, player.state.value.recordHistory))
     fun favorite(ids: Set<VideoId>, value: Boolean) = action { repository.setFavorite(ids, value) }
     fun rename(id: VideoId, value: String) = action { repository.rename(id, value) }
     fun savePicture(id: VideoId, value: Boolean) = action { repository.savePicture(id, value) }
