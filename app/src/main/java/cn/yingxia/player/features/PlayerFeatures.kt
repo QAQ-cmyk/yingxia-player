@@ -5,14 +5,17 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import android.os.SystemClock
 
-class LoopFeature(private val controller: PlaybackController) : PlayerFeature {
+class LoopFeature(
+    private val controller: PlaybackController,
+    private val setPointAFirst: () -> String = { "Set point A first" },
+) : PlayerFeature {
     override val id = "loop"
-    override val title = "A-B 循环"
+    override val title = "A–B Loop"
     override val order = 10
     val pointA = MutableStateFlow<Long?>(null)
     suspend fun markA() { pointA.value = controller.state.value.positionMs; controller.execute(PlayerCommand.SetLoop(null)) }
     suspend fun markB(): Result<Unit> {
-        val a = pointA.value ?: return Result.failure(IllegalArgumentException("请先设置 A 点"))
+        val a = pointA.value ?: return Result.failure(IllegalArgumentException(setPointAFirst()))
         return controller.execute(PlayerCommand.SetLoop(LoopRange(a, controller.state.value.positionMs)))
     }
     suspend fun clear() { pointA.value = null; controller.execute(PlayerCommand.SetLoop(null)) }
@@ -20,7 +23,7 @@ class LoopFeature(private val controller: PlaybackController) : PlayerFeature {
 }
 class SleepTimerFeature(private val controller: PlaybackController, private val scope: CoroutineScope) : PlayerFeature {
     override val id = "sleep"
-    override val title = "睡眠定时"
+    override val title = "Sleep Timer"
     override val order = 30
     val remainingMs = MutableStateFlow(0L)
     val untilEnd = MutableStateFlow(false)
@@ -61,7 +64,7 @@ class SleepTimerFeature(private val controller: PlaybackController, private val 
 }
 class BookmarkFeature(private val controller: PlaybackController, private val repository: VideoRepository) : PlayerFeature {
     override val id = "bookmarks"
-    override val title = "时间书签"
+    override val title = "Bookmarks"
     override val order = 20
     suspend fun add(note: String) {
         val s = controller.state.value

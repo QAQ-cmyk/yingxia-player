@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.widget.SeekBar
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -152,7 +153,7 @@ internal class CommitSeekBar(context: Context) : SeekBar(context) {
     var preview: (Long?) -> Unit = {}
     init {
         max = 10_000
-        contentDescription = "播放进度"
+        contentDescription = context.getString(R.string.player_seek_bar_desc)
         val pink = android.graphics.Color.rgb(251, 114, 153)
         val tint = android.content.res.ColorStateList.valueOf(pink)
         progressTintList = tint

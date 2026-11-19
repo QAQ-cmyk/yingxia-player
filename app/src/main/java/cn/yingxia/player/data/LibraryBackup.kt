@@ -7,6 +7,8 @@ import org.json.JSONObject
 data class LibraryBackupFile(val settings: UserSettings, val records: List<LibraryRecord>)
 data class RestorePlan(val settings: UserSettings, val matched: List<LibraryRecord>, val skipped: Int)
 
+class InvalidBackupException : IllegalArgumentException("Not a YingXia backup file")
+
 object LibraryBackup {
     fun export(videos: List<VideoItem>, settings: UserSettings): String {
         val records = JSONArray()
@@ -26,7 +28,7 @@ object LibraryBackup {
 
     fun parse(text: String): LibraryBackupFile {
         val root = JSONObject(text)
-        if (root.optString("kind") != "yingxia-backup") throw IllegalArgumentException("这不是映匣的备份文件")
+        if (root.optString("kind") != "yingxia-backup") throw InvalidBackupException()
         val prefs = root.getJSONObject("settings")
         val settings = UserSettings(
             theme = runCatching { ThemeMode.valueOf(prefs.optString("theme", "SYSTEM")) }.getOrDefault(ThemeMode.SYSTEM),

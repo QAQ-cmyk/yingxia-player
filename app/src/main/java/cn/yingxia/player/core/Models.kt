@@ -35,10 +35,10 @@ data class LibraryRecord(val id: String, val uri: String, val name: String, val 
 enum class RepeatMode { SEQUENCE, ONE, ALL }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class LibraryAccess { FULL, PARTIAL, NONE }
-enum class SortOrder(val title: String) {
-    NEWEST("最近添加"), OLDEST("最早添加"), RECENT_PLAY("最近播放"),
-    NAME_ASC("名称 A–Z"), NAME_DESC("名称 Z–A"),
-    SIZE_DESC("从大到小"), SIZE_ASC("从小到大"), DURATION("时长")
+enum class SortOrder {
+    NEWEST, OLDEST, RECENT_PLAY,
+    NAME_ASC, NAME_DESC,
+    SIZE_DESC, SIZE_ASC, DURATION
 }
 fun SortOrder.apply(items: List<VideoItem>): List<VideoItem> {
     val collator = java.text.Collator.getInstance(java.util.Locale.CHINA).apply { strength = java.text.Collator.PRIMARY }

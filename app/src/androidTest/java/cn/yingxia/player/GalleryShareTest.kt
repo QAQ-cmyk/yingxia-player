@@ -60,12 +60,12 @@ class GalleryShareTest {
         try {
             val intent = Intent(Intent.ACTION_SEND).setType("video/mp4").putExtra(Intent.EXTRA_STREAM, uri)
             send(Intent(intent))
-            ui.onNodeWithText("取消").performClick()
+            ui.onNodeWithText(context.getString(R.string.action_cancel)).performClick()
             assertNull(graph.player.state.value.video)
             send(Intent(intent))
-            ui.onNodeWithText("本次不记播放记录").assertExists()
+            ui.onNodeWithText(context.getString(R.string.action_watch_without_history)).assertExists()
             ui.activityRule.scenario.recreate()
-            ui.onNodeWithText("本次不记播放记录").performClick()
+            ui.onNodeWithText(context.getString(R.string.action_watch_without_history)).performClick()
             ui.waitUntil(15000) { graph.player.state.value.isPlaying }
             val video = graph.player.state.value.video!!
             assertFalse(graph.player.state.value.recordHistory)
@@ -80,8 +80,9 @@ class GalleryShareTest {
             try {
                 graph.repository.setHidden(setOf(imported.id), true)
                 send(Intent(intent))
-                ui.onNodeWithText("本次不记播放记录").performClick()
-                ui.waitUntil(8000) { ui.onAllNodesWithText("这个视频已隐藏", substring = true).fetchSemanticsNodes().isNotEmpty() }
+                ui.onNodeWithText(context.getString(R.string.action_watch_without_history)).performClick()
+                val hiddenMsg = context.getString(R.string.media_error_hidden_import)
+                ui.waitUntil(8000) { ui.onAllNodesWithText(hiddenMsg, substring = true).fetchSemanticsNodes().isNotEmpty() }
                 assertNull(graph.player.state.value.video)
             } finally { graph.repository.forgetEncryptedSource(imported) }
         } finally {
@@ -101,15 +102,16 @@ class GalleryShareTest {
             val intent = Intent(Intent.ACTION_SEND_MULTIPLE).setType("video/*").putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
             intent.clipData = ClipData.newRawUri("video", uris[0]).apply { addItem(ClipData.Item(uris[1])) }
             send(intent)
-            ui.onNodeWithText("已选 2 个视频").assertExists()
-            ui.onNodeWithText("本次不记播放记录").assertDoesNotExist()
-            ui.onNodeWithText("放入保险柜").performClick()
+            ui.onNodeWithText(context.getString(R.string.share_selected_count, 2)).assertExists()
+            ui.onNodeWithText(context.getString(R.string.action_watch_without_history)).assertDoesNotExist()
+            ui.onNodeWithText(context.getString(R.string.share_action_vault)).performClick()
             ui.waitUntil(12000) { ui.onAllNodesWithTag("vault-password").fetchSemanticsNodes().isNotEmpty() }
             ui.onNodeWithTag("vault-password").performTextInput("gallery test password")
             ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
-            ui.waitUntil(20000) { ui.onAllNodesWithText("保存加密副本").fetchSemanticsNodes().isNotEmpty() }
+            val saveCopiesText = context.getString(R.string.vault_confirm_share_button)
+            ui.waitUntil(20000) { ui.onAllNodesWithText(saveCopiesText).fetchSemanticsNodes().isNotEmpty() }
             assertTrue(vault.state.value.entries.isEmpty())
-            ui.onNodeWithText("保存加密副本").performClick()
+            ui.onNodeWithText(saveCopiesText).performClick()
             ui.waitUntil(20000) { vault.state.value.entries.size == 2 && !vault.state.value.busy }
             assertTrue(vault.state.value.entries.none { it.sourceRemoved })
             vault.state.value.entries.forEach { entry -> vault.store.verifyBeforeRemoval(entry) }

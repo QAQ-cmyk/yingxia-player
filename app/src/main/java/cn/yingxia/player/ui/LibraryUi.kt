@@ -48,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -61,8 +62,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
+import cn.yingxia.player.AppLanguage
+import cn.yingxia.player.AppLocale
 import cn.yingxia.player.AppViewModel
 import cn.yingxia.player.BuildConfig
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.mediaPermissions
 import kotlinx.coroutines.launch
@@ -129,21 +133,21 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 @Composable private fun GalleryShareDialog(vm: AppViewModel) {
     val pending by vm.share.collectAsStateWithLifecycle()
     val share = pending ?: return
-    AlertDialog(onDismissRequest = vm::dismissShare, title = { Text("从相册分享") },
+    AlertDialog(onDismissRequest = vm::dismissShare, title = { Text(stringResource(R.string.share_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
                     share.error != null -> Text(share.error)
-                    share.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("正在读取所选视频…") }
+                    share.loading -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(stringResource(R.string.share_loading)) }
                     else -> {
-                        Text(if (share.uris.size == 1) "选择怎样打开这个视频" else "已选 ${share.uris.size} 个视频")
-                        if (share.uris.size == 1) Button(onClick = { vm.useShare(false) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("本次不记播放记录") }
-                        OutlinedButton(onClick = { vm.useShare(true) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("放入保险柜") }
+                        Text(if (share.uris.size == 1) stringResource(R.string.share_choose_single) else stringResource(R.string.share_selected_count, share.uris.size))
+                        if (share.uris.size == 1) Button(onClick = { vm.useShare(false) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.action_watch_without_history)) }
+                        OutlinedButton(onClick = { vm.useShare(true) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.share_action_vault)) }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = vm::dismissShare) { Text(if (share.error != null) "知道了" else "取消") } })
+        confirmButton = { TextButton(onClick = vm::dismissShare) { Text(stringResource(if (share.error != null) R.string.action_got_it else R.string.action_cancel)) } })
 }
 
 @Composable private fun LibraryScaffold(vm: AppViewModel, onNavigationVisible: (Boolean) -> Unit) {
@@ -201,7 +205,12 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             .filter { tab != 0 || page.isNotEmpty() || filter != 2 || it.positionMs > 0 && it.durationMs - it.positionMs > 5000 }
         order.apply(filtered)
     }
-    val titles = listOf("首页", "文件夹", "收藏", "我的")
+    val titles = listOf(
+        stringResource(R.string.nav_home),
+        stringResource(R.string.nav_folders),
+        stringResource(R.string.nav_favorites),
+        stringResource(R.string.nav_profile),
+    )
     val icons = listOf(Icons.Outlined.Home, Icons.Outlined.Folder, Icons.Outlined.FavoriteBorder, Icons.Outlined.PersonOutline)
     val selectedIcons = listOf(Icons.Filled.FilledHome, Icons.Filled.FilledFolder, Icons.Filled.FilledFavorite, Icons.Filled.FilledPerson)
     Scaffold(
@@ -225,15 +234,23 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
-            val nestedTitle = when (page) { "hidden" -> "隐藏管理"; "history" -> "播放历史"; "bookmarks" -> "时间书签"; "settings" -> "播放与外观"; "backup" -> "备份与恢复"; "scan" -> "检查视频"; else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: "文件夹" else "" }
+            val nestedTitle = when (page) {
+                "hidden" -> stringResource(R.string.title_hidden_manager)
+                "history" -> stringResource(R.string.title_history)
+                "bookmarks" -> stringResource(R.string.title_bookmarks)
+                "settings" -> stringResource(R.string.title_settings)
+                "backup" -> stringResource(R.string.title_backup)
+                "scan" -> stringResource(R.string.title_scan)
+                else -> if (folder != null) managedFolders.firstOrNull { it.uri == folder }?.name ?: current.firstOrNull()?.folder ?: stringResource(R.string.title_folder_fallback) else ""
+            }
             val topLevel = selected.isEmpty() && page.isEmpty() && folder == null
             Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = if (topLevel) 16.dp else 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") }
-                Text(if (selected.isNotEmpty()) "已选择 ${selected.size} 项" else nestedTitle.ifEmpty { if (tab == 0) "映匣" else titles[tab] },
+                if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back)) }
+                Text(if (selected.isNotEmpty()) stringResource(R.string.title_selected_count, selected.size) else nestedTitle.ifEmpty { if (tab == 0) stringResource(R.string.app_name) else titles[tab] },
                     style = if (topLevel) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                if (selected.isNotEmpty()) TextButton(onClick = { selected = emptySet() }, modifier = Modifier.heightIn(min = 44.dp)) { Text("取消") }
-                else IconButton(onClick = importFile) { Icon(Icons.Outlined.Add, "打开本地视频", tint = MaterialTheme.colorScheme.onSurface) }
+                if (selected.isNotEmpty()) TextButton(onClick = { selected = emptySet() }, modifier = Modifier.heightIn(min = 44.dp)) { Text(stringResource(R.string.action_cancel)) }
+                else IconButton(onClick = importFile) { Icon(Icons.Outlined.Add, stringResource(R.string.action_open_local_video), tint = MaterialTheme.colorScheme.onSurface) }
             }
             if (selected.isNotEmpty()) {
                 val allVisibleSelected = visible.isNotEmpty() && visible.all { it.id in selected }
@@ -243,29 +260,29 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     .background(MaterialTheme.colorScheme.primaryContainer).horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
                         selected = if (allVisibleSelected) selected - visible.map { it.id }.toSet() else selected + visible.map { it.id }
-                    }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(if (allVisibleSelected) "取消全选" else "全选") }
-                    if (page == "hidden") TextButton(onClick = { vm.hide(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("恢复显示") }
+                    }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(if (allVisibleSelected) R.string.action_deselect_all else R.string.action_select_all)) }
+                    if (page == "hidden") TextButton(onClick = { vm.hide(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_restore_visible)) }
                     else {
                         if (selected.size == 1) TextButton(onClick = {
                             visible.firstOrNull { it.id in selected }?.let { vm.open(it, listOf(it), recordHistory = false) }
                             selected = emptySet()
-                        }, colors = actionColors) { Text("本次不记播放记录") }
-                        TextButton(onClick = { vm.favorite(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("收藏") }
-                        TextButton(onClick = { vm.favorite(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("取消收藏") }
+                        }, colors = actionColors) { Text(stringResource(R.string.action_watch_without_history)) }
+                        TextButton(onClick = { vm.favorite(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_favorite)) }
+                        TextButton(onClick = { vm.favorite(selected, false); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_unfavorite)) }
                         TextButton(onClick = {
                             val chosen = visible.filter { it.id in selected }
                             val targets = chosen.filter { it.accessible }
                             selected = emptySet()
                             when {
-                                targets.isEmpty() -> vm.message("这些视频需要重新授权后才能播放")
-                                targets.size < chosen.size -> { vm.message("已跳过需要重新授权的视频"); vm.command(PlayerCommand.Enqueue(targets.map { it.id })) }
+                                targets.isEmpty() -> vm.message(context.getString(R.string.notice_need_regrant_all))
+                                targets.size < chosen.size -> { vm.message(context.getString(R.string.notice_skipped_inaccessible)); vm.command(PlayerCommand.Enqueue(targets.map { it.id })) }
                                 else -> vm.command(PlayerCommand.Enqueue(targets.map { it.id }))
                             }
-                        }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("播放所选") }
-                        TextButton(onClick = { vm.hide(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("隐藏") }
-                        TextButton(onClick = { vm.graph.vault.show(visible.filter { it.id in selected }); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("加密") }
-                        TextButton(onClick = { moving = true; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text("移动") }
-                        TextButton(onClick = { moving = false; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 42.dp), colors = dangerColors) { Text("删除") }
+                        }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_play_selected)) }
+                        TextButton(onClick = { vm.hide(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_hide)) }
+                        TextButton(onClick = { vm.graph.vault.show(visible.filter { it.id in selected }); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_encrypt)) }
+                        TextButton(onClick = { moving = true; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_move)) }
+                        TextButton(onClick = { moving = false; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 42.dp), colors = dangerColors) { Text(stringResource(R.string.action_delete)) }
                     }
                 }
             }
@@ -295,7 +312,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     Column(Modifier.fillMaxSize()) {
                     if (listKind != "hidden") {
                         SearchField(query, { query = it }, { searchFocused = it }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-                    } else Text("只是不在映匣里显示，手机里的文件还在。点选视频后可以恢复。", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    } else Text(stringResource(R.string.hidden_banner_hint), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     VideoGrid(vm, visible, videos, access, scanning, scanError, order, { scope.launch { vm.graph.settings.setSort(it) } }, query,
                         selected, { selected = it }, listKind, currentScreen == "tab0" && query.isBlank() && filter != 2,
                         filter, { filter = it }, currentScreen == "tab0",
@@ -323,16 +340,27 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Search, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Box(Modifier.weight(1f).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterStart) {
-                    if (query.isEmpty()) Text("搜索视频或文件夹", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (query.isEmpty()) Text(stringResource(R.string.search_placeholder), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     inner()
                 }
                 if (query.isNotEmpty()) {
-                    Icon(Icons.Outlined.Close, "清除搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icon(Icons.Outlined.Close, stringResource(R.string.search_clear), tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp).clickable { onQuery("") })
                 }
             }
         }
     )
+}
+
+private fun SortOrder.labelRes(): Int = when (this) {
+    SortOrder.NEWEST -> R.string.sort_newest
+    SortOrder.OLDEST -> R.string.sort_oldest
+    SortOrder.RECENT_PLAY -> R.string.sort_recent_play
+    SortOrder.NAME_ASC -> R.string.sort_name_asc
+    SortOrder.NAME_DESC -> R.string.sort_name_desc
+    SortOrder.SIZE_DESC -> R.string.sort_size_desc
+    SortOrder.SIZE_ASC -> R.string.sort_size_asc
+    SortOrder.DURATION -> R.string.sort_duration
 }
 
 @Composable private fun VideoGrid(vm: AppViewModel, items: List<VideoItem>, all: List<VideoItem>, access: LibraryAccess,
@@ -350,8 +378,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = RoundedCornerShape(12.dp)) {
                 Row(Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.PhotoLibrary, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
-                    Text(if (access == LibraryAccess.PARTIAL) "正在显示你授权的视频" else "授权相册，发现手机里的视频", modifier = Modifier.weight(1f).padding(horizontal = 8.dp), style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = requestAccess) { Text(if (access == LibraryAccess.PARTIAL) "管理" else "授权") }
+                    Text(stringResource(if (access == LibraryAccess.PARTIAL) R.string.access_partial_banner else R.string.access_none_banner), modifier = Modifier.weight(1f).padding(horizontal = 8.dp), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = requestAccess) { Text(stringResource(if (access == LibraryAccess.PARTIAL) R.string.access_manage else R.string.access_grant)) }
                 }
             }
         }
@@ -359,25 +387,33 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(12.dp)) {
                 Row(Modifier.padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(error, color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    TextButton(onClick = vm::refresh) { Text("重试") }
+                    TextButton(onClick = vm::refresh) { Text(stringResource(R.string.action_retry)) }
                 }
             }
         }
         if (showContinue && last != null) item(span = { GridItemSpan(maxLineSpan) }) {
             Surface(onClick = { vm.open(last, all) }, shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.FilledPlayArrow, "继续播放", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    Text("继续看：", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp))
+                    Icon(Icons.Filled.FilledPlayArrow, stringResource(R.string.continue_watching_icon), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.continue_watching_prefix), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 4.dp))
                     Text(last.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                     Text(durationText(last.positionMs), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            val section = when (listKind) { "hidden" -> "已隐藏"; "history" -> "最近观看"; "favorites" -> "我的收藏"; "folder" -> "文件夹中的视频"; else -> "我的视频" }
+            val section = stringResource(when (listKind) {
+                "hidden" -> R.string.section_hidden
+                "history" -> R.string.section_history
+                "favorites" -> R.string.section_favorites
+                "folder" -> R.string.section_folder_videos
+                else -> R.string.section_my_videos
+            })
+            val allLabel = stringResource(R.string.filter_all_videos)
+            val inProgressLabel = stringResource(R.string.filter_in_progress)
             Row(Modifier.fillMaxWidth().heightIn(min = 34.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (showFilterPills) {
-                    listOf(0 to "全部视频", 2 to "未看完").forEach { (index, label) ->
+                    listOf(0 to allLabel, 2 to inProgressLabel).forEach { (index, label) ->
                         val on = if (index == 0) filter != 2 else filter == 2
                         Column(
                             Modifier.padding(end = 18.dp).clip(RoundedCornerShape(6.dp)).clickable { onFilter(index) }.padding(vertical = 4.dp),
@@ -398,33 +434,33 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 Spacer(Modifier.weight(1f))
                 if (scanning) CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 else IconButton(onClick = vm::refresh, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Outlined.Refresh, "刷新视频", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Outlined.Refresh, stringResource(R.string.action_refresh_videos), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Box {
                     Row(Modifier.clip(RoundedCornerShape(6.dp)).clickable { sortMenu = true }.padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Outlined.Sort, "排序", modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.action_sort), modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.width(3.dp))
-                        Text(order.title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        Text(stringResource(order.labelRes()), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                     }
                     DropdownMenu(sortMenu, { sortMenu = false }, shape = RoundedCornerShape(12.dp)) {
                         SortOrder.entries.forEach { o ->
-                            DropdownMenuItem(text = { Text(o.title) }, onClick = { onOrder(o); sortMenu = false })
+                            DropdownMenuItem(text = { Text(stringResource(o.labelRes())) }, onClick = { onOrder(o); sortMenu = false })
                         }
                     }
                 }
             }
         }
         if (items.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-            val (emptyTitle, emptyMessage, allowImport) = when {
-                scanning -> Triple("正在整理你的视频", "正在读取相册，稍等一下。", false)
-                query.isNotEmpty() -> Triple("没有找到相关视频", "换个关键词，或清除搜索后再看。", false)
-                hidden -> Triple("这里还没有隐藏视频", "在视频卡片的「更多」里选择隐藏。隐藏不会删除手机里的文件。", false)
-                history -> Triple("还没有播放记录", "看过的视频会按时间留在这里，方便接着看。", false)
-                listKind == "favorites" -> Triple("还没有收藏", "播放时点「收藏」，或在卡片的「更多」里收藏。", false)
-                listKind == "folder" -> Triple("这个文件夹还没有视频", "可以在其他视频的「更多」里选择「移动到文件夹」。", false)
-                else -> Triple("让好视频，有个家", "从相册发现，或选择一个本地文件。\n视频始终留在这台手机里。", true)
+            val (emptyTitleRes, emptyMessageRes, allowImport) = when {
+                scanning -> Triple(R.string.empty_scanning_title, R.string.empty_scanning_desc, false)
+                query.isNotEmpty() -> Triple(R.string.empty_search_title, R.string.empty_search_desc, false)
+                hidden -> Triple(R.string.empty_hidden_title, R.string.empty_hidden_desc, false)
+                history -> Triple(R.string.empty_history_title, R.string.empty_history_desc, false)
+                listKind == "favorites" -> Triple(R.string.empty_favorites_title, R.string.empty_favorites_desc, false)
+                listKind == "folder" -> Triple(R.string.empty_folder_title, R.string.empty_folder_desc, false)
+                else -> Triple(R.string.empty_library_title, R.string.empty_library_desc, true)
             }
-            EmptyState(emptyTitle, emptyMessage, if (allowImport) importFile else null, if (listKind == "videos" && access == LibraryAccess.NONE && query.isEmpty() && !scanning) requestAccess else null)
+            EmptyState(stringResource(emptyTitleRes), stringResource(emptyMessageRes), if (allowImport) importFile else null, if (listKind == "videos" && access == LibraryAccess.NONE && query.isEmpty() && !scanning) requestAccess else null)
         }
         items(items, key = { it.id.value }) { video ->
             VideoCard(video, selected.contains(video.id), selected.isNotEmpty(), hidden, Modifier.animateItem(),
@@ -458,8 +494,9 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     onClick: () -> Unit, onLong: () -> Unit, onFavorite: () -> Unit, onRename: () -> Unit, onHide: () -> Unit, onQueue: () -> Unit,
     onPlayWithoutHistory: () -> Unit, onMove: () -> Unit, onDelete: () -> Unit, onEncrypt: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
+    val selectedState = stringResource(if (selected) R.string.state_selected else R.string.state_unselected)
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).combinedClickable(onClick = onClick, onLongClick = onLong).testTag("video-${video.id.value}")
-        .semantics { if (selecting || hidden) stateDescription = if (selected) "已选中" else "未选中" }) {
+        .semantics { if (selecting || hidden) stateDescription = selectedState }) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(10.dp))) {
             Thumbnail(video)
             Surface(color = Color.Black.copy(alpha = .52f), shape = RoundedCornerShape(4.dp), modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp)) {
@@ -471,7 +508,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     else Icon(Icons.Outlined.RadioButtonUnchecked, null, tint = Color.White, modifier = Modifier.padding(2.dp))
                 }
             } else if (video.favorite) {
-                Icon(Icons.Filled.FilledFavorite, "取消收藏", tint = BrandPink,
+                Icon(Icons.Filled.FilledFavorite, stringResource(R.string.action_unfavorite), tint = BrandPink,
                     modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(16.dp).clickable(onClick = onFavorite))
             }
             WatchProgress(video, Modifier.align(Alignment.BottomCenter))
@@ -480,26 +517,26 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             Column(Modifier.weight(1f)) {
                 Text(video.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium)
-                Text(if (!video.accessible) "需重新授权" else "${video.folder} · ${fileSize(video.sizeBytes)}",
+                Text(if (!video.accessible) stringResource(R.string.status_regrant_needed) else "${video.folder} · ${fileSize(video.sizeBytes)}",
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                     color = if (!video.accessible) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp, modifier = Modifier.padding(top = 1.dp))
             }
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Outlined.MoreVert, "更多操作：${video.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.MoreVert, stringResource(R.string.action_more_for_video, video.name), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
                 DropdownMenu(menu, { menu = false }, shape = RoundedCornerShape(12.dp)) {
                     if (!hidden) {
-                        DropdownMenuItem(text = { Text(if (video.favorite) "取消收藏" else "收藏视频") }, onClick = { menu = false; onFavorite() }, leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) })
-                        DropdownMenuItem(text = { Text("重命名") }, onClick = { menu = false; onRename() }, leadingIcon = { Icon(Icons.Outlined.Edit, null) })
-                        DropdownMenuItem(text = { Text("单独播放") }, onClick = { menu = false; onQueue() }, leadingIcon = { Icon(Icons.Outlined.PlayCircleOutline, null) })
-                        DropdownMenuItem(text = { Text("本次不记播放记录") }, onClick = { menu = false; onPlayWithoutHistory() }, leadingIcon = { Icon(Icons.Outlined.VisibilityOff, null) })
-                        DropdownMenuItem(text = { Text("移动到文件夹") }, onClick = { menu = false; onMove() }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) })
-                        DropdownMenuItem(text = { Text("移入加密保险箱") }, onClick = { menu = false; onEncrypt() }, leadingIcon = { Icon(Icons.Outlined.Lock, null) })
-                        DropdownMenuItem(text = { Text("删除原文件", color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; onDelete() }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = MaterialTheme.colorScheme.error) })
+                        DropdownMenuItem(text = { Text(stringResource(if (video.favorite) R.string.action_unfavorite else R.string.action_favorite_video)) }, onClick = { menu = false; onFavorite() }, leadingIcon = { Icon(Icons.Outlined.FavoriteBorder, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_rename)) }, onClick = { menu = false; onRename() }, leadingIcon = { Icon(Icons.Outlined.Edit, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_play_alone)) }, onClick = { menu = false; onQueue() }, leadingIcon = { Icon(Icons.Outlined.PlayCircleOutline, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_watch_without_history)) }, onClick = { menu = false; onPlayWithoutHistory() }, leadingIcon = { Icon(Icons.Outlined.VisibilityOff, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_move_to_folder)) }, onClick = { menu = false; onMove() }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_move_to_vault)) }, onClick = { menu = false; onEncrypt() }, leadingIcon = { Icon(Icons.Outlined.Lock, null) })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.action_delete_original), color = MaterialTheme.colorScheme.error) }, onClick = { menu = false; onDelete() }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = MaterialTheme.colorScheme.error) })
                     }
-                    DropdownMenuItem(text = { Text(if (hidden) "恢复显示" else "隐藏视频") }, onClick = { menu = false; onHide() }, leadingIcon = { Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null) })
+                    DropdownMenuItem(text = { Text(stringResource(if (hidden) R.string.action_restore_visible else R.string.action_hide_video)) }, onClick = { menu = false; onHide() }, leadingIcon = { Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null) })
                 }
             }
         }
@@ -510,13 +547,13 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     var text by remember(initial) { mutableStateOf(initial) }
     val trimmed = text.trim()
     val valid = trimmed.isNotEmpty() && trimmed.length <= 80 && trimmed.none { it == '\n' || it == '\r' }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("重命名") },
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.rename_dialog_title)) },
         text = { Column {
-            Text("只改映匣里显示的名称，不会修改手机里的文件。", style = MaterialTheme.typography.bodyMedium)
-            OutlinedTextField(text, { text = it.take(80) }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp), label = { Text("显示名称") }, singleLine = true, isError = text.isNotEmpty() && !valid)
+            Text(stringResource(R.string.rename_dialog_desc), style = MaterialTheme.typography.bodyMedium)
+            OutlinedTextField(text, { text = it.take(80) }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp), label = { Text(stringResource(R.string.rename_field_label)) }, singleLine = true, isError = text.isNotEmpty() && !valid)
         } },
-        confirmButton = { TextButton(onClick = { onConfirm(trimmed) }, enabled = valid) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } })
+        confirmButton = { TextButton(onClick = { onConfirm(trimmed) }, enabled = valid) { Text(stringResource(R.string.action_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } })
 }
 
 @Composable fun EmptyState(title: String, message: String, onImport: (() -> Unit)? = null, onAccess: (() -> Unit)? = null) {
@@ -526,8 +563,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
         Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
         Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-        if (onImport != null) Button(onClick = onImport, modifier = Modifier.padding(top = 20.dp).heightIn(min = 42.dp), shape = CircleShape) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text("打开本地视频") }
-        if (onAccess != null) TextButton(onClick = onAccess, modifier = Modifier.heightIn(min = 42.dp)) { Text("允许访问相册") }
+        if (onImport != null) Button(onClick = onImport, modifier = Modifier.padding(top = 20.dp).heightIn(min = 42.dp), shape = CircleShape) { Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.action_open_local_video)) }
+        if (onAccess != null) TextButton(onClick = onAccess, modifier = Modifier.heightIn(min = 42.dp)) { Text(stringResource(R.string.access_allow_gallery)) }
     }
 }
 
@@ -538,8 +575,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("共 ${managed.size + folders.size} 个文件夹", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = onCreate) { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text("新建文件夹") }
+                Text(stringResource(R.string.folder_count_total, managed.size + folders.size), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = onCreate) { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.folder_new)) }
             }
         }
         items(managed, key = { "managed:${it.uri}" }) { target ->
@@ -549,13 +586,13 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     IconBadge(Icons.Outlined.FolderOpen, size = 44.dp)
                     Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                         Text(target.name, style = MaterialTheme.typography.titleMedium)
-                        Text("已创建 · $count 个已收录视频", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+                        Text(stringResource(R.string.folder_managed_count, count), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
                     }
                     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-        if (folders.isEmpty() && managed.isEmpty()) item { EmptyState("还没有文件夹", "授权相册或添加视频后，文件夹会自动整理在这里") }
+        if (folders.isEmpty() && managed.isEmpty()) item { EmptyState(stringResource(R.string.folder_empty_title), stringResource(R.string.folder_empty_desc)) }
         items(folders, key = { it.key }) { group ->
             SectionCard {
                 Row(Modifier.fillMaxWidth().clickable { onFolder(group.key) }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -565,7 +602,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Text(group.value.first().folder, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text("${group.value.size} 个视频 · ${fileSize(group.value.sumOf { it.sizeBytes })}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 3.dp))
+                        Text(stringResource(R.string.folder_video_count_size, group.value.size, fileSize(group.value.sumOf { it.sizeBytes })), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 3.dp))
                     }
                     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -579,36 +616,36 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         item {
             SectionCard(padding = 16.dp) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                    ProfileStat(videos.size, "本地视频")
-                    ProfileStat(videos.count { it.favorite }, "我的收藏")
-                    ProfileStat(bookmarkCount, "时间书签")
+                    ProfileStat(videos.size, stringResource(R.string.stat_local_videos))
+                    ProfileStat(videos.count { it.favorite }, stringResource(R.string.stat_favorites))
+                    ProfileStat(bookmarkCount, stringResource(R.string.stat_bookmarks))
                 }
             }
         }
         item {
             SectionCard {
-                MenuRow(Icons.Outlined.History, "播放历史", "从上次离开的地方继续", { onPage("history") }, BrandPink)
+                MenuRow(Icons.Outlined.History, stringResource(R.string.title_history), stringResource(R.string.profile_history_desc), { onPage("history") }, BrandPink)
                 MenuDivider()
-                MenuRow(Icons.Outlined.Bookmarks, "时间书签", "记下值得重看的瞬间", { onPage("bookmarks") }, BrandAmber)
+                MenuRow(Icons.Outlined.Bookmarks, stringResource(R.string.title_bookmarks), stringResource(R.string.profile_bookmarks_desc), { onPage("bookmarks") }, BrandAmber)
                 MenuDivider()
-                MenuRow(Icons.Outlined.VisibilityOff, "隐藏管理", "查看与恢复隐藏的视频", { onPage("hidden") }, BrandViolet)
+                MenuRow(Icons.Outlined.VisibilityOff, stringResource(R.string.title_hidden_manager), stringResource(R.string.profile_hidden_desc), { onPage("hidden") }, BrandViolet)
                 MenuDivider()
-                MenuRow(Icons.Outlined.Lock, "加密保险箱", "密码保护，移除相册原件后仅在此播放", { onPage("vault") }, BrandViolet)
+                MenuRow(Icons.Outlined.Lock, stringResource(R.string.profile_vault_title), stringResource(R.string.profile_vault_desc), { onPage("vault") }, BrandViolet)
                 MenuDivider()
-                MenuRow(Icons.AutoMirrored.Outlined.FactCheck, "检查视频", "找出内容相同和打不开的文件", { onPage("scan") }, BrandTeal)
+                MenuRow(Icons.AutoMirrored.Outlined.FactCheck, stringResource(R.string.title_scan), stringResource(R.string.profile_scan_desc), { onPage("scan") }, BrandTeal)
                 MenuDivider()
-                MenuRow(Icons.Outlined.SaveAlt, "备份与恢复", "导出收藏、进度和设置", { onPage("backup") }, BrandBlue)
+                MenuRow(Icons.Outlined.SaveAlt, stringResource(R.string.title_backup), stringResource(R.string.profile_backup_desc), { onPage("backup") }, BrandBlue)
             }
         }
         item {
             SectionCard {
-                MenuRow(Icons.Outlined.Tune, "播放与外观", "倍速、浅色与深色、防误触", { onPage("settings") }, BrandPinkDeep)
+                MenuRow(Icons.Outlined.Tune, stringResource(R.string.title_settings), stringResource(R.string.profile_settings_desc), { onPage("settings") }, BrandPinkDeep)
                 MenuDivider()
-                MenuRow(Icons.Outlined.AddCircleOutline, "打开本地视频", "从文件中选择", onImport, BrandTeal)
+                MenuRow(Icons.Outlined.AddCircleOutline, stringResource(R.string.action_open_local_video), stringResource(R.string.profile_import_desc), onImport, BrandTeal)
             }
         }
         item {
-            Text("映匣 ${BuildConfig.VERSION_NAME} · 本地离线播放", Modifier.fillMaxWidth().padding(top = 4.dp), textAlign = TextAlign.Center, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.profile_footer, BuildConfig.VERSION_NAME), Modifier.fillMaxWidth().padding(top = 4.dp), textAlign = TextAlign.Center, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -633,44 +670,75 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 @Composable private fun SettingsPage(vm: AppViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val activity = LocalActivity.current
     val scope = rememberCoroutineScope()
     var clearConfirm by remember { mutableStateOf(false) }
+    var currentLang by remember { mutableStateOf(AppLocale.current(context)) }
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { SectionCard(padding = 16.dp) { SettingsTitle("外观"); FlowRow { ThemeMode.entries.forEach { mode -> FilterChip(settings.theme == mode, { scope.launch { vm.graph.settings.setTheme(mode) } }, label = { Text(when (mode) { ThemeMode.SYSTEM -> "跟随系统"; ThemeMode.LIGHT -> "浅色"; ThemeMode.DARK -> "深色" }) }, shape = CircleShape, modifier = Modifier.padding(end = 8.dp)) } } } }
+        item {
+            SectionCard(padding = 16.dp) {
+                SettingsTitle(stringResource(R.string.settings_language))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppLanguage.entries.forEach { lang ->
+                        FilterChip(
+                            selected = currentLang == lang,
+                            onClick = {
+                                if (currentLang != lang) {
+                                    currentLang = lang
+                                    AppLocale.set(context, lang)
+                                    activity?.recreate()
+                                }
+                            },
+                            label = {
+                                Text(stringResource(when (lang) {
+                                    AppLanguage.SYSTEM -> R.string.settings_language_system
+                                    AppLanguage.ZH -> R.string.settings_language_zh
+                                    AppLanguage.EN -> R.string.settings_language_en
+                                }))
+                            },
+                            shape = CircleShape,
+                        )
+                    }
+                }
+            }
+        }
+        item { SectionCard(padding = 16.dp) { SettingsTitle(stringResource(R.string.settings_appearance)); FlowRow { ThemeMode.entries.forEach { mode -> FilterChip(settings.theme == mode, { scope.launch { vm.graph.settings.setTheme(mode) } }, label = { Text(stringResource(when (mode) { ThemeMode.SYSTEM -> R.string.theme_system; ThemeMode.LIGHT -> R.string.theme_light; ThemeMode.DARK -> R.string.theme_dark })) }, shape = CircleShape, modifier = Modifier.padding(end = 8.dp)) } } } }
         item { SectionCard(padding = 16.dp) {
-            SettingsTitle("默认播放速度"); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PlaybackRules.speeds.forEach { speed -> FilterChip(settings.speed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }, shape = CircleShape) } }
+            SettingsTitle(stringResource(R.string.settings_default_speed)); FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { PlaybackRules.speeds.forEach { speed -> FilterChip(settings.speed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }, shape = CircleShape) } }
             Spacer(Modifier.height(12.dp))
-            SettingsTitle("长按临时加速"); Row { listOf(2f, 3f).forEach { speed -> FilterChip(settings.holdSpeed == speed, { scope.launch { vm.graph.settings.setHoldSpeed(speed) } }, label = { Text(speedText(speed)) }, shape = CircleShape, modifier = Modifier.padding(end = 8.dp)) } }; Text("松手恢复原速度；当前速度更快时不会降速。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SettingsTitle(stringResource(R.string.settings_hold_speed)); Row { listOf(2f, 3f).forEach { speed -> FilterChip(settings.holdSpeed == speed, { scope.launch { vm.graph.settings.setHoldSpeed(speed) } }, label = { Text(speedText(speed)) }, shape = CircleShape, modifier = Modifier.padding(end = 8.dp)) } }; Text(stringResource(R.string.settings_hold_speed_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
         item {
             SectionCard(padding = 16.dp) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                        Text("播放时防误触", style = MaterialTheme.typography.titleMedium)
-                        Text("播放中先挡住单击和滑动，点画面左侧的锁可以解开。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.settings_touch_guard), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.settings_touch_guard_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(settings.touchGuard, { scope.launch { vm.graph.settings.setTouchGuard(it) } })
                 }
             }
         }
-        item { SectionCard(padding = 16.dp) { OutlinedButton(onClick = { context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), shape = CircleShape) { Text("管理系统相册权限") }; Text("多次拒绝授权后，可在系统设置中重新允许访问。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) } }
-        item { SectionCard(padding = 16.dp) { SettingsTitle("使用提示"); Text("• 底部四个标签是第一层。点进历史、设置或文件夹是第二层，左上角返回。\n• 点一下画面显示控制，点两下播放或暂停，左右滑调节进度。\n• 双指捏合只放大这一次播放。播放工具里可以裁掉黑边。\n• 全屏时左侧调亮度，右侧调音量；长按才出现加速。\n• 搜索可以用拼音首字母，例如 pjh。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+        item { SectionCard(padding = 16.dp) { OutlinedButton(onClick = { context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), shape = CircleShape) { Text(stringResource(R.string.settings_manage_permissions)) }; Text(stringResource(R.string.settings_manage_permissions_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) } }
+        item { SectionCard(padding = 16.dp) { SettingsTitle(stringResource(R.string.settings_tips_title)); Text(stringResource(R.string.settings_tips_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
         item { OutlinedButton(onClick = { clearConfirm = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), shape = CircleShape,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("清除播放历史与续播进度") } }
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(stringResource(R.string.settings_clear_history)) } }
     }
-    if (clearConfirm) AlertDialog(onDismissRequest = { clearConfirm = false }, title = { Text("清除播放历史？") }, text = { Text("播放记录和续播进度会被清除。收藏、书签和视频文件不受影响。") },
-        confirmButton = { TextButton(onClick = { scope.launch { vm.graph.repository.clearHistory() }; vm.message("已清除播放历史与续播进度"); clearConfirm = false }) { Text("清除", color = MaterialTheme.colorScheme.error) } }, dismissButton = { TextButton(onClick = { clearConfirm = false }) { Text("取消") } })
+    if (clearConfirm) AlertDialog(onDismissRequest = { clearConfirm = false }, title = { Text(stringResource(R.string.settings_clear_history_title)) }, text = { Text(stringResource(R.string.settings_clear_history_desc)) },
+        confirmButton = { TextButton(onClick = { scope.launch { vm.graph.repository.clearHistory() }; vm.message(context.getString(R.string.settings_clear_history_done)); clearConfirm = false }) { Text(stringResource(R.string.action_clear), color = MaterialTheme.colorScheme.error) } }, dismissButton = { TextButton(onClick = { clearConfirm = false }) { Text(stringResource(R.string.action_cancel)) } })
 }
 @Composable private fun SettingsTitle(text: String) { Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp)) }
 
 @Composable private fun BookmarksPage(vm: AppViewModel, videos: List<VideoItem>, bookmarks: List<Bookmark>) {
+    val context = LocalContext.current
     val byId = videos.associateBy { it.id }
     val scope = rememberCoroutineScope()
     var edit by remember { mutableStateOf<Bookmark?>(null) }
     var note by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Bookmark?>(null) }
+    val untitled = stringResource(R.string.bookmark_untitled)
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (bookmarks.isEmpty()) item { EmptyState("留住值得重看的瞬间", "播放视频时，打开「时间书签」添加备注") }
+        if (bookmarks.isEmpty()) item { EmptyState(stringResource(R.string.bookmarks_empty_title), stringResource(R.string.bookmarks_empty_desc)) }
         items(bookmarks, key = { it.id }) { bookmark ->
             val video = byId[bookmark.videoId]
             if (video != null) SectionCard {
@@ -678,21 +746,21 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
                         Text(durationText(bookmark.positionMs), Modifier.padding(horizontal = 8.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
                     }
-                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(bookmark.note.ifBlank { "未命名书签" }, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium); Text(video.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
-                    IconButton(onClick = { edit = bookmark; note = bookmark.note }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) { Icon(Icons.Outlined.Edit, "编辑书签", modifier = Modifier.size(20.dp)) }
-                    IconButton(onClick = { pendingDelete = bookmark }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) { Icon(Icons.Outlined.DeleteOutline, "删除书签", modifier = Modifier.size(20.dp)) }
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) { Text(bookmark.note.ifBlank { untitled }, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium); Text(video.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+                    IconButton(onClick = { edit = bookmark; note = bookmark.note }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) { Icon(Icons.Outlined.Edit, stringResource(R.string.bookmark_edit), modifier = Modifier.size(20.dp)) }
+                    IconButton(onClick = { pendingDelete = bookmark }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) { Icon(Icons.Outlined.DeleteOutline, stringResource(R.string.bookmark_delete), modifier = Modifier.size(20.dp)) }
                 }
             }
         }
     }
-    edit?.let { bookmark -> AlertDialog(onDismissRequest = { edit = null }, title = { Text("编辑书签") },
-        text = { OutlinedTextField(note, { if (it.length <= 200) note = it }, label = { Text("备注") }) },
-        confirmButton = { TextButton(onClick = { scope.launch { runCatching { vm.graph.repository.saveBookmark(bookmark.videoId, bookmark.positionMs, note, bookmark.id) }.onFailure { vm.message(it.message ?: "保存失败") } }; edit = null }) { Text("保存") } },
-        dismissButton = { TextButton(onClick = { edit = null }) { Text("取消") } }) }
+    edit?.let { bookmark -> AlertDialog(onDismissRequest = { edit = null }, title = { Text(stringResource(R.string.bookmark_edit)) },
+        text = { OutlinedTextField(note, { if (it.length <= 200) note = it }, label = { Text(stringResource(R.string.bookmark_note)) }) },
+        confirmButton = { TextButton(onClick = { scope.launch { runCatching { vm.graph.repository.saveBookmark(bookmark.videoId, bookmark.positionMs, note, bookmark.id) }.onFailure { vm.message(it.message ?: context.getString(R.string.error_save_failed)) } }; edit = null }) { Text(stringResource(R.string.action_save)) } },
+        dismissButton = { TextButton(onClick = { edit = null }) { Text(stringResource(R.string.action_cancel)) } }) }
     pendingDelete?.let { bookmark ->
-        AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("删除这本书签？") },
-            text = { Text("「${bookmark.note.ifBlank { "未命名书签" }}」（${durationText(bookmark.positionMs)}）会从本机记录中移除。") },
-            confirmButton = { TextButton(onClick = { scope.launch { vm.graph.repository.deleteBookmark(bookmark.id) }; pendingDelete = null }) { Text("删除", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("取消") } })
+        AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text(stringResource(R.string.bookmark_delete_title)) },
+            text = { Text(stringResource(R.string.bookmark_delete_desc, bookmark.note.ifBlank { untitled }, durationText(bookmark.positionMs))) },
+            confirmButton = { TextButton(onClick = { scope.launch { vm.graph.repository.deleteBookmark(bookmark.id) }; pendingDelete = null }) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.action_cancel)) } })
     }
 }

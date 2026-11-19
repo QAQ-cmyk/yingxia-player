@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">映匣</string>
+
+    <!-- Common -->
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_save">保存</string>
+    <string name="action_delete">删除</string>
+    <string name="action_retry">重试</string>
+    <string name="action_got_it">知道了</string>
+    <string name="action_undo">撤销</string>
+    <string name="action_clear">清除</string>
+    <string name="action_keep">保留</string>
+    <string name="action_select">选择</string>
+    <string name="action_deselect">取消选择</string>
+    <string name="action_select_all">全选</string>
+    <string name="action_deselect_all">取消全选</string>
+    <string name="error_save_failed">保存失败</string>
+    <string name="error_action_not_saved">未能保存本次操作，请重试</string>
+
+    <!-- Navigation & Library -->
+    <string name="nav_home">首页</string>
+    <string name="nav_folders">文件夹</string>
+    <string name="nav_favorites">收藏</string>
+    <string name="nav_profile">我的</string>
+
+    <string name="title_hidden_manager">隐藏管理</string>
+    <string name="title_history">播放历史</string>
+    <string name="title_bookmarks">时间书签</string>
+    <string name="title_settings">播放与外观</string>
+    <string name="title_backup">备份与恢复</string>
+    <string name="title_scan">检查视频</string>
+    <string name="title_folder_fallback">文件夹</string>
+    <string name="title_selected_count">已选择 %1$d 项</string>
+
+    <string name="action_open_local_video">打开本地视频</string>
+    <string name="action_restore_visible">恢复显示</string>
+    <string name="action_favorite">收藏</string>
+    <string name="action_unfavorite">取消收藏</string>
+    <string name="action_favorite_video">收藏视频</string>
+    <string name="action_play_selected">播放所选</string>
+    <string name="action_hide">隐藏</string>
+    <string name="action_hide_video">隐藏视频</string>
+    <string name="action_encrypt">加密</string>
+    <string name="action_move">移动</string>
+    <string name="action_rename">重命名</string>
+    <string name="action_play_alone">单独播放</string>
+    <string name="action_move_to_folder">移动到文件夹</string>
+    <string name="action_move_to_vault">移入加密保险箱</string>
+    <string name="action_delete_original">删除原文件</string>
+    <string name="action_more_for_video">更多操作：%1$s</string>
+
+    <string name="notice_need_regrant_all">这些视频需要重新授权后才能播放</string>
+    <string name="notice_skipped_inaccessible">已跳过需要重新授权的视频</string>
+    <string name="hidden_banner_hint">只是不在映匣里显示，手机里的文件还在。点选视频后可以恢复。</string>
+    <string name="search_placeholder">搜索视频或文件夹</string>
+    <string name="search_clear">清除搜索</string>
+
+    <string name="access_partial_banner">正在显示你授权的视频</string>
+    <string name="access_none_banner">授权相册，发现手机里的视频</string>
+    <string name="access_manage">管理</string>
+    <string name="access_grant">授权</string>
+    <string name="access_allow_gallery">允许访问相册</string>
+
+    <string name="continue_watching_icon">继续播放</string>
+    <string name="continue_watching_prefix">继续看：</string>
+
+    <string name="section_hidden">已隐藏</string>
+    <string name="section_history">最近观看</string>
+    <string name="section_favorites">我的收藏</string>
+    <string name="section_folder_videos">文件夹中的视频</string>
+    <string name="section_my_videos">我的视频</string>
+    <string name="filter_all_videos">全部视频</string>
+    <string name="filter_in_progress">未看完</string>
+    <string name="action_refresh_videos">刷新视频</string>
+    <string name="action_sort">排序</string>
+
+    <string name="sort_newest">最近添加</string>
+    <string name="sort_oldest">最早添加</string>
+    <string name="sort_recent_play">最近播放</string>
+    <string name="sort_name_asc">名称 A–Z</string>
+    <string name="sort_name_desc">名称 Z–A</string>
+    <string name="sort_size_desc">从大到小</string>
+    <string name="sort_size_asc">从小到大</string>
+    <string name="sort_duration">时长</string>
+
+    <string name="empty_scanning_title">正在整理你的视频</string>
+    <string name="empty_scanning_desc">正在读取相册，稍等一下。</string>
+    <string name="empty_search_title">没有找到相关视频</string>
+    <string name="empty_search_desc">换个关键词，或清除搜索后再看。</string>
+    <string name="empty_hidden_title">这里还没有隐藏视频</string>
+    <string name="empty_hidden_desc">在视频卡片的「更多」里选择隐藏。隐藏不会删除手机里的文件。</string>
+    <string name="empty_history_title">还没有播放记录</string>
+    <string name="empty_history_desc">看过的视频会按时间留在这里，方便接着看。</string>
+    <string name="empty_favorites_title">还没有收藏</string>
+    <string name="empty_favorites_desc">播放时点「收藏」，或在卡片的「更多」里收藏。</string>
+    <string name="empty_folder_title">这个文件夹还没有视频</string>
+    <string name="empty_folder_desc">可以在其他视频的「更多」里选择「移动到文件夹」。</string>
+    <string name="empty_library_title">让好视频，有个家</string>
+    <string name="empty_library_desc">从相册发现，或选择一个本地文件。\n视频始终留在这台手机里。</string>
+
+    <string name="state_selected">已选中</string>
+    <string name="state_unselected">未选中</string>
+    <string name="status_regrant_needed">需重新授权</string>
+
+    <string name="rename_dialog_title">重命名</string>
+    <string name="rename_dialog_desc">只改映匣里显示的名称，不会修改手机里的文件。</string>
+    <string name="rename_field_label">显示名称</string>
+
+    <!-- Folders -->
+    <string name="folder_count_total">共 %1$d 个文件夹</string>
+    <string name="folder_new">新建文件夹</string>
+    <string name="folder_managed_count">已创建 · %1$d 个已收录视频</string>
+    <string name="folder_empty_title">还没有文件夹</string>
+    <string name="folder_empty_desc">授权相册或添加视频后，文件夹会自动整理在这里</string>
+    <string name="folder_video_count_size">%1$d 个视频 · %2$s</string>
+
+    <!-- Profile -->
+    <string name="stat_local_videos">本地视频</string>
+    <string name="stat_favorites">我的收藏</string>
+    <string name="stat_bookmarks">时间书签</string>
+
+    <string name="profile_history_desc">从上次离开的地方继续</string>
+    <string name="profile_bookmarks_desc">记下值得重看的瞬间</string>
+    <string name="profile_hidden_desc">查看与恢复隐藏的视频</string>
+    <string name="profile_vault_title">加密保险箱</string>
+    <string name="profile_vault_desc">密码保护，移除相册原件后仅在此播放</string>
+    <string name="profile_scan_desc">找出内容相同和打不开的文件</string>
+    <string name="profile_backup_desc">导出收藏、进度和设置</string>
+    <string name="profile_settings_desc">语言、倍速、浅色与深色、防误触</string>
+    <string name="profile_import_desc">从文件中选择</string>
+    <string name="profile_footer">映匣 %1$s · 本地离线播放</string>
+
+    <!-- Settings -->
+    <string name="settings_language">语言</string>
+    <string name="settings_language_system">跟随系统</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_appearance">外观</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="settings_default_speed">默认播放速度</string>
+    <string name="settings_hold_speed">长按临时加速</string>
+    <string name="settings_hold_speed_desc">松手恢复原速度；当前速度更快时不会降速。</string>
+    <string name="settings_touch_guard">播放时防误触</string>
+    <string name="settings_touch_guard_desc">播放中先挡住单击和滑动，点画面左侧的锁可以解开。</string>
+    <string name="settings_manage_permissions">管理系统相册权限</string>
+    <string name="settings_manage_permissions_desc">多次拒绝授权后，可在系统设置中重新允许访问。</string>
+    <string name="settings_tips_title">使用提示</string>
+    <string name="settings_tips_body">• 底部四个标签是第一层。点进历史、设置或文件夹是第二层，左上角返回。\n• 点一下画面显示控制，点两下播放或暂停，左右滑调节进度。\n• 双指捏合只放大这一次播放。播放工具里可以裁掉黑边。\n• 全屏时左侧调亮度，右侧调音量；长按才出现加速。\n• 搜索可以用拼音首字母，例如 pjh。</string>
+    <string name="settings_clear_history">清除播放历史与续播进度</string>
+    <string name="settings_clear_history_title">清除播放历史？</string>
+    <string name="settings_clear_history_desc">播放记录和续播进度会被清除。收藏、书签和视频文件不受影响。</string>
+    <string name="settings_clear_history_done">已清除播放历史与续播进度</string>
+
+    <!-- Bookmarks Page -->
+    <string name="bookmarks_empty_title">留住值得重看的瞬间</string>
+    <string name="bookmarks_empty_desc">播放视频时，打开「时间书签」添加备注</string>
+    <string name="bookmark_untitled">未命名书签</string>
+    <string name="bookmark_edit">编辑书签</string>
+    <string name="bookmark_delete">删除书签</string>
+    <string name="bookmark_note">备注</string>
+    <string name="bookmark_note_optional">备注（可选）</string>
+    <string name="bookmark_delete_title">删除这本书签？</string>
+    <string name="bookmark_delete_desc">「%1$s」（%2$s）会从本机记录中移除。</string>
+
+    <!-- Player -->
+    <string name="player_seek_bar_desc">播放进度</string>
+    <string name="player_no_switchable">没有可切换的视频</string>
+    <string name="player_first_item">已经是第一条</string>
+    <string name="player_last_item">已经是最后一条</string>
+    <string name="player_brightness_value">亮度 %1$d%%</string>
+    <string name="player_volume_value">音量 %1$d%%</string>
+    <string name="player_boosting">▶▶ %1$s 加速中</string>
+    <string name="player_previous">上一条</string>
+    <string name="player_next">下一条</string>
+    <string name="player_tools">播放工具</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_play">播放</string>
+    <string name="player_resume_play">继续播放</string>
+    <string name="player_exit_fullscreen">退出全屏</string>
+    <string name="player_fullscreen">全屏</string>
+    <string name="player_unlock_screen">解除锁定</string>
+    <string name="player_lock_screen">锁定屏幕</string>
+    <string name="player_locked_badge">已锁定</string>
+    <string name="player_guard_badge">防误触</string>
+    <string name="player_back_to_list">返回列表</string>
+    <string name="player_encrypted_video_label">加密视频</string>
+    <string name="player_favorited">已收藏</string>
+    <string name="player_restart">从头播放</string>
+    <string name="player_shortcut_bookmark">书签</string>
+    <string name="player_loop_chip">A-B 循环中</string>
+    <string name="player_sleep_until_end_chip">播完当前后暂停</string>
+    <string name="player_sleep_remaining_chip">%1$s 后暂停</string>
+    <string name="player_playlist">播放列表</string>
+    <string name="player_now_playing">正在播放</string>
+
+    <string name="player_speed_title">播放速度</string>
+    <string name="player_speed_desc">选择后会记住，下次播放继续使用</string>
+    <string name="player_hold_speed_hint">长按画面临时 %1$s，松手恢复。可在「我的 → 播放与外观」修改。</string>
+    <string name="player_tools_desc">为观影，也为每一次认真学习</string>
+    <string name="player_reset_zoom">还原缩放</string>
+    <string name="player_crop_bars">裁掉黑边</string>
+    <string name="player_crop_bars_desc">按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。</string>
+    <string name="player_repeat_order">播放顺序</string>
+    <string name="repeat_sequence">顺序播放</string>
+    <string name="repeat_one">单集循环</string>
+    <string name="repeat_all">列表循环</string>
+    <string name="player_brightness">亮度</string>
+    <string name="player_volume">音量</string>
+    <string name="player_return_to_vault">返回保险箱</string>
+    <string name="player_hide_current">隐藏当前视频</string>
+
+    <!-- Player Tools / Feature Panels -->
+    <string name="feature_loop_title">A-B 循环</string>
+    <string name="feature_bookmarks_title">时间书签</string>
+    <string name="feature_sleep_title">睡眠定时</string>
+    <string name="loop_panel_title">A-B 区间循环</string>
+    <string name="loop_panel_desc">在需要反复观看的片段，分别标记起点与终点</string>
+    <string name="loop_current_time">当前 %1$s / %2$s</string>
+    <string name="loop_unset">未设置</string>
+    <string name="loop_range_display">A  %1$s     B  %2$s</string>
+    <string name="loop_set_a">设置 A 点</string>
+    <string name="loop_set_b">设置 B 点</string>
+    <string name="loop_forward_5s">前进 5 秒</string>
+    <string name="loop_clear">清除区间</string>
+    <string name="loop_hint_unset">B 点需要比 A 点晚至少 0.5 秒。</string>
+    <string name="loop_hint_active">正在循环 %1$s — %2$s。\n跳到区间外或切换视频会关闭循环，睡眠定时仍然生效。</string>
+    <string name="loop_error_set_a_first">请先设置 A 点</string>
+
+    <string name="bookmarks_panel_desc_private">备注仅在本机加密保存，不出现在普通书签里</string>
+    <string name="bookmarks_panel_desc_public">给值得重看的瞬间，留一句备注</string>
+    <string name="bookmark_saved">书签已保存</string>
+    <string name="bookmark_add_at">在 %1$s 添加书签</string>
+    <string name="bookmarks_panel_empty">还没有书签，试着记下第一个片段吧。</string>
+
+    <string name="sleep_panel_desc">到时暂停播放，A-B 循环和列表循环也适用</string>
+    <string name="sleep_until_end_remaining">播完当前后暂停 · %1$s</string>
+    <string name="sleep_minutes">%1$d 分钟</string>
+    <string name="sleep_after_current">播完当前</string>
+    <string name="sleep_cancel">取消定时</string>
+
+    <!-- Backup -->
+    <string name="backup_export_title">导出与分享</string>
+    <string name="backup_export_subtitle">纯文本 JSON，仅保存在本机</string>
+    <string name="backup_export_desc">备份里有收藏、播放进度、显示名称、裁黑边，以及倍速、排序和防误触。这是本机上的文本文件，应用不会上传。</string>
+    <string name="backup_save_button">保存备份文件</string>
+    <string name="backup_share_button">分享备份</string>
+    <string name="backup_share_chooser">分享备份</string>
+    <string name="backup_saved_notice">备份已保存。里面没有视频文件。</string>
+    <string name="backup_error_write">无法写入备份</string>
+    <string name="backup_error_save">无法保存备份</string>
+    <string name="backup_error_read">无法读取备份</string>
+    <string name="backup_error_share">无法分享备份</string>
+    <string name="backup_error_invalid_file">这不是映匣的备份文件</string>
+    <string name="backup_restore_title">恢复记录</string>
+    <string name="backup_restore_subtitle">按本机视频地址自动匹配</string>
+    <string name="backup_restore_desc">恢复时按视频地址匹配。手机里已经没有的视频会跳过，不会新建空记录。</string>
+    <string name="backup_restore_button">从备份恢复</string>
+    <string name="backup_restored_all">已恢复 %1$d 条记录</string>
+    <string name="backup_restored_partial">已恢复 %1$d 条记录，%2$d 条找不到对应视频</string>
+
+    <!-- Library Scan -->
+    <string name="scan_card_title">本机文件体检</string>
+    <string name="scan_card_subtitle">离线比对哈希与可读性</string>
+    <string name="scan_card_desc">只检查这台手机里的视频，不会上传。重复是指文件内容完全一样。打不开只说明读不了，不表示可以修复。检查不会自动删除。</string>
+    <string name="scan_progress">正在检查 %1$d/%2$d</string>
+    <string name="scan_preparing">正在准备</string>
+    <string name="scan_start">开始检查</string>
+    <string name="scan_restart">重新检查</string>
+    <string name="scan_all_good">没有发现内容完全相同或打不开的视频。</string>
+    <string name="scan_dup_group">重复 %1$d · %2$d 个文件内容相同</string>
+    <string name="scan_unreadable_header">打不开</string>
+    <string name="scan_delete_selected">删除所选文件</string>
+    <string name="scan_delete_hint">会从手机存储删除原文件，系统也会要求确认。只是不想看见时，请回列表使用「隐藏」。</string>
+    <string name="scan_done_label">检查完成</string>
+    <string name="scan_cancelled_label">已取消</string>
+    <string name="scan_not_started_label">还没有检查</string>
+    <string name="scan_error_cannot_open">打不开这个文件</string>
+    <string name="scan_error_unreadable">打不开这个文件，不能播放。这不表示可以修复。</string>
+
+    <!-- File Management -->
+    <string name="file_perm_denied">未允许写入存储，原视频未删除或移动</string>
+    <string name="file_dialog_move_title">移动到文件夹</string>
+    <string name="file_dialog_delete_title">删除相册原文件？</string>
+    <string name="file_dialog_selected_summary">已选择 %1$d 个视频\n%2$s</string>
+    <string name="file_dialog_move_desc">文件会真正移动。复制并校验后才删除原件；同名文件不会被覆盖。请保持应用在前台。</string>
+    <string name="file_dialog_delete_desc">这会从手机存储中删除原视频，系统相册也会失去该文件，无法在映匣中撤销。仅想不显示时，请使用「隐藏」。</string>
+    <string name="file_dialog_move_confirm">开始移动</string>
+    <string name="file_dialog_delete_confirm">删除原文件</string>
+    <string name="folder_dialog_title">新建手机文件夹</string>
+    <string name="folder_dialog_desc">输入名称，再选择它的上级位置。例如选择 Movies 后，将在其中创建这个文件夹。</string>
+    <string name="folder_dialog_label">文件夹名称</string>
+    <string name="folder_dialog_pick_parent">选择存放位置</string>
+    <string name="folder_persist_perm_failed">无法保留文件夹授权，请重新选择</string>
+    <string name="file_op_busy_title">正在处理本地文件</string>
+    <string name="file_op_preparing">正在准备文件操作</string>
+    <string name="file_op_result_title">文件操作结果</string>
+    <string name="file_op_folder_created">文件夹已创建在手机存储中</string>
+    <string name="file_op_folder_create_failed">无法新建文件夹</string>
+    <string name="file_op_deleting">正在删除 %1$d/%2$d：%3$s</string>
+    <string name="file_op_copying">正在复制并校验 %1$d/%2$d：%3$s</string>
+    <string name="file_op_consent_move">请在系统窗口中确认删除原件，完成移动</string>
+    <string name="file_op_consent_delete">请在系统窗口中确认删除视频</string>
+    <string name="file_op_failed_fallback">操作失败</string>
+    <string name="file_op_failed_copy_kept">%1$s：%2$s；副本已校验并保留，原件删除未确认</string>
+    <string name="file_op_failed_single">%1$s：%2$s</string>
+    <string name="file_op_cancelled_move">已取消删除原件；原视频和已校验的副本均保留，未完成移动</string>
+    <string name="file_op_cancelled_delete">已取消，其余视频未删除</string>
+    <string name="file_op_incomplete">未能完成文件操作</string>
+    <string name="file_op_summary_deleted">已删除 %1$d/%2$d 个视频</string>
+    <string name="file_op_summary_moved">已移动 %1$d/%2$d 个视频</string>
+    <string name="file_op_refresh_failed">列表刷新失败，请稍后重新扫描</string>
+    <string name="file_error_folder_name">名称需为 1–60 个字符，不能包含路径符号或仅为点号</string>
+    <string name="file_error_external_storage_only">请选择手机内部存储或 SD 卡中的文件夹</string>
+    <string name="file_error_name_taken">这个名称已被一个文件占用</string>
+    <string name="file_error_create_dir">无法创建文件夹，请检查存储空间和访问权限</string>
+    <string name="file_error_local_target">目标必须是本机文件夹</string>
+    <string name="file_error_already_in_folder">视频已在这个文件夹中</string>
+    <string name="file_error_create_dest">无法创建目标文件，请检查文件夹授权或剩余空间</string>
+    <string name="file_error_dest_unwritable">目标文件不可写</string>
+    <string name="file_error_source_unreadable">原视频无法读取，未删除原文件</string>
+    <string name="file_error_source_size_changed">源文件大小发生变化，已保留原文件</string>
+    <string name="file_error_verify_dest">无法校验目标文件</string>
+    <string name="file_error_verify_mismatch">文件校验未通过，原视频未删除</string>
+    <string name="file_error_delete_failed">未能删除原视频：文件可能已移除，或文件提供方不支持删除</string>
+    <string name="file_error_no_delete_perm">没有删除权限，请重新选择原文件并允许写入，或使用系统文件管理器</string>
+    <string name="file_error_system_delete_unconfirmed">系统未确认文件已删除，已保留记录</string>
+
+    <!-- ViewModel & Media Notices -->
+    <string name="notice_resume_from">从 %1$s 继续播放</string>
+    <string name="notice_hidden_count">已隐藏 %1$d 个视频，没有删除文件</string>
+    <string name="notice_restored_visible">已恢复显示</string>
+    <string name="notice_unhidden_count">已恢复 %1$d 个视频</string>
+    <string name="notice_favorited">已加入收藏</string>
+    <string name="notice_unfavorited">已取消收藏</string>
+    <string name="notice_picture_save_failed">无法保存画面设置</string>
+    <string name="notice_renamed">已更新显示名称</string>
+    <string name="notice_rename_failed">无法重命名</string>
+    <string name="notice_import_failed">未能打开这个视频</string>
+
+    <string name="media_untitled_video">未命名视频</string>
+    <string name="media_other_videos">其他视频</string>
+    <string name="media_imported_video">导入的视频</string>
+    <string name="media_manual_folder">手动添加</string>
+    <string name="media_error_access_denied">无法访问视频，请重新授予相册权限或选择文件</string>
+    <string name="media_error_source_missing">视频已被移除，或存储设备不可用；收藏与书签仍保留</string>
+    <string name="media_error_perm_changed">相册访问权限已变化，请重新授权</string>
+    <string name="media_error_scan_failed">暂时无法扫描视频，请稍后刷新</string>
+    <string name="media_error_pick_local">请选择手机上的视频文件</string>
+    <string name="media_error_hidden_import">这个视频已隐藏，请先在隐藏管理中恢复</string>
+    <string name="media_error_unreadable">无法读取这个视频，请选择有效的视频文件</string>
+    <string name="media_error_not_found">找不到这个视频</string>
+    <string name="media_error_hidden_play">视频已隐藏，请先恢复后播放</string>
+    <string name="media_error_rename_length">名称需要在 1 到 80 个字之间</string>
+    <string name="media_error_rename_newline">名称不能包含换行</string>
+
+    <!-- Media3 Player Errors -->
+    <string name="player_error_no_permission">视频访问权限已失效，请重新授权</string>
+    <string name="player_error_not_found">视频文件已被移动或删除</string>
+    <string name="player_error_unsupported">设备不支持这个视频的编码，可尝试 MP4 / H.264 格式</string>
+    <string name="player_error_decode_failed">播放失败，文件可能损坏或编码不受设备支持</string>
+    <string name="player_error_session_closed">播放会话已结束</string>
+    <string name="player_error_invalid_loop">B 点必须晚于 A 点至少 0.5 秒，且不能超过视频时长</string>
+    <string name="player_error_unknown">操作未能完成，请重试</string>
+    <string name="player_error_next_unavailable">下一条视频不可用，请重新选择</string>
+    <string name="player_error_progress_not_saved">本次播放进度未保存，请检查可用存储空间</string>
+
+    <!-- Encrypted Vault -->
+    <string name="vault_title">加密保险箱</string>
+    <string name="vault_exit">退出保险箱</string>
+    <string name="vault_subtitle_unlocked">离开应用会自动锁定</string>
+    <string name="vault_subtitle_locked">只有你知道密码</string>
+    <string name="vault_lock_now">立即锁定</string>
+    <string name="vault_damaged_records">有 %1$d 条记录无法解密，相关文件已保留。其他视频仍可使用。</string>
+    <string name="vault_intro_desc">加密视频不参与普通搜索、收藏或记录备份。这里只显示名称，不生成明文封面。</string>
+    <string name="vault_encrypt_local">加密本地视频</string>
+    <string name="vault_disable_recovery">关闭密保问题</string>
+    <string name="vault_setup_recovery">设置密保问题</string>
+    <string name="vault_empty_title">保险箱还是空的</string>
+    <string name="vault_empty_desc">从本地视频中选择，或在卡片菜单中移入。</string>
+    <string name="vault_status_pending_removal">原件移除尚未确认，相册可能仍可见</string>
+    <string name="vault_status_restored">已恢复过相册副本；保险箱仍保留</string>
+    <string name="vault_status_encrypted">已加密，相册原件已移除</string>
+    <string name="vault_action_play">播放</string>
+    <string name="vault_action_restore">恢复到相册</string>
+    <string name="vault_action_delete_copy">删除保险箱副本</string>
+    <string name="vault_action_retry_removal">继续移除相册原件</string>
+    <string name="vault_uninstall_warning">卸载或清空应用数据会删除保险箱。换机前请先恢复到相册。</string>
+    <string name="vault_busy_default">正在处理，请保持应用在前台</string>
+    <string name="vault_busy_hint">切到后台会锁定并中断当前步骤；未完成校验的原件不会被移除。</string>
+    <string name="vault_notice_title">保险箱提示</string>
+    <string name="vault_confirm_encrypt_title">加密 %1$d 个视频</string>
+    <string name="vault_confirm_encrypt_desc">先加密并完整校验，再请求系统移除相册原件。取消系统授权时，相册原件仍可见。\n\n这些视频在普通列表中的收藏、进度和书签会被清除，以免留下明文记录。\n\n请记住保险箱密码；卸载应用或清空数据会丢失保险箱视频。</string>
+    <string name="vault_confirm_encrypt_button">加密并移除原件</string>
+    <string name="vault_restore_dialog_title">恢复到手机相册？</string>
+    <string name="vault_restore_dialog_desc">解密后的视频将重新对相册及有权限的应用可见。完整校验后保存到 Movies/映匣恢复，保险箱中的加密副本仍保留。</string>
+    <string name="vault_restore_dialog_confirm">解密恢复</string>
+    <string name="vault_delete_dialog_title">永久删除加密视频？</string>
+    <string name="vault_delete_dialog_desc">将从保险箱永久删除「%1$s」，无法撤销。如果相册原件已移除且没有另行恢复，这会删除仅剩的视频副本。</string>
+    <string name="vault_delete_dialog_confirm">永久删除</string>
+    <string name="vault_restore_perm_needed">需要存储权限才能恢复到相册；加密视频仍保留</string>
+
+    <string name="vault_unlock_title">输入密码解锁</string>
+    <string name="vault_create_title">设置保险箱密码</string>
+    <string name="vault_unlock_desc">在这台手机上解锁你的加密视频。</string>
+    <string name="vault_create_desc">至少 8 个字符，建议使用较长的独立密码。请保存在你能找回的安全位置。</string>
+    <string name="vault_password_label">保险箱密码</string>
+    <string name="vault_password_confirm_label">再次输入密码</string>
+    <string name="vault_acknowledge_text">我知道需要记住密码，也可以在解锁后设置密保。卸载或清空数据会删除保险箱。</string>
+    <string name="vault_unlock_button">解锁</string>
+    <string name="vault_create_button">创建保险箱</string>
+    <string name="vault_forgot_password">忘记密码？回答密保问题</string>
+    <string name="vault_recovery_not_enabled">此保险箱尚未开启密保，解锁后可设置。</string>
+    <string name="vault_picker_title">选择要加密的视频</string>
+    <string name="vault_picker_empty">还没有可访问的视频，请先在首页授权相册或打开本地文件。</string>
+    <string name="vault_picker_confirm">选择 %1$d 项</string>
+
+    <!-- Vault Recovery Form -->
+    <string name="recovery_load_failed">无法读取本机密保问题，请使用原密码解锁。</string>
+    <string name="recovery_loading">正在读取密保问题…</string>
+    <string name="recovery_title_enroll">填写三个答案</string>
+    <string name="recovery_title_disable">关闭密保问题</string>
+    <string name="recovery_title_reset">重设保险箱密码</string>
+    <string name="recovery_desc_enroll">答对全部三题才能重设密码，请分别写下只有你知道的短语，每个至少四个字符。避免使用生日、姓名等容易猜到的信息。</string>
+    <string name="recovery_desc_disable">请输入当前密码。关闭后，这三个答案将无法再用来重设密码。</string>
+    <string name="recovery_desc_reset">请按原顺序回答全部三题，区分大小写。重设只在当前设备生效，原有视频会保留。</string>
+    <string name="recovery_answer_label">第 %1$d 题答案</string>
+    <string name="recovery_hide_answers">隐藏答案</string>
+    <string name="recovery_show_answers">查看填写的答案</string>
+    <string name="recovery_edit_questions">修改问题</string>
+    <string name="recovery_duplicate_answers">请为三道题填写不同的答案</string>
+    <string name="recovery_new_password_label">新密码（至少八个字符）</string>
+    <string name="recovery_current_password_label">当前保险箱密码</string>
+    <string name="recovery_confirm_new_password_label">再次输入新密码</string>
+    <string name="recovery_submit_enroll">开启密保</string>
+    <string name="recovery_submit_disable">确认关闭</string>
+    <string name="recovery_submit_reset">保存新密码</string>
+    <string name="recovery_editor_title">写下你的密保问题</string>
+    <string name="recovery_editor_desc">每题最多 80 个字符。锁定时可以看到题目，请把答案留到下一步填写。</string>
+    <string name="recovery_question_label">问题 %1$d</string>
+    <string name="recovery_question_placeholder">输入你自己的问题</string>
+    <string name="recovery_question_duplicate">请换一道不同的问题</string>
+    <string name="recovery_pick_preset">从题库选</string>
+    <string name="recovery_next_step">下一步，填写答案</string>
+
+    <string-array name="vault_recovery_presets">
+        <item>你会给一座小岛起什么名字？</item>
+        <item>你想给秘密书房取什么名字？</item>
+        <item>你想给未来的自己留什么暗号？</item>
+        <item>如果开一家深夜小店，你会卖什么？</item>
+        <item>如果有一扇任意门，你想把它藏在哪里？</item>
+        <item>如果写一本探险日记，你会用哪句话开头？</item>
+        <item>如果发明一种冰淇淋，你想用什么配料？</item>
+        <item>如果能给月亮寄一件礼物，你会寄什么？</item>
+        <item>如果有一台私人电台，你想用什么开场白？</item>
+    </string-array>
+
+    <!-- Vault Coordinator / Store / Recovery Backend Messages -->
+    <string name="vault_prog_unlocking">正在解锁</string>
+    <string name="vault_error_wrong_password">密码不正确，或保险箱文件损坏；原文件未改动</string>
+    <string name="vault_prog_verifying_local">正在本机核验</string>
+    <string name="vault_msg_recovery_enabled">密保已开启。忘记密码时，可在这台手机上回答三题并重设密码。</string>
+    <string name="vault_msg_recovery_disabled">密保已关闭，以后需要密码才能打开保险箱。</string>
+    <string name="vault_msg_password_reset">密码已重设。请用新密码解锁，然后按需重新设置密保。</string>
+    <string name="vault_prog_preparing_encrypt">准备加密</string>
+    <string name="vault_msg_encrypt_done">已加密并移除所选相册原件。相册中如有其他副本，仍需单独处理。</string>
+    <string name="vault_prog_verify_before_remove">校验加密副本与原件</string>
+    <string name="vault_prog_verify_request_remove">校验副本与原件，准备请求移除</string>
+    <string name="vault_prog_confirm_removal">请在系统窗口确认移除相册原件</string>
+    <string name="vault_prog_checking_removal">核对相册移除结果</string>
+    <string name="vault_msg_reunlock_to_check">请重新解锁，核对刚才的相册操作结果</string>
+    <string name="vault_msg_removal_cancelled">已保留加密副本；未获准移除原件，相册仍可见。可在视频下方继续移除。</string>
+    <string name="vault_msg_removal_confirmed">已确认相册原件移除，加密视频可在保险箱播放</string>
+    <string name="vault_prog_removing_copy">正在移除保险箱副本</string>
+    <string name="vault_msg_copy_removed">已移除保险箱副本，相册中的文件未改动</string>
+    <string name="vault_prog_preparing_restore">准备恢复到相册</string>
+    <string name="vault_prog_preparing_playback">准备安全播放</string>
+    <string name="vault_error_operation_incomplete">操作未完成，原文件与已完成的加密副本均未主动清除</string>
+    <string name="vault_error_playback_not_saved">本次播放记录未保存，加密视频仍保留</string>
+
+    <string name="vault_store_already_exists">保险箱已经存在，请解锁</string>
+    <string name="vault_store_config_damaged">保险箱配置损坏</string>
+    <string name="vault_store_locked">保险箱已锁定，请重新输入密码</string>
+    <string name="vault_store_record_damaged">保险箱记录损坏，文件已保留</string>
+    <string name="vault_store_remove_payload_failed">无法移除加密文件</string>
+    <string name="vault_store_remove_playback_failed">视频已移除，但加密播放记录清理失败</string>
+    <string name="vault_store_remove_meta_failed">文件已移除，但记录清理失败</string>
+    <string name="vault_store_encrypting_mb">正在加密 · %1$d MB</string>
+    <string name="vault_store_source_unreadable">原视频无法读取，未移除相册原件</string>
+    <string name="vault_store_source_size_changed">原视频大小发生变化，未移除原件</string>
+    <string name="vault_store_verifying_copy">正在完整校验加密副本</string>
+    <string name="vault_store_reread_failed">无法重新读取相册原件；已保留加密副本</string>
+    <string name="vault_store_original_changed">原件已改变，不能移除。加密副本保留的是加密时的内容</string>
+    <string name="vault_store_verify_failed">加密副本校验失败，原件未移除</string>
+    <string name="vault_store_create_restore_failed">无法创建恢复文件，请检查剩余空间</string>
+    <string name="vault_store_write_gallery_failed">无法写入相册</string>
+    <string name="vault_store_decrypting_mb">正在解密恢复 · %1$d MB</string>
+    <string name="vault_store_verifying_restore">正在校验恢复文件</string>
+    <string name="vault_store_verify_restore_failed">无法校验恢复文件</string>
+    <string name="vault_store_restore_mismatch">恢复校验失败，保险箱原件已保留</string>
+    <string name="vault_store_restore_done">已恢复到 Movies/映匣恢复；保险箱副本仍保留</string>
+
+    <string name="vault_ds_seek_oob">播放位置超出视频长度</string>
+    <string name="vault_ds_open_failed">保险箱视频无法读取：已锁定或文件校验失败</string>
+    <string name="vault_ds_locked">保险箱已锁定</string>
+    <string name="vault_ds_truncated">加密视频不完整</string>
+    <string name="vault_ds_read_failed">无法解密视频：文件损坏或保险箱已锁定</string>
+
+    <string name="vault_repo_folder_label">加密保险箱 · 仅本机</string>
+    <string name="vault_repo_record_damaged_keep">私密播放记录损坏，原记录已保留</string>
+    <string name="vault_repo_record_damaged_file">私密播放记录损坏，文件已保留</string>
+    <string name="vault_repo_bookmark_limit">每条视频最多保存 256 个书签</string>
+    <string name="vault_repo_missing_payload">加密视频不存在</string>
+    <string name="vault_repo_not_in_vault">保险箱中没有此视频</string>
+    <string name="vault_repo_use_vault_import">请使用保险箱的加密导入入口</string>
+    <string name="vault_repo_no_ordinary_hide">保险箱内无需普通隐藏</string>
+    <string name="vault_repo_no_ordinary_backup">保险箱不接收普通备份</string>
+    <string name="vault_repo_local_encrypted_only">保险箱记录仅在本地加密管理</string>
+
+    <string name="vault_recovery_config_unavailable">保险箱配置不可用</string>
+    <string name="vault_recovery_not_configured">此保险箱尚未设置可用的密保</string>
+    <string name="vault_recovery_mismatch">密保与当前保险箱不匹配</string>
+    <string name="vault_recovery_prompt_key_unavailable">本机密保密钥不可用，请使用原密码</string>
+    <string name="vault_recovery_fill_three">请填写三个答案</string>
+    <string name="vault_recovery_device_key_unavailable">此设备的密保密钥不可用，请使用原密码</string>
+    <string name="vault_recovery_disable_first">请先关闭已有密保</string>
+    <string name="vault_recovery_prompts_invalid">请填写三个不同的问题，每题最多 80 个字符</string>
+    <string name="vault_recovery_answers_length">每个答案需要 4–96 个字符</string>
+    <string name="vault_recovery_answers_distinct">请使用三个不同的答案</string>
+    <string name="vault_recovery_wrong_pwd_enroll">当前密码不正确，密保未开启</string>
+    <string name="vault_recovery_cooldown">请在 %1$d 秒后再试</string>
+    <string name="vault_recovery_attempt_write_failed">无法写入尝试记录，请稍后重试</string>
+    <string name="vault_recovery_locked_out">连续五次未通过，请在一分钟后再试</string>
+    <string name="vault_recovery_answers_wrong">三个答案未通过，或密保数据损坏</string>
+    <string name="vault_recovery_wrong_pwd_disable">当前密码不正确，密保仍然有效</string>
+    <string name="vault_recovery_recheck_status">请重新打开保险箱，核对密保状态</string>
+
+    <!-- Gallery Share, One-time Watch & Quick Lock (1.7.4+) -->
+    <string name="share_dialog_title">从相册分享</string>
+    <string name="share_loading">正在读取所选视频…</string>
+    <string name="share_choose_single">选择怎样打开这个视频</string>
+    <string name="share_selected_count">已选 %1$d 个视频</string>
+    <string name="share_action_vault">放入保险柜</string>
+    <string name="share_error_invalid">没有收到可读取的本地视频。请在相册中选中视频，再分享给映匣。</string>
+    <string name="share_error_busy">请先完成当前文件操作，再从相册分享。</string>
+    <string name="share_error_unreadable">分享的视频无法读取。请确认原件在手机上，再从相册重新分享。</string>
+    <string name="media_shared_folder">相册分享</string>
+    <string name="media_error_grant_expired">视频授权已失效，请重新选择文件</string>
+    <string name="action_watch_without_history">本次不记播放记录</string>
+    <string name="player_lock_vault_short">锁箱</string>
+    <string name="player_lock_vault_home">锁箱并返回首页</string>
+    <string name="vault_status_manage_in_gallery">已保存加密副本，请在来源相册管理原件</string>
+    <string name="vault_confirm_share_desc">映匣会在本机加密并校验所选视频。相册仍保留原件；确认箱内可以播放后，可按视频下方提示管理原件。</string>
+    <string name="vault_confirm_share_button">保存加密副本</string>
+    <string name="vault_msg_share_encrypt_done">已加密并校验 %1$d 个视频。相册原件已保留。</string>
+    <string name="vault_msg_share_encrypt_partial">已加密 %1$d/%2$d 个视频。其余视频未完成，请检查原件和可用空间。相册原件已保留。</string>
+    <string name="vault_error_manage_in_gallery">请回来源相册管理原件</string>
+</resources>

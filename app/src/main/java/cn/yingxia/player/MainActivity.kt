@@ -1,5 +1,6 @@
 package cn.yingxia.player
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -13,6 +14,9 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val graph get() = (application as YingXiaApplication).graph
     private val model: AppViewModel by viewModels { AppViewModel.Factory(graph) }
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -24,7 +28,7 @@ class MainActivity : ComponentActivity() {
         acceptShare(intent)
     }
     private fun acceptShare(incoming: Intent) {
-        incoming.galleryShare(packageName)?.let { share ->
+        incoming.galleryShare(packageName, AppLocale.str(this, R.string.share_error_invalid))?.let { share ->
             if (incoming === intent) setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN))
             model.receiveShare(share)
         }

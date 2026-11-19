@@ -38,7 +38,7 @@ class VaultConsentUiTest {
             val video = graph.repository.importVideo(uri.toString())
             withContext(Dispatchers.Main) { graph.vault.show(listOf(video)); graph.vault.unlock("consent test password".toCharArray()) }
             ui.waitUntil(60000) { graph.vault.state.value.unlocked && !graph.vault.state.value.busy }
-            ui.onNodeWithText("加密并移除原件").performClick()
+            ui.onNodeWithText(context.getString(R.string.vault_confirm_encrypt_button)).performClick()
             fun clickSystemButton(id: String) {
                 ui.waitUntil(30000) {
                     instrument.uiAutomation.rootInActiveWindow?.findAccessibilityNodeInfosByViewId(id)

@@ -1,5 +1,6 @@
 package cn.yingxia.player.vault
 
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +30,7 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
         val marks = mutableListOf<Bookmark>()
         videos.value = entries.map { entry ->
             val id = VideoId(entry.id)
-            val base = VideoItem(id, "vault://${entry.id}", entry.originalName, "加密保险箱 · 仅本机", "vault",
+            val base = VideoItem(id, "vault://${entry.id}", entry.originalName, store.str(R.string.vault_repo_folder_label), "vault",
                 entry.duration, entry.bytes, addedAt = entry.created, source = "vault", displayName = entry.name)
             val path = file(id)
             if (!path.exists()) base else try {
@@ -56,7 +57,7 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
 
     private fun persist(id: VideoId, item: VideoItem, marks: List<Bookmark>) {
         checkOpen()
-        check(id !in damaged) { "私密播放记录损坏，原记录已保留" }
+        check(id !in damaged) { store.str(R.string.vault_repo_record_damaged_keep) }
         val rows = JSONArray()
         marks.filter { it.videoId == id }.forEach { rows.put(JSONObject().put("id", it.id).put("position", it.positionMs).put("note", it.note)) }
         val plain = JSONObject().put("version", 1).put("id", id.value).put("position", item.positionMs)
@@ -87,7 +88,7 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
         val video = videos.value.first { it.id == videoId }
         val existing = bookmarks.value.firstOrNull { it.id == id }
         require(id == 0L || existing?.videoId == videoId)
-        require(id != 0L || bookmarks.value.count { it.videoId == videoId } < 256) { "每条视频最多保存 256 个书签" }
+        require(id != 0L || bookmarks.value.count { it.videoId == videoId } < 256) { store.str(R.string.vault_repo_bookmark_limit) }
         val bookmark = Bookmark(if (id == 0L) nextBookmark++ else id, videoId, PlaybackRules.seek(positionMs, video.durationMs), note.take(200))
         val next = bookmarks.value.filterNot { it.id == bookmark.id } + bookmark
         persist(videoId, video, next); bookmarks.value = next
@@ -109,15 +110,15 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
     }
     override suspend fun requirePlayable(id: VideoId): VideoItem = synchronized(monitor) {
         checkOpen()
-        check(id !in damaged) { "私密播放记录损坏，文件已保留" }
-        check(store.payload(id.value).isFile) { "加密视频不存在" }
-        videos.value.firstOrNull { it.id == id } ?: error("保险箱中没有此视频")
+        check(id !in damaged) { store.str(R.string.vault_repo_record_damaged_file) }
+        check(store.payload(id.value).isFile) { store.str(R.string.vault_repo_missing_payload) }
+        videos.value.firstOrNull { it.id == id } ?: error(store.str(R.string.vault_repo_not_in_vault))
     }
     override suspend fun get(id: VideoId) = synchronized(monitor) { checkOpen(); videos.value.firstOrNull { it.id == id } }
     override suspend fun allVideos() = synchronized(monitor) { checkOpen(); videos.value }
     override suspend fun refresh() { checkOpen() }
-    override suspend fun importVideo(uri: String): VideoItem = error("请使用保险箱的加密导入入口")
-    override suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean): Unit = error("保险箱内无需普通隐藏")
-    override suspend fun restoreRecords(rows: List<LibraryRecord>): Unit = error("保险箱不接收普通备份")
-    override suspend fun clearHistory(): Unit = error("保险箱记录仅在本地加密管理")
+    override suspend fun importVideo(uri: String): VideoItem = error(store.str(R.string.vault_repo_use_vault_import))
+    override suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean): Unit = error(store.str(R.string.vault_repo_no_ordinary_hide))
+    override suspend fun restoreRecords(rows: List<LibraryRecord>): Unit = error(store.str(R.string.vault_repo_no_ordinary_backup))
+    override suspend fun clearHistory(): Unit = error(store.str(R.string.vault_repo_local_encrypted_only))
 }

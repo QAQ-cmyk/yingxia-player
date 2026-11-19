@@ -9,6 +9,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.system.Os
 import android.system.OsConstants
+import cn.yingxia.player.AppLocale
+import cn.yingxia.player.R
 import cn.yingxia.player.core.VideoId
 import cn.yingxia.player.core.VideoItem
 import cn.yingxia.player.core.displayTitle
@@ -59,25 +61,26 @@ class VaultStore(private val context: Context, val directory: File = File(contex
     @Volatile var session: VaultSession? = null; private set
     val configured get() = config.isFile
     private val resolver get() = context.contentResolver
+    internal fun str(id: Int, vararg args: Any) = AppLocale.str(context, id, *args)
 
     fun setup(password: CharArray) {
-        check(!configured) { "保险箱已经存在，请解锁" }
+        check(!configured) { str(R.string.vault_store_already_exists) }
         val (bytes, unlocked) = VaultCrypto.create(password)
         try { VaultCrypto.atomicWrite(config, bytes); syncDirectory(); session = unlocked }
         catch (e: Exception) { unlocked.close(); throw e }
     }
     fun unlock(password: CharArray) {
-        require(config.length() in 60..65536) { "保险箱配置损坏" }
+        require(config.length() in 60..65536) { str(R.string.vault_store_config_damaged) }
         val unlocked = VaultCrypto.unlock(config.readBytes(), password)
         session?.close(); session = unlocked
     }
     fun lock() { session?.close(); session = null }
-    fun requireSession() = session?.also { it.requireOpen() } ?: error("保险箱已锁定，请重新输入密码")
+    fun requireSession() = session?.also { it.requireOpen() } ?: error(str(R.string.vault_store_locked))
     private fun safeId(id: String) = UUID.fromString(id).toString().also { require(it == id) }
     fun payload(id: String) = File(directory, "${safeId(id)}.vault")
     fun load(id: String): VaultEntry {
         val file = File(directory, "${safeId(id)}.meta")
-        require(file.length() in 1..1048576) { "保险箱记录损坏，文件已保留" }
+        require(file.length() in 1..1048576) { str(R.string.vault_store_record_damaged) }
         val bytes = requireSession().decryptMetadata(id, file.readBytes())
         return try { VaultEntry.parse(JSONObject(bytes.toString(Charsets.UTF_8))).also { require(it.id == id) } }
         finally { bytes.fill(0) }
@@ -101,10 +104,10 @@ class VaultStore(private val context: Context, val directory: File = File(contex
         requireSession()
         // Metadata is retained if payload deletion fails, so the entry remains inspectable.
         val file = payload(id)
-        check(!file.exists() || file.delete()) { "无法移除加密文件" }
+        check(!file.exists() || file.delete()) { str(R.string.vault_store_remove_payload_failed) }
         val playback = File(directory, "${safeId(id)}.playback")
-        check(!playback.exists() || playback.delete()) { "视频已移除，但加密播放记录清理失败" }
-        check(File(directory, "${safeId(id)}.meta").delete()) { "文件已移除，但记录清理失败" }
+        check(!playback.exists() || playback.delete()) { str(R.string.vault_store_remove_playback_failed) }
+        check(File(directory, "${safeId(id)}.meta").delete()) { str(R.string.vault_store_remove_meta_failed) }
         syncDirectory()
     }
     private fun syncDirectory() {
@@ -122,10 +125,10 @@ class VaultStore(private val context: Context, val directory: File = File(contex
         // A file is never deleted from the gallery inside this method.
         try {
             val (size, hash) = resolver.openInputStream(Uri.parse(video.uri))?.use { input ->
-                unlocked.encrypt(id, input, temp, check) { bytes -> progress("正在加密 · ${bytes / 1048576} MB") }
-            } ?: error("原视频无法读取，未移除相册原件")
-            require(size > 0 && (video.sizeBytes <= 0 || size == video.sizeBytes)) { "原视频大小发生变化，未移除原件" }
-            progress("正在完整校验加密副本")
+                unlocked.encrypt(id, input, temp, check) { bytes -> progress(str(R.string.vault_store_encrypting_mb, bytes / 1048576)) }
+            } ?: error(str(R.string.vault_store_source_unreadable))
+            require(size > 0 && (video.sizeBytes <= 0 || size == video.sizeBytes)) { str(R.string.vault_store_source_size_changed) }
+            progress(str(R.string.vault_store_verifying_copy))
             verifyFile(unlocked, id, temp, size, hash, check)
             check()
             Files.move(temp.toPath(), committed.toPath(), StandardCopyOption.ATOMIC_MOVE)
@@ -146,16 +149,16 @@ class VaultStore(private val context: Context, val directory: File = File(contex
         val check = { jobContext.ensureActive(); unlocked.requireOpen() }
         verifyFile(unlocked, entry.id, payload(entry.id), entry.bytes, entry.digest.unhex(), check)
         val actual = resolver.openInputStream(Uri.parse(entry.sourceUri))?.use { VaultCrypto.digest(it, check) }
-            ?: error("无法重新读取相册原件；已保留加密副本")
+            ?: error(str(R.string.vault_store_reread_failed))
         require(actual.first == entry.bytes && MessageDigest.isEqual(actual.second, entry.digest.unhex())) {
-            "原件已改变，不能移除。加密副本保留的是加密时的内容"
+            str(R.string.vault_store_original_changed)
         }
     }
     private fun verifyFile(unlocked: VaultSession, id: String, file: File, expectedSize: Long, hash: ByteArray, check: () -> Unit) {
         val reader = unlocked.open(id, file)
         try {
             val actual = VaultCrypto.digest(Channels.newInputStream(reader), check)
-            require(actual.first == expectedSize && MessageDigest.isEqual(actual.second, hash)) { "加密副本校验失败，原件未移除" }
+            require(actual.first == expectedSize && MessageDigest.isEqual(actual.second, hash)) { str(R.string.vault_store_verify_failed) }
         } finally { unlocked.closeReader(reader) }
     }
 
@@ -167,14 +170,14 @@ class VaultStore(private val context: Context, val directory: File = File(contex
         var legacyFile: File? = null
         var published = false
         try {
-            val name = entry.originalName.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").take(180).ifBlank { "视频.mp4" }
+            val name = entry.originalName.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_").take(180).ifBlank { "video.mp4" }
             if (Build.VERSION.SDK_INT >= 29) {
                 destination = resolver.insert(MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, name)
                     put(MediaStore.MediaColumns.MIME_TYPE, entry.mime)
                     put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/映匣恢复/")
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
-                }) ?: error("无法创建恢复文件，请检查剩余空间")
+                }) ?: error(str(R.string.vault_store_create_restore_failed))
             } else {
                 val pending = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "映匣恢复/.pending").apply { mkdirs() }
                 File(pending, ".nomedia").createNewFile()
@@ -186,20 +189,20 @@ class VaultStore(private val context: Context, val directory: File = File(contex
             val reader = unlocked.open(entry.id, payload(entry.id))
             try {
                 val input = Channels.newInputStream(reader)
-                val output = legacyFile?.let { FileOutputStream(it) } ?: resolver.openOutputStream(destination, "w") ?: error("无法写入相册")
+                val output = legacyFile?.let { FileOutputStream(it) } ?: resolver.openOutputStream(destination, "w") ?: error(str(R.string.vault_store_write_gallery_failed))
                 output.use { out ->
                     val buffer = ByteArray(256 * 1024); var bytes = 0L
                     try { while (true) {
                         check(); val n = input.read(buffer); if (n < 0) break
-                        out.write(buffer, 0, n); bytes += n; progress("正在解密恢复 · ${bytes / 1048576} MB")
+                        out.write(buffer, 0, n); bytes += n; progress(str(R.string.vault_store_decrypting_mb, bytes / 1048576))
                     } } finally { buffer.fill(0) }
                     if (out is FileOutputStream) out.fd.sync()
                 }
             } finally { unlocked.closeReader(reader) }
-            progress("正在校验恢复文件")
+            progress(str(R.string.vault_store_verifying_restore))
             val verify = (legacyFile?.inputStream() ?: resolver.openInputStream(destination))?.use { VaultCrypto.digest(it, check) }
-                ?: error("无法校验恢复文件")
-            require(verify.first == entry.bytes && MessageDigest.isEqual(verify.second, entry.digest.unhex())) { "恢复校验失败，保险箱原件已保留" }
+                ?: error(str(R.string.vault_store_verify_restore_failed))
+            require(verify.first == entry.bytes && MessageDigest.isEqual(verify.second, entry.digest.unhex())) { str(R.string.vault_store_restore_mismatch) }
             check()
             if (Build.VERSION.SDK_INT >= 29) {
                 check(resolver.update(destination, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null) == 1)
@@ -215,7 +218,7 @@ class VaultStore(private val context: Context, val directory: File = File(contex
             }
             published = true
             save(entry.copy(restoredAt = System.currentTimeMillis(), restorePending = "", restoreTarget = ""))
-            "已恢复到 Movies/映匣恢复；保险箱副本仍保留"
+            str(R.string.vault_store_restore_done)
         } finally {
             if (!published) {
                 // Only this operation's newly created unpublished output is removed.

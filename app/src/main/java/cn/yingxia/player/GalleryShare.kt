@@ -11,10 +11,10 @@ internal data class GalleryShare(
 )
 
 /** Keep incoming grants in memory only. A share must never resolve through our own providers. */
-internal fun Intent.galleryShare(packageName: String): GalleryShare? {
+internal fun Intent.galleryShare(packageName: String, invalidMessage: String = "No readable local videos received. Select videos in your gallery and share them to YingXia."): GalleryShare? {
     if (action !in setOf(Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE) ||
         flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
-    val invalid = GalleryShare(error = "没有收到可读取的本地视频。请在相册中选中视频，再分享给映匣。")
+    val invalid = GalleryShare(error = invalidMessage)
     if (type?.startsWith("video/", ignoreCase = true) != true) return invalid
     return try {
         val uris = linkedSetOf<Uri>()

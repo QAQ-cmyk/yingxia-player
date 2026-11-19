@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YingXia</string>
+
+    <!-- Common -->
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_got_it">Got it</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_keep">Keep</string>
+    <string name="action_select">Select</string>
+    <string name="action_deselect">Deselect</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_deselect_all">Clear selection</string>
+    <string name="error_save_failed">Save failed</string>
+    <string name="error_action_not_saved">Could not save this change. Please try again.</string>
+
+    <!-- Navigation & Library -->
+    <string name="nav_home">Home</string>
+    <string name="nav_folders">Folders</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_profile">Me</string>
+
+    <string name="title_hidden_manager">Hidden Videos</string>
+    <string name="title_history">Watch History</string>
+    <string name="title_bookmarks">Bookmarks</string>
+    <string name="title_settings">Playback &amp; Appearance</string>
+    <string name="title_backup">Backup &amp; Restore</string>
+    <string name="title_scan">Library Check</string>
+    <string name="title_folder_fallback">Folder</string>
+    <string name="title_selected_count">%1$d selected</string>
+
+    <string name="action_open_local_video">Open local video</string>
+    <string name="action_restore_visible">Unhide</string>
+    <string name="action_favorite">Favorite</string>
+    <string name="action_unfavorite">Unfavorite</string>
+    <string name="action_favorite_video">Add to favorites</string>
+    <string name="action_play_selected">Play selected</string>
+    <string name="action_hide">Hide</string>
+    <string name="action_hide_video">Hide video</string>
+    <string name="action_encrypt">Encrypt</string>
+    <string name="action_move">Move</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_play_alone">Play alone</string>
+    <string name="action_move_to_folder">Move to folder</string>
+    <string name="action_move_to_vault">Move to encrypted vault</string>
+    <string name="action_delete_original">Delete original file</string>
+    <string name="action_more_for_video">More options for %1$s</string>
+
+    <string name="notice_need_regrant_all">These videos need access granted again before playback.</string>
+    <string name="notice_skipped_inaccessible">Skipped videos that need access granted again.</string>
+    <string name="hidden_banner_hint">Hidden videos are only removed from YingXia lists; the files stay on your phone. Tap items to unhide.</string>
+    <string name="search_placeholder">Search videos or folders</string>
+    <string name="search_clear">Clear search</string>
+
+    <string name="access_partial_banner">Showing videos you allowed access to</string>
+    <string name="access_none_banner">Grant gallery access to discover local videos</string>
+    <string name="access_manage">Manage</string>
+    <string name="access_grant">Grant</string>
+    <string name="access_allow_gallery">Allow gallery access</string>
+
+    <string name="continue_watching_icon">Resume playback</string>
+    <string name="continue_watching_prefix">Resume: </string>
+
+    <string name="section_hidden">Hidden</string>
+    <string name="section_history">Recently Watched</string>
+    <string name="section_favorites">Favorites</string>
+    <string name="section_folder_videos">Videos in folder</string>
+    <string name="section_my_videos">My Videos</string>
+    <string name="filter_all_videos">All videos</string>
+    <string name="filter_in_progress">In progress</string>
+    <string name="action_refresh_videos">Refresh videos</string>
+    <string name="action_sort">Sort</string>
+
+    <string name="sort_newest">Newest first</string>
+    <string name="sort_oldest">Oldest first</string>
+    <string name="sort_recent_play">Recently played</string>
+    <string name="sort_name_asc">Name A–Z</string>
+    <string name="sort_name_desc">Name Z–A</string>
+    <string name="sort_size_desc">Largest first</string>
+    <string name="sort_size_asc">Smallest first</string>
+    <string name="sort_duration">Longest first</string>
+
+    <string name="empty_scanning_title">Organizing your videos</string>
+    <string name="empty_scanning_desc">Scanning local media, please wait.</string>
+    <string name="empty_search_title">No matching videos</string>
+    <string name="empty_search_desc">Try another keyword or clear the search.</string>
+    <string name="empty_hidden_title">No hidden videos yet</string>
+    <string name="empty_hidden_desc">Choose Hide from a video card menu. Hiding never deletes files from your device.</string>
+    <string name="empty_history_title">No watch history yet</string>
+    <string name="empty_history_desc">Videos you watch appear here so you can pick up where you left off.</string>
+    <string name="empty_favorites_title">No favorites yet</string>
+    <string name="empty_favorites_desc">Tap Favorite while watching or from a video card menu.</string>
+    <string name="empty_folder_title">No videos in this folder</string>
+    <string name="empty_folder_desc">Use Move to folder from any video\'s menu to organize files here.</string>
+    <string name="empty_library_title">A calm home for your videos</string>
+    <string name="empty_library_desc">Scan your gallery or pick a single local file.\nEverything stays on this phone.</string>
+
+    <string name="state_selected">Selected</string>
+    <string name="state_unselected">Not selected</string>
+    <string name="status_regrant_needed">Access required</string>
+
+    <string name="rename_dialog_title">Rename</string>
+    <string name="rename_dialog_desc">Changes only the display title inside YingXia. The actual file on disk is untouched.</string>
+    <string name="rename_field_label">Display name</string>
+
+    <!-- Folders -->
+    <string name="folder_count_total">%1$d folders</string>
+    <string name="folder_new">New folder</string>
+    <string name="folder_managed_count">Created · %1$d indexed videos</string>
+    <string name="folder_empty_title">No folders yet</string>
+    <string name="folder_empty_desc">Grant gallery access or import a video to see folders organized here.</string>
+    <string name="folder_video_count_size">%1$d videos · %2$s</string>
+
+    <!-- Profile -->
+    <string name="stat_local_videos">Local videos</string>
+    <string name="stat_favorites">Favorites</string>
+    <string name="stat_bookmarks">Bookmarks</string>
+
+    <string name="profile_history_desc">Pick up where you left off</string>
+    <string name="profile_bookmarks_desc">Save moments worth revisiting</string>
+    <string name="profile_hidden_desc">View and restore hidden videos</string>
+    <string name="profile_vault_title">Encrypted Vault</string>
+    <string name="profile_vault_desc">Password-protected AES-256 playback, hidden from gallery</string>
+    <string name="profile_scan_desc">Find exact duplicates and unreadable files</string>
+    <string name="profile_backup_desc">Export favorites, progress, and settings</string>
+    <string name="profile_settings_desc">Language, speed, theme, and touch guard</string>
+    <string name="profile_import_desc">Pick a single file from device storage</string>
+    <string name="profile_footer">YingXia %1$s · 100%% Offline Local Player</string>
+
+    <!-- Settings -->
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_default_speed">Default playback speed</string>
+    <string name="settings_hold_speed">Press-and-hold speed boost</string>
+    <string name="settings_hold_speed_desc">Release to return to normal speed; never slows down if already faster.</string>
+    <string name="settings_touch_guard">Touch guard during playback</string>
+    <string name="settings_touch_guard_desc">Blocks accidental taps and swipes while playing; tap the lock on the left to unlock.</string>
+    <string name="settings_manage_permissions">Manage system media permissions</string>
+    <string name="settings_manage_permissions_desc">If permission was denied previously, you can re-enable it in system settings.</string>
+    <string name="settings_tips_title">Tips</string>
+    <string name="settings_tips_body">• Bottom tabs are top-level pages; history, settings, and folders open as nested screens.\n• Tap once for controls, double-tap to play/pause, swipe horizontally to seek.\n• Pinch to zoom applies to the current session; enable Crop black bars in Tools.\n• In fullscreen, drag left for brightness, right for volume, and long-press to speed up.\n• Search supports text and Chinese pinyin initials.</string>
+    <string name="settings_clear_history">Clear watch history &amp; resume progress</string>
+    <string name="settings_clear_history_title">Clear watch history?</string>
+    <string name="settings_clear_history_desc">Watch history and resume positions will be cleared. Favorites, bookmarks, and video files are not affected.</string>
+    <string name="settings_clear_history_done">Watch history and resume progress cleared</string>
+
+    <!-- Bookmarks Page -->
+    <string name="bookmarks_empty_title">Keep moments worth rewatching</string>
+    <string name="bookmarks_empty_desc">Open Bookmarks while watching a video to leave a timestamped note.</string>
+    <string name="bookmark_untitled">Untitled bookmark</string>
+    <string name="bookmark_edit">Edit bookmark</string>
+    <string name="bookmark_delete">Delete bookmark</string>
+    <string name="bookmark_note">Note</string>
+    <string name="bookmark_note_optional">Note (optional)</string>
+    <string name="bookmark_delete_title">Delete this bookmark?</string>
+    <string name="bookmark_delete_desc">“%1$s” (%2$s) will be removed from local records.</string>
+
+    <!-- Player -->
+    <string name="player_seek_bar_desc">Playback progress</string>
+    <string name="player_no_switchable">No other videos to switch to</string>
+    <string name="player_first_item">Already at the first video</string>
+    <string name="player_last_item">Already at the last video</string>
+    <string name="player_brightness_value">Brightness %1$d%%</string>
+    <string name="player_volume_value">Volume %1$d%%</string>
+    <string name="player_boosting">▶▶ %1$s speed</string>
+    <string name="player_previous">Previous</string>
+    <string name="player_next">Next</string>
+    <string name="player_tools">Tools</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_play">Play</string>
+    <string name="player_resume_play">Resume</string>
+    <string name="player_exit_fullscreen">Exit fullscreen</string>
+    <string name="player_fullscreen">Fullscreen</string>
+    <string name="player_unlock_screen">Unlock screen</string>
+    <string name="player_lock_screen">Lock screen</string>
+    <string name="player_locked_badge">Locked</string>
+    <string name="player_guard_badge">Guard</string>
+    <string name="player_back_to_list">Back to list</string>
+    <string name="player_encrypted_video_label">Encrypted video</string>
+    <string name="player_favorited">Favorited</string>
+    <string name="player_restart">Restart</string>
+    <string name="player_shortcut_bookmark">Bookmarks</string>
+    <string name="player_loop_chip">A–B looping</string>
+    <string name="player_sleep_until_end_chip">Pause after this video</string>
+    <string name="player_sleep_remaining_chip">Pause in %1$s</string>
+    <string name="player_playlist">Queue</string>
+    <string name="player_now_playing">Now playing</string>
+
+    <string name="player_speed_title">Playback Speed</string>
+    <string name="player_speed_desc">Remembered automatically for future playback</string>
+    <string name="player_hold_speed_hint">Press and hold the video for temporary %1$s speed. Adjust in Me → Playback &amp; Appearance.</string>
+    <string name="player_tools_desc">Built for movies, lectures, and focused review</string>
+    <string name="player_reset_zoom">Reset zoom</string>
+    <string name="player_crop_bars">Crop black bars</string>
+    <string name="player_crop_bars_desc">Scale video to fill the frame, trimming excess edges.</string>
+    <string name="player_repeat_order">Playback order</string>
+    <string name="repeat_sequence">In order</string>
+    <string name="repeat_one">Repeat one</string>
+    <string name="repeat_all">Loop queue</string>
+    <string name="player_brightness">Brightness</string>
+    <string name="player_volume">Volume</string>
+    <string name="player_return_to_vault">Return to Vault</string>
+    <string name="player_hide_current">Hide current video</string>
+
+    <!-- Player Tools / Feature Panels -->
+    <string name="feature_loop_title">A–B Loop</string>
+    <string name="feature_bookmarks_title">Bookmarks</string>
+    <string name="feature_sleep_title">Sleep Timer</string>
+    <string name="loop_panel_title">A–B Loop</string>
+    <string name="loop_panel_desc">Mark a start and end point to repeat a segment</string>
+    <string name="loop_current_time">Current %1$s / %2$s</string>
+    <string name="loop_unset">Not set</string>
+    <string name="loop_range_display">A  %1$s     B  %2$s</string>
+    <string name="loop_set_a">Set A</string>
+    <string name="loop_set_b">Set B</string>
+    <string name="loop_forward_5s">+5s</string>
+    <string name="loop_clear">Clear loop</string>
+    <string name="loop_hint_unset">Point B must be at least 0.5 seconds after point A.</string>
+    <string name="loop_hint_active">Looping %1$s — %2$s.\nSeeking outside the range or switching videos clears the loop; sleep timer still applies.</string>
+    <string name="loop_error_set_a_first">Set point A first</string>
+
+    <string name="bookmarks_panel_desc_private">Notes are encrypted on-device and never appear in ordinary bookmarks.</string>
+    <string name="bookmarks_panel_desc_public">Leave a note for moments worth rewatching.</string>
+    <string name="bookmark_saved">Bookmark saved</string>
+    <string name="bookmark_add_at">Add bookmark at %1$s</string>
+    <string name="bookmarks_panel_empty">No bookmarks yet. Save your first moment above.</string>
+
+    <string name="sleep_panel_desc">Pause playback when time is up, even during A–B or queue loop.</string>
+    <string name="sleep_until_end_remaining">Pause after video · %1$s</string>
+    <string name="sleep_minutes">%1$d min</string>
+    <string name="sleep_after_current">End of video</string>
+    <string name="sleep_cancel">Cancel timer</string>
+
+    <!-- Backup -->
+    <string name="backup_export_title">Export &amp; Share</string>
+    <string name="backup_export_subtitle">Plain JSON file, stored locally only</string>
+    <string name="backup_export_desc">Includes favorites, resume positions, display names, crop settings, speed, sort order, and touch guard. Local file only — never uploaded. Vault items are excluded.</string>
+    <string name="backup_save_button">Save backup file</string>
+    <string name="backup_share_button">Share backup</string>
+    <string name="backup_share_chooser">Share backup</string>
+    <string name="backup_saved_notice">Backup saved. Video files are not included.</string>
+    <string name="backup_error_write">Could not write backup file</string>
+    <string name="backup_error_save">Could not save backup</string>
+    <string name="backup_error_read">Could not read backup file</string>
+    <string name="backup_error_share">Could not share backup</string>
+    <string name="backup_error_invalid_file">Not a valid YingXia backup file</string>
+    <string name="backup_restore_title">Restore Records</string>
+    <string name="backup_restore_subtitle">Matched automatically against local videos</string>
+    <string name="backup_restore_desc">Records are matched to videos currently on your phone. Missing videos are skipped without creating empty entries.</string>
+    <string name="backup_restore_button">Restore from backup</string>
+    <string name="backup_restored_all">Restored %1$d records</string>
+    <string name="backup_restored_partial">Restored %1$d records; %2$d videos were not found on this device</string>
+
+    <!-- Library Scan -->
+    <string name="scan_card_title">Local Library Check</string>
+    <string name="scan_card_subtitle">Offline SHA-256 duplicate &amp; readability check</string>
+    <string name="scan_card_desc">Checks only videos on this phone — nothing is uploaded. Duplicates have identical file bytes. Unreadable files cannot be played and are not repairable here. Nothing is deleted automatically.</string>
+    <string name="scan_progress">Checking %1$d/%2$d</string>
+    <string name="scan_preparing">Preparing…</string>
+    <string name="scan_start">Start check</string>
+    <string name="scan_restart">Check again</string>
+    <string name="scan_all_good">No exact duplicates or unreadable videos found.</string>
+    <string name="scan_dup_group">Duplicate #%1$d · %2$d identical files</string>
+    <string name="scan_unreadable_header">Unreadable</string>
+    <string name="scan_delete_selected">Delete selected files</string>
+    <string name="scan_delete_hint">Removes original files from device storage after system confirmation. To merely hide a video, use Hide from the library.</string>
+    <string name="scan_done_label">Check complete</string>
+    <string name="scan_cancelled_label">Cancelled</string>
+    <string name="scan_not_started_label">Not checked yet</string>
+    <string name="scan_error_cannot_open">Cannot open this file</string>
+    <string name="scan_error_unreadable">Cannot open or play this file. This does not mean it can be repaired.</string>
+
+    <!-- File Management -->
+    <string name="file_perm_denied">Storage write permission denied; original videos were not modified.</string>
+    <string name="file_dialog_move_title">Move to folder</string>
+    <string name="file_dialog_delete_title">Delete original files?</string>
+    <string name="file_dialog_selected_summary">%1$d videos selected\n%2$s</string>
+    <string name="file_dialog_move_desc">Files are physically moved. Originals are removed only after the copy is verified; existing files with the same name will not be overwritten. Keep the app in the foreground.</string>
+    <string name="file_dialog_delete_desc">This permanently deletes the original videos from phone storage and the system gallery. Cannot be undone in YingXia. Use Hide if you only want them out of the list.</string>
+    <string name="file_dialog_move_confirm">Move now</string>
+    <string name="file_dialog_delete_confirm">Delete originals</string>
+    <string name="folder_dialog_title">Create folder on device</string>
+    <string name="folder_dialog_desc">Enter a name, then pick its parent directory (for example Movies) where the new folder will be created.</string>
+    <string name="folder_dialog_label">Folder name</string>
+    <string name="folder_dialog_pick_parent">Choose location</string>
+    <string name="folder_persist_perm_failed">Could not persist folder permission. Please select again.</string>
+    <string name="file_op_busy_title">Working on local files</string>
+    <string name="file_op_preparing">Preparing file operation…</string>
+    <string name="file_op_result_title">File Operation Result</string>
+    <string name="file_op_folder_created">Folder created in device storage</string>
+    <string name="file_op_folder_create_failed">Could not create folder</string>
+    <string name="file_op_deleting">Deleting %1$d/%2$d: %3$s</string>
+    <string name="file_op_copying">Copying &amp; verifying %1$d/%2$d: %3$s</string>
+    <string name="file_op_consent_move">Confirm deletion of the original in the system dialog to finish moving.</string>
+    <string name="file_op_consent_delete">Confirm deletion in the system dialog.</string>
+    <string name="file_op_failed_fallback">Operation failed</string>
+    <string name="file_op_failed_copy_kept">%1$s: %2$s; verified copy was kept and original removal was not confirmed</string>
+    <string name="file_op_failed_single">%1$s: %2$s</string>
+    <string name="file_op_cancelled_move">Cancelled original removal; both original and verified copy were kept.</string>
+    <string name="file_op_cancelled_delete">Cancelled; remaining videos were not deleted.</string>
+    <string name="file_op_incomplete">Could not finish file operation</string>
+    <string name="file_op_summary_deleted">Deleted %1$d/%2$d videos</string>
+    <string name="file_op_summary_moved">Moved %1$d/%2$d videos</string>
+    <string name="file_op_refresh_failed">Failed to refresh list; please rescan later</string>
+    <string name="file_error_folder_name">Name must be 1–60 characters without path symbols or dots only.</string>
+    <string name="file_error_external_storage_only">Choose a folder in internal storage or SD card.</string>
+    <string name="file_error_name_taken">A file with this name already exists.</string>
+    <string name="file_error_create_dir">Could not create folder. Check free space and permissions.</string>
+    <string name="file_error_local_target">Destination must be a local folder.</string>
+    <string name="file_error_already_in_folder">Video is already in this folder.</string>
+    <string name="file_error_create_dest">Could not create destination file. Check permissions or free space.</string>
+    <string name="file_error_dest_unwritable">Destination file is not writable.</string>
+    <string name="file_error_source_unreadable">Original video cannot be read; nothing was deleted.</string>
+    <string name="file_error_source_size_changed">Source file size changed; original file was kept.</string>
+    <string name="file_error_verify_dest">Could not verify destination file.</string>
+    <string name="file_error_verify_mismatch">Verification checksum failed; original video was not deleted.</string>
+    <string name="file_error_delete_failed">Could not delete original: file may already be gone or provider does not allow deletion.</string>
+    <string name="file_error_no_delete_perm">No delete permission. Re-select the file with write access or use your system file manager.</string>
+    <string name="file_error_system_delete_unconfirmed">System did not confirm deletion; record kept.</string>
+
+    <!-- ViewModel & Media Notices -->
+    <string name="notice_resume_from">Resuming from %1$s</string>
+    <string name="notice_hidden_count">Hidden %1$d videos (files were not deleted)</string>
+    <string name="notice_restored_visible">Videos unhidden</string>
+    <string name="notice_unhidden_count">Unhidden %1$d videos</string>
+    <string name="notice_favorited">Added to favorites</string>
+    <string name="notice_unfavorited">Removed from favorites</string>
+    <string name="notice_picture_save_failed">Could not save display setting</string>
+    <string name="notice_renamed">Display name updated</string>
+    <string name="notice_rename_failed">Could not rename</string>
+    <string name="notice_import_failed">Could not open this video</string>
+
+    <string name="media_untitled_video">Untitled video</string>
+    <string name="media_other_videos">Other videos</string>
+    <string name="media_imported_video">Imported video</string>
+    <string name="media_manual_folder">Manually added</string>
+    <string name="media_error_access_denied">Cannot access video. Re-grant gallery permission or pick the file again.</string>
+    <string name="media_error_source_missing">Video was removed or storage is unavailable; favorites and bookmarks are kept.</string>
+    <string name="media_error_perm_changed">Gallery permission changed; please grant access again.</string>
+    <string name="media_error_scan_failed">Unable to scan videos right now; please refresh later.</string>
+    <string name="media_error_pick_local">Please pick a video file on this device.</string>
+    <string name="media_error_hidden_import">This video is hidden. Unhide it in Hidden Videos first.</string>
+    <string name="media_error_unreadable">Cannot read this video. Please choose a valid video file.</string>
+    <string name="media_error_not_found">Video not found.</string>
+    <string name="media_error_hidden_play">This video is hidden. Unhide it before playing.</string>
+    <string name="media_error_rename_length">Name must be between 1 and 80 characters.</string>
+    <string name="media_error_rename_newline">Name cannot contain line breaks.</string>
+
+    <!-- Media3 Player Errors -->
+    <string name="player_error_no_permission">Video access permission expired; please re-grant access.</string>
+    <string name="player_error_not_found">Video file was moved or deleted.</string>
+    <string name="player_error_unsupported">Codec not supported on this device; try MP4 / H.264.</string>
+    <string name="player_error_decode_failed">Playback failed. The file may be corrupted or unsupported.</string>
+    <string name="player_error_session_closed">Playback session has ended.</string>
+    <string name="player_error_invalid_loop">Point B must be at least 0.5 seconds after point A and within duration.</string>
+    <string name="player_error_unknown">Action could not be completed. Please try again.</string>
+    <string name="player_error_next_unavailable">Next video is unavailable; please select another.</string>
+    <string name="player_error_progress_not_saved">Playback position could not be saved; check available storage.</string>
+
+    <!-- Encrypted Vault -->
+    <string name="vault_title">Encrypted Vault</string>
+    <string name="vault_exit">Exit vault</string>
+    <string name="vault_subtitle_unlocked">Locks automatically when leaving the app</string>
+    <string name="vault_subtitle_locked">Only you know the password</string>
+    <string name="vault_lock_now">Lock now</string>
+    <string name="vault_damaged_records">%1$d records could not be decrypted; their files are preserved and other videos remain usable.</string>
+    <string name="vault_intro_desc">Encrypted videos stay out of search, favorites, and record backups. Only titles are shown here — no plaintext thumbnails are written to disk.</string>
+    <string name="vault_encrypt_local">Encrypt local videos</string>
+    <string name="vault_disable_recovery">Disable recovery questions</string>
+    <string name="vault_setup_recovery">Set recovery questions</string>
+    <string name="vault_empty_title">Your vault is empty</string>
+    <string name="vault_empty_desc">Pick local videos above, or choose Move to encrypted vault from any video card.</string>
+    <string name="vault_status_pending_removal">Original removal not confirmed; file may still appear in gallery</string>
+    <string name="vault_status_restored">Restored to gallery previously; vault copy is still kept</string>
+    <string name="vault_status_encrypted">Encrypted; gallery original removed</string>
+    <string name="vault_action_play">Play</string>
+    <string name="vault_action_restore">Restore to gallery</string>
+    <string name="vault_action_delete_copy">Delete vault copy</string>
+    <string name="vault_action_retry_removal">Finish removing gallery original</string>
+    <string name="vault_uninstall_warning">Uninstalling the app or clearing app data deletes the vault. Restore videos to the gallery before switching devices.</string>
+    <string name="vault_busy_default">Processing — keep YingXia in the foreground</string>
+    <string name="vault_busy_hint">Leaving the app locks and cancels the current step; originals are never removed until verified.</string>
+    <string name="vault_notice_title">Vault Notice</string>
+    <string name="vault_confirm_encrypt_title">Encrypt %1$d videos</string>
+    <string name="vault_confirm_encrypt_desc">Videos are encrypted and verified first before requesting system removal of gallery originals. If you cancel system removal, originals remain visible in the gallery.\n\nOrdinary favorites, progress, and bookmarks for these videos will be cleared so no plaintext metadata remains.\n\nRemember your vault password; uninstalling or clearing app data deletes the vault.</string>
+    <string name="vault_confirm_encrypt_button">Encrypt &amp; remove originals</string>
+    <string name="vault_restore_dialog_title">Restore to phone gallery?</string>
+    <string name="vault_restore_dialog_desc">The decrypted video will become visible to your gallery and other authorized apps. After verification it is saved to Movies/映匣恢复, while the encrypted copy stays in the vault.</string>
+    <string name="vault_restore_dialog_confirm">Decrypt &amp; restore</string>
+    <string name="vault_delete_dialog_title">Permanently delete encrypted video?</string>
+    <string name="vault_delete_dialog_desc">Permanently deletes “%1$s” from the vault. Cannot be undone. If the gallery original was removed and not restored elsewhere, this deletes the only remaining copy.</string>
+    <string name="vault_delete_dialog_confirm">Delete permanently</string>
+    <string name="vault_restore_perm_needed">Storage permission is needed to restore to gallery; encrypted video was kept.</string>
+
+    <string name="vault_unlock_title">Enter password to unlock</string>
+    <string name="vault_create_title">Create vault password</string>
+    <string name="vault_unlock_desc">Unlock your encrypted videos on this device.</string>
+    <string name="vault_create_desc">At least 8 characters. Use a strong, unique password and keep it somewhere safe.</string>
+    <string name="vault_password_label">Vault password</string>
+    <string name="vault_password_confirm_label">Confirm password</string>
+    <string name="vault_acknowledge_text">I understand I must remember this password (or set recovery questions after unlocking). Uninstalling or clearing app data deletes the vault.</string>
+    <string name="vault_unlock_button">Unlock</string>
+    <string name="vault_create_button">Create vault</string>
+    <string name="vault_forgot_password">Forgot password? Answer recovery questions</string>
+    <string name="vault_recovery_not_enabled">Recovery questions are not enabled yet; you can set them after unlocking.</string>
+    <string name="vault_picker_title">Choose videos to encrypt</string>
+    <string name="vault_picker_empty">No accessible videos yet. Grant gallery access or open a local file on Home first.</string>
+    <string name="vault_picker_confirm">Select %1$d</string>
+
+    <!-- Vault Recovery Form -->
+    <string name="recovery_load_failed">Could not load on-device recovery questions. Please unlock with your original password.</string>
+    <string name="recovery_loading">Loading recovery questions…</string>
+    <string name="recovery_title_enroll">Enter three answers</string>
+    <string name="recovery_title_disable">Disable recovery questions</string>
+    <string name="recovery_title_reset">Reset vault password</string>
+    <string name="recovery_desc_enroll">All three answers are required to reset the password. Write private phrases only you know (at least 4 characters each) and avoid easily guessed details like birthdays or names.</string>
+    <string name="recovery_desc_disable">Enter your current password. Once disabled, these three answers can no longer reset the vault password.</string>
+    <string name="recovery_desc_reset">Answer all three questions in order (case-sensitive). Reset works on this device only and keeps all encrypted videos intact.</string>
+    <string name="recovery_answer_label">Answer %1$d</string>
+    <string name="recovery_hide_answers">Hide answers</string>
+    <string name="recovery_show_answers">Show entered answers</string>
+    <string name="recovery_edit_questions">Edit questions</string>
+    <string name="recovery_duplicate_answers">Please use three different answers</string>
+    <string name="recovery_new_password_label">New password (min 8 characters)</string>
+    <string name="recovery_current_password_label">Current vault password</string>
+    <string name="recovery_confirm_new_password_label">Confirm new password</string>
+    <string name="recovery_submit_enroll">Enable recovery</string>
+    <string name="recovery_submit_disable">Confirm disable</string>
+    <string name="recovery_submit_reset">Save new password</string>
+    <string name="recovery_editor_title">Write your recovery questions</string>
+    <string name="recovery_editor_desc">Up to 80 characters each. Questions are shown on the lock screen, so keep answers for the next step.</string>
+    <string name="recovery_question_label">Question %1$d</string>
+    <string name="recovery_question_placeholder">Write your own question</string>
+    <string name="recovery_question_duplicate">Please write a different question</string>
+    <string name="recovery_pick_preset">Pick from suggestions</string>
+    <string name="recovery_next_step">Next: enter answers</string>
+
+    <string-array name="vault_recovery_presets">
+        <item>What name would you give to a small island?</item>
+        <item>What would you name a secret study room?</item>
+        <item>What code phrase would you leave for your future self?</item>
+        <item>If you opened a late-night shop, what would you sell?</item>
+        <item>If you had a magic door, where would you hide it?</item>
+        <item>How would your adventure journal begin?</item>
+        <item>What topping would you invent for ice cream?</item>
+        <item>If you could mail a gift to the moon, what would it be?</item>
+        <item>What opening line would you use for a private radio show?</item>
+    </string-array>
+
+    <!-- Vault Coordinator / Store / Recovery Backend Messages -->
+    <string name="vault_prog_unlocking">Unlocking…</string>
+    <string name="vault_error_wrong_password">Incorrect password or damaged vault config; original files untouched.</string>
+    <string name="vault_prog_verifying_local">Verifying on-device…</string>
+    <string name="vault_msg_recovery_enabled">Recovery enabled. If you forget your password, answer all three questions on this phone to set a new one.</string>
+    <string name="vault_msg_recovery_disabled">Recovery disabled. Your password is required to unlock the vault.</string>
+    <string name="vault_msg_password_reset">Password reset. Unlock with your new password and set up recovery again if needed.</string>
+    <string name="vault_prog_preparing_encrypt">Preparing encryption…</string>
+    <string name="vault_msg_encrypt_done">Encrypted and removed selected gallery originals. Any other copies in the gallery must be managed separately.</string>
+    <string name="vault_prog_verify_before_remove">Verifying encrypted copy and original…</string>
+    <string name="vault_prog_verify_request_remove">Verifying copy and original before requesting removal…</string>
+    <string name="vault_prog_confirm_removal">Confirm removing the gallery original in the system dialog</string>
+    <string name="vault_prog_checking_removal">Checking gallery removal result…</string>
+    <string name="vault_msg_reunlock_to_check">Unlock again to verify the gallery removal result.</string>
+    <string name="vault_msg_removal_cancelled">Encrypted copy kept; original removal was not granted and remains visible in the gallery. You can finish removal below the video.</string>
+    <string name="vault_msg_removal_confirmed">Gallery original removed; encrypted video is ready to play in the vault.</string>
+    <string name="vault_prog_removing_copy">Removing vault copy…</string>
+    <string name="vault_msg_copy_removed">Vault copy removed; gallery files were not modified.</string>
+    <string name="vault_prog_preparing_restore">Preparing to restore to gallery…</string>
+    <string name="vault_prog_preparing_playback">Preparing secure playback…</string>
+    <string name="vault_error_operation_incomplete">Operation did not finish; originals and completed encrypted copies were kept intact.</string>
+    <string name="vault_error_playback_not_saved">Playback progress could not be saved; encrypted video is still safe.</string>
+
+    <string name="vault_store_already_exists">Vault already exists; please unlock.</string>
+    <string name="vault_store_config_damaged">Vault configuration is damaged.</string>
+    <string name="vault_store_locked">Vault is locked. Please enter your password again.</string>
+    <string name="vault_store_record_damaged">Vault record is damaged; file preserved.</string>
+    <string name="vault_store_remove_payload_failed">Could not delete encrypted file.</string>
+    <string name="vault_store_remove_playback_failed">Video removed, but failed to clean encrypted playback record.</string>
+    <string name="vault_store_remove_meta_failed">File removed, but failed to clean metadata record.</string>
+    <string name="vault_store_encrypting_mb">Encrypting · %1$d MB</string>
+    <string name="vault_store_source_unreadable">Original video could not be read; gallery original was not removed.</string>
+    <string name="vault_store_source_size_changed">Original video size changed; gallery original was not removed.</string>
+    <string name="vault_store_verifying_copy">Verifying encrypted copy…</string>
+    <string name="vault_store_reread_failed">Could not re-read gallery original; encrypted copy was kept.</string>
+    <string name="vault_store_original_changed">Original changed and cannot be removed. The vault keeps the version from encryption time.</string>
+    <string name="vault_store_verify_failed">Encrypted copy verification failed; original was not removed.</string>
+    <string name="vault_store_create_restore_failed">Could not create restored file; check free storage.</string>
+    <string name="vault_store_write_gallery_failed">Could not write to gallery.</string>
+    <string name="vault_store_decrypting_mb">Decrypting &amp; restoring · %1$d MB</string>
+    <string name="vault_store_verifying_restore">Verifying restored file…</string>
+    <string name="vault_store_verify_restore_failed">Could not verify restored file.</string>
+    <string name="vault_store_restore_mismatch">Restored file verification failed; vault copy preserved.</string>
+    <string name="vault_store_restore_done">Restored to Movies/映匣恢复; encrypted vault copy kept.</string>
+
+    <string name="vault_ds_seek_oob">Playback position exceeds video length.</string>
+    <string name="vault_ds_open_failed">Cannot read vault video: locked or integrity check failed.</string>
+    <string name="vault_ds_locked">Vault is locked.</string>
+    <string name="vault_ds_truncated">Encrypted video is incomplete.</string>
+    <string name="vault_ds_read_failed">Cannot decrypt video: file damaged or vault locked.</string>
+
+    <string name="vault_repo_folder_label">Encrypted Vault · Local only</string>
+    <string name="vault_repo_record_damaged_keep">Private playback record is damaged; original record preserved.</string>
+    <string name="vault_repo_record_damaged_file">Private playback record is damaged; video file preserved.</string>
+    <string name="vault_repo_bookmark_limit">Maximum 256 bookmarks per video.</string>
+    <string name="vault_repo_missing_payload">Encrypted video file is missing.</string>
+    <string name="vault_repo_not_in_vault">Video not found in vault.</string>
+    <string name="vault_repo_use_vault_import">Use the vault encryption import entry.</string>
+    <string name="vault_repo_no_ordinary_hide">Ordinary hiding is not needed inside the vault.</string>
+    <string name="vault_repo_no_ordinary_backup">Vault does not accept ordinary record backups.</string>
+    <string name="vault_repo_local_encrypted_only">Vault records are managed locally in encrypted form only.</string>
+
+    <string name="vault_recovery_config_unavailable">Vault configuration is unavailable.</string>
+    <string name="vault_recovery_not_configured">Recovery questions are not set up for this vault.</string>
+    <string name="vault_recovery_mismatch">Recovery data does not match the current vault.</string>
+    <string name="vault_recovery_prompt_key_unavailable">Device recovery key is unavailable; please use your original password.</string>
+    <string name="vault_recovery_fill_three">Please fill in all three answers.</string>
+    <string name="vault_recovery_device_key_unavailable">Recovery key on this device is unavailable; please use your original password.</string>
+    <string name="vault_recovery_disable_first">Disable existing recovery questions first.</string>
+    <string name="vault_recovery_prompts_invalid">Enter three different questions, up to 80 characters each.</string>
+    <string name="vault_recovery_answers_length">Each answer must be 4–96 characters.</string>
+    <string name="vault_recovery_answers_distinct">Please use three different answers.</string>
+    <string name="vault_recovery_wrong_pwd_enroll">Current password is incorrect; recovery was not enabled.</string>
+    <string name="vault_recovery_cooldown">Try again in %1$d seconds</string>
+    <string name="vault_recovery_attempt_write_failed">Could not record attempt; please try again later.</string>
+    <string name="vault_recovery_locked_out">Five consecutive failed attempts. Try again in one minute.</string>
+    <string name="vault_recovery_answers_wrong">Answers did not match, or recovery data is damaged.</string>
+    <string name="vault_recovery_wrong_pwd_disable">Current password is incorrect; recovery remains enabled.</string>
+    <string name="vault_recovery_recheck_status">Reopen the vault to check recovery status.</string>
+
+    <!-- Gallery Share, One-time Watch & Quick Lock (1.7.4+) -->
+    <string name="share_dialog_title">Shared from Gallery</string>
+    <string name="share_loading">Reading selected videos…</string>
+    <string name="share_choose_single">Choose how to open this video</string>
+    <string name="share_selected_count">%1$d videos selected</string>
+    <string name="share_action_vault">Save to vault</string>
+    <string name="share_error_invalid">No readable local videos received. Select videos in your gallery and share them to YingXia.</string>
+    <string name="share_error_busy">Finish the current file operation before sharing from your gallery.</string>
+    <string name="share_error_unreadable">Could not read the shared video. Confirm the original is on your phone and share again.</string>
+    <string name="media_shared_folder">Shared from gallery</string>
+    <string name="media_error_grant_expired">Video access expired; please pick the file again.</string>
+    <string name="action_watch_without_history">Watch without history</string>
+    <string name="player_lock_vault_short">Lock</string>
+    <string name="player_lock_vault_home">Lock vault &amp; go home</string>
+    <string name="vault_status_manage_in_gallery">Encrypted copy saved; manage original in source gallery</string>
+    <string name="vault_confirm_share_desc">YingXia will encrypt and verify the selected videos locally. Originals stay in your gallery; after confirming playback in the vault, follow the note under each video to manage originals.</string>
+    <string name="vault_confirm_share_button">Save encrypted copies</string>
+    <string name="vault_msg_share_encrypt_done">Encrypted and verified %1$d videos. Gallery originals were kept.</string>
+    <string name="vault_msg_share_encrypt_partial">Encrypted %1$d/%2$d videos. Remaining items did not finish — check originals and free space. Gallery originals were kept.</string>
+    <string name="vault_error_manage_in_gallery">Please manage the original in the source gallery.</string>
+</resources>

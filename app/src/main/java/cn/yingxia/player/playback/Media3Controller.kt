@@ -4,6 +4,8 @@ package cn.yingxia.player.playback
 import android.content.Context
 import androidx.media3.common.*
 import androidx.media3.exoplayer.ExoPlayer
+import cn.yingxia.player.AppLocale
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.SettingsRepository
 import kotlinx.coroutines.*
@@ -11,9 +13,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class Media3Controller(context: Context, private val repository: VideoRepository,
+class Media3Controller(private val context: Context, private val repository: VideoRepository,
     private val settings: SettingsRepository, private val scope: CoroutineScope,
     private val source: ((VideoItem) -> androidx.media3.exoplayer.source.MediaSource)? = null) : PlaybackController {
+    private fun str(id: Int) = AppLocale.str(context, id)
     private val mutableState = MutableStateFlow(PlaybackState())
     override val state: StateFlow<PlaybackState> = mutableState.asStateFlow()
     private val mutableEvents = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 32)
@@ -66,11 +69,11 @@ class Media3Controller(context: Context, private val repository: VideoRepository
             override fun onPlayerError(error: PlaybackException) {
                 endBoost()
                 val failure = when (error.errorCode) {
-                    PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> PlayerFailure(FailureKind.ACCESS_DENIED, "视频访问权限已失效，请重新授权")
-                    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> PlayerFailure(FailureKind.SOURCE_MISSING, "视频文件已被移动或删除")
+                    PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> PlayerFailure(FailureKind.ACCESS_DENIED, str(R.string.player_error_no_permission))
+                    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> PlayerFailure(FailureKind.SOURCE_MISSING, str(R.string.player_error_not_found))
                     PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED, PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES ->
-                        PlayerFailure(FailureKind.UNSUPPORTED_FORMAT, "设备不支持这个视频的编码，可尝试 MP4 / H.264 格式")
-                    else -> PlayerFailure(FailureKind.DECODE_FAILED, "播放失败，文件可能损坏或编码不受设备支持")
+                        PlayerFailure(FailureKind.UNSUPPORTED_FORMAT, str(R.string.player_error_unsupported))
+                    else -> PlayerFailure(FailureKind.DECODE_FAILED, str(R.string.player_error_decode_failed))
                 }
                 report(failure)
             }
@@ -105,7 +108,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
     }
 
     override suspend fun execute(command: PlayerCommand): Result<Unit> = withContext(Dispatchers.Main.immediate) {
-        if (released) return@withContext Result.failure(IllegalStateException("播放会话已结束"))
+        if (released) return@withContext Result.failure(IllegalStateException(str(R.string.player_error_session_closed)))
         try {
             when (command) {
                 is PlayerCommand.OpenShared -> openMutex.withLock {
@@ -155,7 +158,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 is PlayerCommand.SetRepeat -> mutableState.update { it.copy(repeatMode = command.mode) }
                 is PlayerCommand.SetLoop -> {
                     val range = command.range
-                    if (range != null && !PlaybackRules.validLoop(range, state.value.durationMs)) throw IllegalArgumentException("B 点必须晚于 A 点至少 0.5 秒，且不能超过视频时长")
+                    if (range != null && !PlaybackRules.validLoop(range, state.value.durationMs)) throw IllegalArgumentException(str(R.string.player_error_invalid_loop))
                     mutableState.update { it.copy(loop = range) }
                     if (range != null) { surfacePlayer.seekTo(range.startMs); surfacePlayer.play() }
                 }
@@ -164,7 +167,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
             Result.success(Unit)
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            val failure = e as? PlayerFailure ?: PlayerFailure(FailureKind.UNKNOWN, e.message ?: "操作未能完成，请重试")
+            val failure = e as? PlayerFailure ?: PlayerFailure(FailureKind.UNKNOWN, e.message ?: str(R.string.player_error_unknown))
             mutableEvents.tryEmit(PlayerEvent.Error(failure))
             Result.failure(failure)
         }
@@ -213,7 +216,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
                 throw e
             } catch (e: Exception) {
                 surfacePlayer.pause()
-                report(e as? PlayerFailure ?: PlayerFailure(FailureKind.SOURCE_MISSING, "下一条视频不可用，请重新选择"))
+                report(e as? PlayerFailure ?: PlayerFailure(FailureKind.SOURCE_MISSING, str(R.string.player_error_next_unavailable)))
             }
         } else { surfacePlayer.pause(); endBoost(); saveProgress() }
     }
@@ -232,7 +235,7 @@ class Media3Controller(context: Context, private val repository: VideoRepository
         scope.launch {
             try { repository.saveProgress(video.id, position) }
             catch (e: CancellationException) { throw e }
-            catch (_: Exception) { mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.UNKNOWN, "本次播放进度未保存，请检查可用存储空间"))) }
+            catch (_: Exception) { mutableEvents.tryEmit(PlayerEvent.Error(PlayerFailure(FailureKind.UNKNOWN, str(R.string.player_error_progress_not_saved)))) }
         }
     }
     private fun endBoost() {

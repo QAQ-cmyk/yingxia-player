@@ -11,8 +11,8 @@ android {
         applicationId = "cn.yingxia.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 18
-        versionName = "1.7.4"
+        versionCode = 19
+        versionName = "1.8.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -21,6 +21,7 @@ android {
     buildTypes { release { isMinifyEnabled = false } }
     testOptions { unitTests.isReturnDefaultValues = true }
     lint { abortOnError = true }
+    dependenciesInfo { includeInApk = false; includeInBundle = false }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }

@@ -44,7 +44,7 @@ class VaultLifecycleTest {
             withTimeout(60000) { while (!graph.vault.state.value.unlocked || graph.vault.state.value.busy) delay(100) }
             created = true
             assertTrue(ui.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0)
-            ui.onNodeWithText("加密并移除原件").performClick()
+            ui.onNodeWithText(context.getString(R.string.vault_confirm_encrypt_button)).performClick()
             withTimeout(30000) { while (graph.vault.state.value.busy || graph.vault.state.value.entries.isEmpty()) delay(100) }
             assertFalse(file.exists())
             assertTrue(graph.vault.state.value.entries.single().sourceRemoved)
@@ -87,21 +87,21 @@ class VaultLifecycleTest {
             touch(MotionEvent.ACTION_UP, 280f, 100f)
             assertTrue(player.state.value.positionMs > 3500)
             assertFalse(player.state.value.isPlaying)
-            ui.onNodeWithContentDescription("全屏").performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.player_fullscreen)).performClick()
             ui.waitUntil(10000) { ui.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
             assertSame(session, graph.vault.playback)
             assertFalse(player.state.value.isPlaying)
             assertTrue(ui.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0)
-            ui.onNodeWithContentDescription("锁定屏幕").performClick()
-            ui.onNodeWithContentDescription("解除锁定").performClick()
-            ui.onNodeWithContentDescription("退出全屏").performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.player_lock_screen)).performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.player_unlock_screen)).performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.player_exit_fullscreen)).performClick()
             ui.waitUntil(10000) { ui.activity.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT }
-            ui.onNode(hasText("收藏") and hasAnyAncestor(hasTestTag("vault-screen")), useUnmergedTree = true).performClick()
+            ui.onNode(hasText(context.getString(R.string.action_favorite)) and hasAnyAncestor(hasTestTag("vault-screen")), useUnmergedTree = true).performClick()
             withTimeout(10000) { while (!session.repository.get(privateId)!!.favorite) delay(50) }
-            ui.onNode(hasText("书签") and hasAnyAncestor(hasTestTag("vault-screen")), useUnmergedTree = true).performClick()
-            ui.onNodeWithText("锁箱并返回首页").assertIsDisplayed()
-            ui.onNodeWithText("备注（可选）").performTextInput("安全播放界面的私密书签")
-            ui.onNodeWithText("添加书签", substring = true).performClick()
+            ui.onNode(hasText(context.getString(R.string.player_shortcut_bookmark)) and hasAnyAncestor(hasTestTag("vault-screen")), useUnmergedTree = true).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_lock_vault_home)).assertIsDisplayed()
+            ui.onNodeWithText(context.getString(R.string.bookmark_note_optional)).performTextInput("安全播放界面的私密书签")
+            ui.onNodeWithText(context.getString(R.string.bookmark_add_at, "").trim(), substring = true).performClick()
             withTimeout(10000) { while (session.repository.bookmarks.value.isEmpty()) delay(50) }
             assertEquals("安全播放界面的私密书签", session.repository.bookmarks.value.single().note)
             assertNull(graph.repository.get(privateId))
@@ -128,9 +128,9 @@ class VaultLifecycleTest {
             assertTrue(reopened.repository.get(privateId)!!.favorite)
             assertEquals("安全播放界面的私密书签", reopened.repository.bookmarks.value.single().note)
             reopened.player.execute(PlayerCommand.Pause)
-            ui.onNodeWithContentDescription("全屏").performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.player_fullscreen)).performClick()
             ui.waitUntil(10000) { ui.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
-            ui.onNodeWithContentDescription("锁定屏幕").performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.player_lock_screen)).performClick()
             reopened.player.execute(PlayerCommand.Play)
             ui.waitUntil(10000) { reopened.player.state.value.isPlaying }
             ui.onNodeWithTag("lock-vault-now").assertIsDisplayed().performClick()
@@ -142,12 +142,12 @@ class VaultLifecycleTest {
             ui.onNodeWithTag("vault-screen").assertDoesNotExist()
             ui.onNodeWithTag("nav-0").assertIsSelected()
             ui.onNodeWithTag("nav-3").performClick()
-            ui.onNodeWithText("加密保险箱").performScrollTo().performClick()
+            ui.onNodeWithText(context.getString(R.string.profile_vault_title)).performScrollTo().performClick()
             ui.onNodeWithTag("vault-password").performTextInput("UI test password 123")
             ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
             ui.waitUntil(60000) { graph.vault.state.value.unlocked && !graph.vault.state.value.busy }
             assertEquals(privateId.value, graph.vault.state.value.entries.single().id)
-            ui.onNodeWithText("设置密保问题").performScrollTo().performClick()
+            ui.onNodeWithText(context.getString(R.string.vault_setup_recovery)).performScrollTo().performClick()
             val chosen = listOf("小时候的树叫什么？", "Where did I keep the map?", "我给雨天起的名字？")
             fun question(index: Int) = ui.onNodeWithTag("recovery-question-" + index)
             fun answer(index: Int) = ui.onNodeWithTag("recovery-answer-" + index)
@@ -162,15 +162,15 @@ class VaultLifecycleTest {
             next.performScrollTo().performClick()
             answer(0).performScrollTo().performTextInput("keep this answer")
             answer(2).performScrollTo().performTextInput("discard this answer")
-            ui.onNodeWithText("修改问题").performScrollTo().performClick()
+            ui.onNodeWithText(context.getString(R.string.recovery_edit_questions)).performScrollTo().performClick()
             ui.onNodeWithTag("recovery-presets-2").performScrollTo().performClick()
-            val preset = cn.yingxia.player.vault.recoveryQuestions.getValue(1)
+            val preset = context.resources.getStringArray(R.array.vault_recovery_presets).first()
             ui.onNodeWithText(preset).performClick()
             question(2).assertTextContains(preset).performScrollTo().performTextReplacement(chosen[2])
             next.performScrollTo().performClick()
-            ui.onNodeWithText("查看填写的答案").performScrollTo().performClick()
+            ui.onNodeWithText(context.getString(R.string.recovery_show_answers)).performScrollTo().performClick()
             answer(0).assertTextContains("keep this answer")
-            answer(2).assertTextEquals("第 3 题答案", "")
+            answer(2).assertTextEquals(context.getString(R.string.recovery_answer_label, 3), "")
             fun fillAnswers() {
                 listOf("island willow", "blue night library", "hello future").forEachIndexed { index, phrase ->
                     ui.onNodeWithTag("recovery-prompt-" + index).assertTextEquals(chosen[index])
@@ -180,15 +180,16 @@ class VaultLifecycleTest {
             fillAnswers()
             ui.onNodeWithTag("recovery-password").performScrollTo().performTextInput("wrong current password")
             ui.onNodeWithTag("recovery-submit").performScrollTo().performClick()
-            ui.waitUntil(60000) { graph.vault.state.value.message?.contains("当前密码不正确") == true }
-            ui.onNodeWithText("知道了").performClick()
+            val wrongPwdMsg = context.getString(R.string.vault_recovery_wrong_pwd_enroll)
+            ui.waitUntil(60000) { graph.vault.state.value.message?.contains(wrongPwdMsg) == true }
+            ui.onNodeWithText(context.getString(R.string.action_got_it)).performClick()
             answer(0).assertTextContains("island willow")
             ui.onNodeWithTag("recovery-password").performScrollTo().performTextInput("UI test password 123")
             ui.onNodeWithTag("recovery-submit").performScrollTo().performClick()
             ui.waitUntil(60000) { graph.vault.state.value.recoveryEnabled }
-            ui.onNodeWithText("知道了").performClick()
-            ui.onNodeWithContentDescription("立即锁定").performClick()
-            ui.onNodeWithText("忘记密码？回答密保问题").performScrollTo().performClick()
+            ui.onNodeWithText(context.getString(R.string.action_got_it)).performClick()
+            ui.onNodeWithContentDescription(context.getString(R.string.vault_lock_now)).performClick()
+            ui.onNodeWithText(context.getString(R.string.vault_forgot_password)).performScrollTo().performClick()
             ui.waitUntil(15000) { ui.onAllNodesWithTag("recovery-prompt-0").fetchSemanticsNodes().isNotEmpty() }
             question(0).assertDoesNotExist()
             fillAnswers()
@@ -196,7 +197,7 @@ class VaultLifecycleTest {
             ui.onNodeWithTag("recovery-confirm").performScrollTo().performTextInput("my new UI password")
             ui.onNodeWithTag("recovery-submit").performScrollTo().performClick()
             ui.waitUntil(60000) { !graph.vault.state.value.recoveryEnabled }
-            ui.onNodeWithText("知道了").performClick()
+            ui.onNodeWithText(context.getString(R.string.action_got_it)).performClick()
             ui.onNodeWithTag("vault-password").performScrollTo().performTextInput("my new UI password")
             ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
             ui.waitUntil(60000) { graph.vault.state.value.entries.size == 1 && !graph.vault.state.value.busy }

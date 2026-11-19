@@ -3,6 +3,8 @@ package cn.yingxia.player.vault
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import cn.yingxia.player.AppLocale
+import cn.yingxia.player.R
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -29,6 +31,9 @@ internal val recoveryQuestions = mapOf(
     9 to "如果有一台私人电台，你想用什么开场白？",
 )
 
+internal fun localizedRecoveryPresets(context: Context): List<String> =
+    AppLocale.stringArray(context, R.array.vault_recovery_presets).toList()
+
 internal const val maxRecoveryPromptLength = 80
 internal fun validRecoveryPrompts(prompts: List<String>): Boolean =
     prompts.size == 3 && prompts.distinct().size == 3 && prompts.all { prompt ->
@@ -36,7 +41,8 @@ internal fun validRecoveryPrompts(prompts: List<String>): Boolean =
             prompt.none(Char::isISOControl)
     }
 
-internal class VaultRecovery(context: Context, directory: File, private val syncDirectory: () -> Unit) {
+internal class VaultRecovery(private val context: Context, directory: File, private val syncDirectory: () -> Unit) {
+    private fun str(id: Int, vararg args: Any) = AppLocale.str(context, id, *args)
     private val config = File(directory, "keyset.bin")
     private val legacyEnvelope = File(directory, "questions-v1.bin")
     private val presetEnvelope = File(directory, "questions-v2.bin")
@@ -45,7 +51,7 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
     private val promptAlias = "yingxia.prompts.v3." + directory.name
     private val attempts = context.getSharedPreferences(alias, Context.MODE_PRIVATE)
     private fun configBytes(): ByteArray {
-        check(config.length() in 60..65536) { "保险箱配置不可用" }
+        check(config.length() in 60..65536) { str(R.string.vault_recovery_config_unavailable) }
         return config.readBytes()
     }
 
@@ -74,13 +80,13 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
 
     private fun readEnrollment(): Enrollment {
         val file = activeFile()
-        check(file.length() in 92..66600 && config.isFile) { "此保险箱尚未设置可用的密保" }
+        check(file.length() in 92..66600 && config.isFile) { str(R.string.vault_recovery_not_configured) }
         val data = file.readBytes()
         val digest = fingerprint(configBytes())
-        check(MessageDigest.isEqual(data.copyOfRange(0, 32), digest)) { "密保与当前保险箱不匹配" }
+        check(MessageDigest.isEqual(data.copyOfRange(0, 32), digest)) { str(R.string.vault_recovery_mismatch) }
         if (file == envelope) {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            val key = store().getKey(promptAlias, null) as? SecretKey ?: error("本机密保密钥不可用，请使用原密码")
+            val key = store().getKey(promptAlias, null) as? SecretKey ?: error(str(R.string.vault_recovery_prompt_key_unavailable))
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, data, 32, 12))
             cipher.updateAAD(digest)
             val clear = cipher.doFinal(data, 44, data.size - 44)
@@ -105,12 +111,12 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
     private fun store() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
     private fun responseKey(answers: List<CharArray>, fingerprint: ByteArray, version: Int, binding: ByteArray, create: Boolean): CharArray {
-        require(answers.size == 3 && answers.all { it.size in 1..96 }) { "请填写三个答案" }
+        require(answers.size == 3 && answers.all { it.size in 1..96 }) { str(R.string.vault_recovery_fill_three) }
         val key = if (create) {
             KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_HMAC_SHA256, "AndroidKeyStore").apply {
                 init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN).setKeySize(256).build())
             }.generateKey()
-        } else store().getKey(alias, null) as? SecretKey ?: error("此设备的密保密钥不可用，请使用原密码")
+        } else store().getKey(alias, null) as? SecretKey ?: error(str(R.string.vault_recovery_device_key_unavailable))
         val mac = Mac.getInstance("HmacSHA256").apply { init(key) }
         val domain = "YINGXIA-QUESTIONS-" + version
         mac.update(domain.toByteArray(Charsets.US_ASCII))
@@ -134,10 +140,10 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
     }
 
     fun enroll(password: CharArray, prompts: List<String>, answers: List<CharArray>, beforeCommit: () -> Unit) {
-        check(!enabled) { "请先关闭已有密保" }
-        require(validRecoveryPrompts(prompts)) { "请填写三个不同的问题，每题最多 80 个字符" }
-        require(answers.size == 3 && answers.all { it.size in 4..96 }) { "每个答案需要 4–96 个字符" }
-        require(answers.indices.all { i -> (0 until i).none { answers[it].contentEquals(answers[i]) } }) { "请使用三个不同的答案" }
+        check(!enabled) { str(R.string.vault_recovery_disable_first) }
+        require(validRecoveryPrompts(prompts)) { str(R.string.vault_recovery_prompts_invalid) }
+        require(answers.size == 3 && answers.all { it.size in 4..96 }) { str(R.string.vault_recovery_answers_length) }
+        require(answers.indices.all { i -> (0 until i).none { answers[it].contentEquals(answers[i]) } }) { str(R.string.vault_recovery_answers_distinct) }
         val current = configBytes()
         val fingerprint = fingerprint(current)
         val binding = encodePrompts(prompts)
@@ -147,7 +153,7 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
                 responseKey(answers, fingerprint, 3, binding, create = true)
             }
         }
-        catch (_: BadPaddingException) { error("当前密码不正确，密保未开启") }
+        catch (_: BadPaddingException) { error(str(R.string.vault_recovery_wrong_pwd_enroll)) }
         val promptKey = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore").run {
             init(KeyGenParameterSpec.Builder(promptAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -166,7 +172,7 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
 
     fun reset(answers: List<CharArray>, password: CharArray, beforeCommit: () -> Unit) {
         val wait = attempts.getLong("until", 0L) - System.currentTimeMillis()
-        check(wait <= 0) { "请在 " + ((wait + 999) / 1000) + " 秒后再试" }
+        check(wait <= 0) { str(R.string.vault_recovery_cooldown, (wait + 999) / 1000) }
         val enrollment = readEnrollment()
         val recovery = responseKey(answers, enrollment.fingerprint, enrollment.version, enrollment.binding, create = false)
         val replacement = try { VaultCrypto.rewrap(enrollment.wrapped, recovery) { password } }
@@ -175,8 +181,8 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
             val edit = attempts.edit()
             if (count >= 5) edit.putInt("count", 0).putLong("until", System.currentTimeMillis() + 60_000L)
             else edit.putInt("count", count)
-            check(edit.commit()) { "无法写入尝试记录，请稍后重试" }
-            error(if (count >= 5) "连续五次未通过，请在一分钟后再试" else "三个答案未通过，或密保数据损坏")
+            check(edit.commit()) { str(R.string.vault_recovery_attempt_write_failed) }
+            error(str(if (count >= 5) R.string.vault_recovery_locked_out else R.string.vault_recovery_answers_wrong))
         }
         beforeCommit()
         VaultCrypto.atomicWrite(config, replacement)
@@ -187,7 +193,7 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
 
     fun disable(password: CharArray, beforeCommit: () -> Unit) {
         try { VaultCrypto.unlock(configBytes(), password).close() }
-        catch (_: BadPaddingException) { error("当前密码不正确，密保仍然有效") }
+        catch (_: BadPaddingException) { error(str(R.string.vault_recovery_wrong_pwd_disable)) }
         beforeCommit()
         retire()
     }
@@ -195,7 +201,7 @@ internal class VaultRecovery(context: Context, directory: File, private val sync
     private fun retire() {
         store().apply { deleteEntry(alias); if (containsAlias(promptAlias)) deleteEntry(promptAlias) }
         for (file in listOf(legacyEnvelope, presetEnvelope, envelope)) {
-            if (file.exists()) check(file.delete()) { "请重新打开保险箱，核对密保状态" }
+            if (file.exists()) check(file.delete()) { str(R.string.vault_recovery_recheck_status) }
         }
         attempts.edit().clear().commit()
     }

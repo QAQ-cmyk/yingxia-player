@@ -27,6 +27,7 @@ class YingXiaApplication : Application(), ImageLoaderFactory {
         .diskCache(null).crossfade(true).build()
 }
 class AppGraph(application: Application) {
+    val appContext: android.content.Context = application
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val database = Room.databaseBuilder(application, VideoDatabase::class.java, "yingxia.db").addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     /** 额外的本机视频来源。默认没有。不要在实现里访问网络。 */
@@ -36,14 +37,14 @@ class AppGraph(application: Application) {
     val files = LocalFileManager(application)
     val player = Media3Controller(application, repository, settings, scope)
     val vault = cn.yingxia.player.vault.VaultCoordinator(application, repository, files, player, scope, settings)
-    val loop = LoopFeature(player)
+    val loop = LoopFeature(player) { AppLocale.str(application, R.string.loop_error_set_a_first) }
     val timer = SleepTimerFeature(player, scope)
     val bookmarks = BookmarkFeature(player, repository)
     /** 播放工具。新增一项就会出现在播放工具列表。 */
     val tools: List<PlayerTool> = yingxiaTools(loop, bookmarks, timer)
     val features = FeatureRegistry(player, scope, tools.map { it.feature })
     /** 本机检查。新增一项会在「检查视频」里执行。 */
-    val checks: List<LibraryCheck> = listOf(Sha256Check(), ReadableVideoCheck(application))
+    val checks: List<LibraryCheck> = listOf(Sha256Check(application), ReadableVideoCheck(application))
     init { scope.launch { settings.clearRetiredPreferences() } }
     private var refreshJob: Job? = null
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {

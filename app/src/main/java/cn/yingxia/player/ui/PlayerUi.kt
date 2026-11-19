@@ -39,7 +39,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -53,10 +55,13 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cn.yingxia.player.AppViewModel
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import cn.yingxia.player.playback.Media3VideoSurface
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+
+private data class GestureFeedback(val brightness: Boolean, val text: String)
 
 @Composable fun PlayerPage(vm: AppViewModel, state: PlaybackState, settings: UserSettings) {
     val session = remember(vm) { PlayerUiSession.ordinary(vm) }
@@ -65,6 +70,7 @@ import kotlin.math.roundToInt
 
 @Composable fun PlayerPage(vm: PlayerUiSession, state: PlaybackState, settings: UserSettings, onLockVault: (() -> Unit)? = null) {
     val activity = LocalActivity.current ?: return
+    val context = LocalContext.current
     val fullscreen = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var controls by rememberSaveable { mutableStateOf(true) }
     var locked by rememberSaveable { mutableStateOf(false) }
@@ -72,7 +78,7 @@ import kotlin.math.roundToInt
     var renaming by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<Long?>(null) }
-    var feedback by remember { mutableStateOf<String?>(null) }
+    var feedback by remember { mutableStateOf<GestureFeedback?>(null) }
     var brightness by remember { mutableFloatStateOf(activity.window.attributes.screenBrightness.takeIf { it >= 0 } ?: .5f) }
     val audio = remember { activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
@@ -98,9 +104,9 @@ import kotlin.math.roundToInt
         val queue = state.queue
         val index = queue.indexOf(video.id)
         when {
-            index < 0 || queue.isEmpty() -> vm.message("没有可切换的视频")
-            delta < 0 && index == 0 -> vm.message("已经是第一条")
-            delta > 0 && index == queue.lastIndex && state.repeatMode != RepeatMode.ALL -> vm.message("已经是最后一条")
+            index < 0 || queue.isEmpty() -> vm.message(context.getString(R.string.player_no_switchable))
+            delta < 0 && index == 0 -> vm.message(context.getString(R.string.player_first_item))
+            delta > 0 && index == queue.lastIndex && state.repeatMode != RepeatMode.ALL -> vm.message(context.getString(R.string.player_last_item))
             else -> vm.command(if (delta < 0) PlayerCommand.Previous else PlayerCommand.Next)
         }
     }
@@ -152,11 +158,11 @@ import kotlin.math.roundToInt
                             if (mode == GestureMode.BRIGHTNESS) {
                                 brightness = value.coerceAtLeast(.02f)
                                 activity.window.attributes = activity.window.attributes.apply { screenBrightness = brightness }
-                                feedback = "亮度 ${(brightness * 100).roundToInt()}%"
+                                feedback = GestureFeedback(true, context.getString(R.string.player_brightness_value, (brightness * 100).roundToInt()))
                             } else {
                                 volume = value
                                 audio.setStreamVolume(AudioManager.STREAM_MUSIC, (volume * maxVolume).roundToInt(), 0)
-                                feedback = "音量 ${(volume * 100).roundToInt()}%"
+                                feedback = GestureFeedback(false, context.getString(R.string.player_volume_value, (volume * 100).roundToInt()))
                             }
                         }
                     }
@@ -166,7 +172,7 @@ import kotlin.math.roundToInt
             if (state.boosting && preview == null && feedback == null) {
                 Surface(Modifier.align(androidx.compose.ui.BiasAlignment(0f, -.72f)).testTag("boost-hint"),
                     shape = CircleShape, color = Color.Black.copy(alpha = .55f)) {
-                    Text("▶▶ ${speedText(state.effectiveSpeed)} 加速中", Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    Text(stringResource(R.string.player_boosting, speedText(state.effectiveSpeed)), Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                         color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
@@ -175,11 +181,11 @@ import kotlin.math.roundToInt
                     Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         val hint = when {
                             preview != null -> Icons.Outlined.Schedule
-                            feedback.orEmpty().startsWith("亮度") -> Icons.Outlined.LightMode
+                            feedback?.brightness == true -> Icons.Outlined.LightMode
                             else -> Icons.AutoMirrored.Outlined.VolumeUp
                         }
                         Icon(hint, null, tint = BrandPink, modifier = Modifier.padding(end = 8.dp).size(20.dp))
-                        Text(if (preview != null) "${durationText(preview!!)} / ${durationText(state.durationMs)}" else feedback.orEmpty(),
+                        Text(if (preview != null) "${durationText(preview!!)} / ${durationText(state.durationMs)}" else feedback?.text.orEmpty(),
                             color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
                 }
@@ -191,12 +197,12 @@ import kotlin.math.roundToInt
                 fadeOut(motionTween(140)) + slideOutVertically(tween(160, easing = FastOutSlowInEasing)) { -it / 4 }) {
                 Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .55f), Color.Transparent)))
                     .then(if (fullscreen) Modifier.statusBarsPadding() else Modifier).then(edge).padding(start = 2.dp, end = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PlayerIcon(Icons.AutoMirrored.Outlined.ArrowBack, "返回", { if (fullscreen) toggleFull() else close() }, size = 22)
+                    PlayerIcon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back), { if (fullscreen) toggleFull() else close() }, size = 22)
                     Text(current.displayTitle(), Modifier.weight(1f).padding(horizontal = 4.dp), color = Color.White, fontSize = if (fullscreen) 15.sp else 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (!state.recordHistory) Icon(Icons.Outlined.VisibilityOff, "本次不记播放记录", tint = Color.White, modifier = Modifier.size(18.dp))
+                    if (!state.recordHistory) Icon(Icons.Outlined.VisibilityOff, stringResource(R.string.action_watch_without_history), tint = Color.White, modifier = Modifier.size(18.dp))
                     if (fullscreen && state.queue.size > 1) {
-                        PlayerIcon(Icons.Outlined.SkipPrevious, "上一条", { playRelative(-1) }, size = 20, compact = true)
-                        PlayerIcon(Icons.Outlined.SkipNext, "下一条", { playRelative(1) }, size = 20, compact = true)
+                        PlayerIcon(Icons.Outlined.SkipPrevious, stringResource(R.string.player_previous), { playRelative(-1) }, size = 20, compact = true)
+                        PlayerIcon(Icons.Outlined.SkipNext, stringResource(R.string.player_next), { playRelative(1) }, size = 20, compact = true)
                     }
                     Surface(onClick = { sheet = "speed" }, shape = CircleShape, color = Color.White.copy(alpha = .18f),
                         modifier = Modifier.testTag("speed-button").padding(horizontal = 4.dp).heightIn(min = 28.dp)) {
@@ -204,7 +210,7 @@ import kotlin.math.roundToInt
                             Text(speedText(state.baseSpeed), color = Color.White, maxLines = 1, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
-                    PlayerIcon(Icons.Outlined.MoreHoriz, "播放工具", { sheet = "tools" }, size = 22)
+                    PlayerIcon(Icons.Outlined.MoreHoriz, stringResource(R.string.player_tools), { sheet = "tools" }, size = 22)
                 }
             }
             FrameVisibility(chrome, Modifier.align(Alignment.BottomCenter),
@@ -213,7 +219,7 @@ import kotlin.math.roundToInt
                 Row(Modifier.fillMaxWidth().then(edge)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .6f))))
                     .padding(start = 4.dp, end = 4.dp, top = 12.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PlayerIcon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, if (state.isPlaying) "暂停" else "播放", { vm.command(PlayerCommand.Toggle); controls = true }, size = 25, compact = true)
+                    PlayerIcon(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, stringResource(if (state.isPlaying) R.string.player_pause else R.string.player_play), { vm.command(PlayerCommand.Toggle); controls = true }, size = 25, compact = true)
                     AndroidView(factory = { CommitSeekBar(it) }, modifier = Modifier.weight(1f).height(32.dp).testTag("seek-bar"), update = {
                         it.durationMs = state.durationMs
                         if (!it.tracking) it.progress = if (state.durationMs > 0) (state.positionMs * it.max / state.durationMs).toInt() else 0
@@ -222,25 +228,25 @@ import kotlin.math.roundToInt
                     })
                     Text("${durationText(state.positionMs)}/${durationText(state.durationMs)}", color = Color.White.copy(alpha = .92f), fontSize = 11.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 4.dp, end = 2.dp))
-                    PlayerIcon(if (fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, if (fullscreen) "退出全屏" else "全屏", toggleFull, size = 22, compact = true)
+                    PlayerIcon(if (fullscreen) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen, stringResource(if (fullscreen) R.string.player_exit_fullscreen else R.string.player_fullscreen), toggleFull, size = 22, compact = true)
                 }
             }
             if (fullscreen || settings.touchGuard || locked) Column(Modifier.align(Alignment.CenterStart).padding(start = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 PlayerIcon(if (shielded) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
-                    if (shielded) "解除锁定" else "锁定屏幕", {
+                    stringResource(if (shielded) R.string.player_unlock_screen else R.string.player_lock_screen), {
                         if (shielded) { locked = false; guardDismissed = true } else { locked = true; guardDismissed = false }
                         controls = true
                     }, size = 20, filled = true)
-                if (shielded) Text(if (locked) "已锁定" else "防误触", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp))
+                if (shielded) Text(stringResource(if (locked) R.string.player_locked_badge else R.string.player_guard_badge), color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp))
             }
             state.failure?.let { error ->
                 Column(Modifier.align(Alignment.Center).padding(24.dp).background(Color.Black.copy(alpha = .82f), RoundedCornerShape(16.dp)).padding(horizontal = 20.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(error, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
                     Row(Modifier.padding(top = 4.dp)) {
-                        TextButton(onClick = { vm.command(PlayerCommand.Open(video.id, state.queue, state.positionMs, state.recordHistory)) }) {
-                            Text("重试", color = BrandPink)
+                        TextButton(onClick = { vm.command(if (shared) PlayerCommand.OpenShared(video) else PlayerCommand.Open(video.id, state.queue, state.positionMs, state.recordHistory)) }) {
+                            Text(stringResource(R.string.action_retry), color = BrandPink)
                         }
-                        TextButton(onClick = close) { Text("返回列表", color = Color.White) }
+                        TextButton(onClick = close) { Text(stringResource(R.string.player_back_to_list), color = Color.White) }
                     }
                 }
             }
@@ -250,7 +256,7 @@ import kotlin.math.roundToInt
                     colors = ButtonDefaults.textButtonColors(contentColor = Color.White, containerColor = Color.Black.copy(alpha = .58f))) {
                     Icon(Icons.Outlined.Lock, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("锁箱", fontSize = 12.sp)
+                    Text(stringResource(R.string.player_lock_vault_short), fontSize = 12.sp)
                 }
             }
         }
@@ -262,42 +268,44 @@ import kotlin.math.roundToInt
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(current.displayTitle(), style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                 if (!shared) IconButton(onClick = { renameText = current.displayTitle(); renaming = true }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Outlined.Edit, "重命名", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Outlined.Edit, stringResource(R.string.action_rename), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                 }
                             }
+                            val encryptedLabel = stringResource(R.string.player_encrypted_video_label)
+                            val noHistoryLabel = stringResource(R.string.action_watch_without_history)
                             val meta = buildString {
-                                append(if (vm.privateSession) "加密视频" else video.folder)
-                                if (!state.recordHistory) append(" · 本次不记播放记录")
+                                append(if (vm.privateSession) encryptedLabel else video.folder)
+                                if (!state.recordHistory) append(" · $noHistoryLabel")
                                 append(" · ")
                                 append(fileSize(video.sizeBytes))
                                 if (video.width > 0 && video.height > 0) append(" · ${video.width}×${video.height}")
                             }
                             Text(meta, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                             Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                if (!shared) ToolShortcut(if (current.favorite) Icons.Filled.FilledFavorite else Icons.Outlined.FavoriteBorder, if (current.favorite) "已收藏" else "收藏", { vm.favorite(setOf(video.id), !current.favorite) }, current.favorite)
-                                ToolShortcut(Icons.Outlined.Replay, "从头播放", { vm.command(PlayerCommand.Seek(0)) })
-                                if (!shared) ToolShortcut(Icons.Outlined.BookmarkBorder, "书签", { sheet = "bookmarks" })
-                                ToolShortcut(Icons.Outlined.Tune, "播放工具", { sheet = "tools" })
+                                if (!shared) ToolShortcut(if (current.favorite) Icons.Filled.FilledFavorite else Icons.Outlined.FavoriteBorder, stringResource(if (current.favorite) R.string.player_favorited else R.string.action_favorite), { vm.favorite(setOf(video.id), !current.favorite) }, current.favorite)
+                                ToolShortcut(Icons.Outlined.Replay, stringResource(R.string.player_restart), { vm.command(PlayerCommand.Seek(0)) })
+                                if (!shared) ToolShortcut(Icons.Outlined.BookmarkBorder, stringResource(R.string.player_shortcut_bookmark), { sheet = "bookmarks" })
+                                ToolShortcut(Icons.Outlined.Tune, stringResource(R.string.player_tools), { sheet = "tools" })
                             }
                         }
                     }
                     if (state.loop != null || remaining > 0) item {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (state.loop != null) AssistChip(onClick = { sheet = "loop" }, label = { Text("A-B 循环中") }, shape = CircleShape)
-                            if (remaining > 0) AssistChip(onClick = { sheet = "sleep" }, label = { Text(if (untilEnd) "播完当前后暂停" else "${durationText(remaining)} 后暂停") }, shape = CircleShape)
+                            if (state.loop != null) AssistChip(onClick = { sheet = "loop" }, label = { Text(stringResource(R.string.player_loop_chip)) }, shape = CircleShape)
+                            if (remaining > 0) AssistChip(onClick = { sheet = "sleep" }, label = { Text(if (untilEnd) stringResource(R.string.player_sleep_until_end_chip) else stringResource(R.string.player_sleep_remaining_chip, durationText(remaining))) }, shape = CircleShape)
                         }
                     }
                     item {
                         Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 2.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("播放列表", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.player_playlist), style = MaterialTheme.typography.titleMedium)
                             Text("  ${state.queue.size}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                             if (state.queue.size > 1) {
-                                IconButton(onClick = { playRelative(-1) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Outlined.SkipPrevious, "上一条", Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                                IconButton(onClick = { playRelative(1) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Outlined.SkipNext, "下一条", Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                IconButton(onClick = { playRelative(-1) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Outlined.SkipPrevious, stringResource(R.string.player_previous), Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                IconButton(onClick = { playRelative(1) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Outlined.SkipNext, stringResource(R.string.player_next), Modifier.size(19.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                             }
                             TextButton(onClick = { vm.command(PlayerCommand.SetRepeat(RepeatMode.entries[(state.repeatMode.ordinal + 1) % 3])) }, contentPadding = PaddingValues(horizontal = 8.dp), modifier = Modifier.heightIn(min = 34.dp)) {
                                 Icon(if (state.repeatMode == RepeatMode.ONE) Icons.Outlined.RepeatOne else Icons.Outlined.Repeat, null, Modifier.size(16.dp))
-                                Text(" ${repeatLabel(state.repeatMode)}", fontSize = 12.sp)
+                                Text(" ${stringResource(repeatLabelRes(state.repeatMode))}", fontSize = 12.sp)
                             }
                         }
                     }
@@ -315,7 +323,7 @@ import kotlin.math.roundToInt
                                         Icon(Icons.Outlined.Lock, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     } else if (!shared) Thumbnail(item, Modifier.fillMaxSize())
                                     if (playing) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .42f)), contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Outlined.GraphicEq, "正在播放", tint = BrandPink)
+                                        Icon(Icons.Outlined.GraphicEq, stringResource(R.string.player_now_playing), tint = BrandPink)
                                     }
                                 }
                                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -336,58 +344,62 @@ import kotlin.math.roundToInt
             TextButton(onClick = onLockVault, modifier = Modifier.align(Alignment.End).padding(end = 12.dp)) {
                 Icon(Icons.Outlined.Lock, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("锁箱并返回首页")
+                Text(stringResource(R.string.player_lock_vault_home))
             }
         }
         Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 28.dp)) {
             when (sheet) {
                 "speed" -> {
-                    PanelTitle("播放速度", "选择后会记住，下次播放继续使用")
+                    PanelTitle(stringResource(R.string.player_speed_title), stringResource(R.string.player_speed_desc))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         PlaybackRules.speeds.forEach { speed ->
                             FilterChip(state.baseSpeed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }, shape = CircleShape, modifier = Modifier.heightIn(min = 44.dp))
                         }
                     }
-                    Text("长按画面临时 ${speedText(settings.holdSpeed)}，松手恢复。可在「我的 → 播放与外观」修改。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp))
+                    Text(stringResource(R.string.player_hold_speed_hint, speedText(settings.holdSpeed)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp))
                 }
                 "tools" -> {
-                    PanelTitle("播放工具", "为观影，也为每一次认真学习")
+                    PanelTitle(stringResource(R.string.player_tools), stringResource(R.string.player_tools_desc))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         vm.tools.filter { it.feature.available(state) && (!shared || it.feature.id != "bookmarks") }.forEach { tool ->
                             FilledTonalButton(onClick = { sheet = tool.feature.id }, shape = CircleShape, modifier = Modifier.heightIn(min = 44.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.primary)) {
-                                Icon(tool.icon, null, Modifier.size(18.dp)); Text("  ${tool.feature.title}")
+                                Icon(tool.icon, null, Modifier.size(18.dp)); Text("  ${localizedFeatureTitle(tool.feature)}")
                             }
                         }
                     }
                     Spacer(Modifier.height(14.dp))
                     SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
-                        if (zoom > 1.01f) OutlinedButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }, shape = CircleShape, modifier = Modifier.padding(bottom = 8.dp).heightIn(min = 44.dp)) { Text("还原缩放") }
-                        if (!shared) ToolSwitch("裁掉黑边", current.cropBars, "按画面比例铺满播放区域，上下或左右多出来的边缘会被裁掉。") {
+                        if (zoom > 1.01f) OutlinedButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }, shape = CircleShape, modifier = Modifier.padding(bottom = 8.dp).heightIn(min = 44.dp)) { Text(stringResource(R.string.player_reset_zoom)) }
+                        if (!shared) ToolSwitch(stringResource(R.string.player_crop_bars), current.cropBars, stringResource(R.string.player_crop_bars_desc)) {
                             vm.savePicture(video.id, it)
                         }
                         HorizontalDivider(Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                        Text("播放顺序", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 6.dp))
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { RepeatMode.entries.forEach { mode -> FilterChip(state.repeatMode == mode, { vm.command(PlayerCommand.SetRepeat(mode)) }, label = { Text(repeatLabel(mode)) }, shape = CircleShape) } }
+                        Text(stringResource(R.string.player_repeat_order), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(bottom = 6.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { RepeatMode.entries.forEach { mode -> FilterChip(state.repeatMode == mode, { vm.command(PlayerCommand.SetRepeat(mode)) }, label = { Text(stringResource(repeatLabelRes(mode))) }, shape = CircleShape) } }
                         HorizontalDivider(Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        val brightnessPct = (brightness * 100).roundToInt()
+                        val brightnessState = stringResource(R.string.player_brightness_value, brightnessPct)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("亮度", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                            Text("${(brightness * 100).roundToInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.player_brightness), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text("$brightnessPct%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Slider(brightness, { brightness = it.coerceAtLeast(.02f); activity.window.attributes = activity.window.attributes.apply { screenBrightness = brightness } }, valueRange = .02f..1f,
-                            modifier = Modifier.semantics { stateDescription = "亮度 ${(brightness * 100).roundToInt()}%" })
+                            modifier = Modifier.semantics { stateDescription = brightnessState })
+                        val volumePct = (volume * 100).roundToInt()
+                        val volumeState = stringResource(R.string.player_volume_value, volumePct)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("音量", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                            Text("${(volume * 100).roundToInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.player_volume), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text("$volumePct%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Slider(volume, { volume = it; audio.setStreamVolume(AudioManager.STREAM_MUSIC, (it * maxVolume).roundToInt(), 0) },
-                            modifier = Modifier.semantics { stateDescription = "音量 ${(volume * 100).roundToInt()}%" })
+                            modifier = Modifier.semantics { stateDescription = volumeState })
                     }
                     Spacer(Modifier.height(10.dp))
                     if (vm.privateSession) {
-                        OutlinedButton(onClick = close, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)) { Icon(Icons.Outlined.Lock, null, Modifier.size(18.dp)); Text("  返回保险箱") }
+                        OutlinedButton(onClick = close, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)) { Icon(Icons.Outlined.Lock, null, Modifier.size(18.dp)); Text("  ${stringResource(R.string.player_return_to_vault)}") }
                     } else if (!shared) {
-                        OutlinedButton(onClick = { sheet = null; vm.hide(setOf(video.id), true) }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)) { Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(18.dp)); Text("  隐藏当前视频") }
+                        OutlinedButton(onClick = { sheet = null; vm.hide(setOf(video.id), true) }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)) { Icon(Icons.Outlined.VisibilityOff, null, Modifier.size(18.dp)); Text("  ${stringResource(R.string.player_hide_current)}") }
                     }
                 }
                 else -> vm.tools.firstOrNull { it.feature.id == sheet }?.panel?.invoke(vm, state, closeSheet)
@@ -416,7 +428,7 @@ import kotlin.math.roundToInt
     Text(title, style = MaterialTheme.typography.titleLarge)
     Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
 }
-private fun repeatLabel(mode: RepeatMode) = when (mode) { RepeatMode.SEQUENCE -> "顺序播放"; RepeatMode.ONE -> "单集循环"; RepeatMode.ALL -> "列表循环" }
+private fun repeatLabelRes(mode: RepeatMode) = when (mode) { RepeatMode.SEQUENCE -> R.string.repeat_sequence; RepeatMode.ONE -> R.string.repeat_one; RepeatMode.ALL -> R.string.repeat_all }
 @Composable private fun PlayerIcon(icon: ImageVector, label: String, click: () -> Unit, modifier: Modifier = Modifier, size: Int = 24, filled: Boolean = false, compact: Boolean = false) {
     IconButton(onClick = click, modifier = modifier.size(if (compact) 38.dp else 44.dp),
         colors = if (filled) IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = .4f)) else IconButtonDefaults.iconButtonColors()) {

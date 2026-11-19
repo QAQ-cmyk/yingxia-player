@@ -12,6 +12,8 @@ import android.provider.OpenableColumns
 import android.provider.DocumentsContract
 import androidx.core.content.ContextCompat
 import androidx.room.withTransaction
+import cn.yingxia.player.AppLocale
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -69,7 +71,7 @@ class MediaStoreSource(private val context: Context) : MediaSource {
                 val collection = if (Build.VERSION.SDK_INT >= 29) MediaStore.Video.Media.getContentUri(volume) else uri
                 val mediaId = num("_id")
                 items += VideoItem(VideoId("ms:$volume:$mediaId"), ContentUris.withAppendedId(collection, mediaId).toString(),
-                    str("_display_name").ifBlank { "未命名视频" }, str("bucket_display_name").ifBlank { "其他视频" },
+                    str("_display_name").ifBlank { AppLocale.str(context, R.string.media_untitled_video) }, str("bucket_display_name").ifBlank { AppLocale.str(context, R.string.media_other_videos) },
                     "$volume:${str("bucket_id")}", num("duration"), num("_size"), num("width").toInt(), num("height").toInt(), num("date_added") * 1000)
             }
         }
@@ -79,8 +81,8 @@ class MediaStoreSource(private val context: Context) : MediaSource {
         try {
             context.contentResolver.openAssetFileDescriptor(Uri.parse(video.uri), "r")?.use { } ?: throw java.io.FileNotFoundException()
             video.uri
-        } catch (_: SecurityException) { throw PlayerFailure(FailureKind.ACCESS_DENIED, "无法访问视频，请重新授予相册权限或选择文件") }
-        catch (_: java.io.FileNotFoundException) { throw PlayerFailure(FailureKind.SOURCE_MISSING, "视频已被移除，或存储设备不可用；收藏与书签仍保留") }
+        } catch (_: SecurityException) { throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_access_denied)) }
+        catch (_: java.io.FileNotFoundException) { throw PlayerFailure(FailureKind.SOURCE_MISSING, AppLocale.str(context, R.string.media_error_source_missing)) }
     }
 }
 
@@ -157,20 +159,20 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         catch (_: SecurityException) {
             access.value = libraryAccess(context)
             dao.markSourceUnavailable(source.sourceId)
-            scanError.value = "相册访问权限已变化，请重新授权"
-        } catch (_: Exception) { scanError.value = "暂时无法扫描视频，请稍后刷新" }
+            scanError.value = AppLocale.str(context, R.string.media_error_perm_changed)
+        } catch (_: Exception) { scanError.value = AppLocale.str(context, R.string.media_error_scan_failed) }
         finally { scanning.value = false }
     }
 
     override suspend fun importVideo(uri: String): VideoItem = mutex.withLock {
         withContext(Dispatchers.IO) {
             val parsed = Uri.parse(uri)
-            require(parsed.scheme == "content") { "请选择手机上的视频文件" }
+            require(parsed.scheme == "content") { AppLocale.str(context, R.string.media_error_pick_local) }
             val canonical = canonicalVideoUri(context, parsed)
             val mediaId = mediaIdentity(canonical ?: parsed)
             val known = mediaId?.let { dao.get(it) } ?: dao.byUri(canonical?.toString() ?: uri) ?: dao.byUri(uri)
             if (known != null) {
-                if (known.hidden) throw PlayerFailure(FailureKind.ACCESS_DENIED, "这个视频已隐藏，请先在隐藏管理中恢复")
+                if (known.hidden) throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_hidden_import))
                 source.resolve(known.domain().copy(uri = uri))
                 val updated = known.copy(accessible = true, uri = uri, source = "document")
                 dao.upsert(listOf(updated))
@@ -187,13 +189,13 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         val canonical = canonicalVideoUri(context, uri)
         val mediaId = mediaIdentity(canonical ?: uri)
         val known = mediaId?.let { dao.get(it) } ?: dao.byUri(canonical?.toString() ?: uri.toString()) ?: dao.byUri(uri.toString())
-        if (known?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, "这个视频已隐藏，请先在隐藏管理中恢复")
+        if (known?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_hidden_import))
         val id = VideoId(known?.id ?: mediaId ?: "uri:${stableHash(uri.toString())}")
         readDocument(uri, id, shared = true)
     }
 
     private fun readDocument(parsed: Uri, id: VideoId, shared: Boolean = false): VideoItem {
-        var name = "导入的视频"
+        var name = AppLocale.str(context, R.string.media_imported_video)
         var size = 0L
         val fields = arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
         context.contentResolver.query(parsed, fields, null, null, null)?.use { c ->
@@ -207,12 +209,12 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
             retriever.setDataSource(context, parsed)
             fun number(key: Int) = retriever.extractMetadata(key)?.toLongOrNull() ?: 0
             if (shared) require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes")
-            VideoItem(id, parsed.toString(), name, if (shared) "相册分享" else "手动添加", "documents",
+            VideoItem(id, parsed.toString(), name, AppLocale.str(context, if (shared) R.string.media_shared_folder else R.string.media_manual_folder), "documents",
                 number(MediaMetadataRetriever.METADATA_KEY_DURATION), size,
                 number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt(), number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt(),
                 System.currentTimeMillis(), if (shared) "share" else "document")
-        } catch (_: SecurityException) { throw PlayerFailure(FailureKind.ACCESS_DENIED, "视频授权已失效，请重新选择文件") }
-        catch (_: Exception) { throw PlayerFailure(FailureKind.UNSUPPORTED_FORMAT, "无法读取这个视频，请选择有效的视频文件") }
+        } catch (_: SecurityException) { throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_grant_expired)) }
+        catch (_: Exception) { throw PlayerFailure(FailureKind.UNSUPPORTED_FORMAT, AppLocale.str(context, R.string.media_error_unreadable)) }
         finally { retriever.release() }
     }
     private fun mediaIdentity(input: Uri): String? {
@@ -244,14 +246,14 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     }
     override suspend fun get(id: VideoId) = dao.get(id.value)?.domain()
     override suspend fun requirePlayable(id: VideoId): VideoItem {
-        val video = get(id) ?: throw PlayerFailure(FailureKind.SOURCE_MISSING, "找不到这个视频")
-        if (video.hidden) throw PlayerFailure(FailureKind.ACCESS_DENIED, "视频已隐藏，请先恢复后播放")
+        val video = get(id) ?: throw PlayerFailure(FailureKind.SOURCE_MISSING, AppLocale.str(context, R.string.media_error_not_found))
+        if (video.hidden) throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_hidden_play))
         source.resolve(video)
         return video
     }
     override suspend fun requirePlayable(video: VideoItem): VideoItem {
         if (video.source != "share") return requirePlayable(video.id)
-        if (get(video.id)?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, "视频已隐藏，请先恢复后播放")
+        if (get(video.id)?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_hidden_play))
         source.resolve(video)
         return video
     }
@@ -262,7 +264,7 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         ids.map { it.value }.chunked(900).forEach { dao.favorite(it, favorite) }
     }
     override suspend fun savePicture(id: VideoId, cropBars: Boolean) {
-        check(dao.get(id.value) != null) { "找不到这个视频" }
+        check(dao.get(id.value) != null) { AppLocale.str(context, R.string.media_error_not_found) }
         dao.crop(id.value, cropBars)
     }
     override suspend fun restoreRecords(rows: List<LibraryRecord>) = db.withTransaction {
@@ -274,9 +276,9 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     }
     override suspend fun rename(id: VideoId, displayName: String) {
         val trimmed = displayName.trim()
-        require(trimmed.isNotEmpty() && trimmed.length <= 80) { "名称需要在 1 到 80 个字之间" }
-        require(trimmed.none { it == '\n' || it == '\r' || it == '\u0000' }) { "名称不能包含换行" }
-        check(dao.get(id.value) != null) { "找不到这个视频" }
+        require(trimmed.isNotEmpty() && trimmed.length <= 80) { AppLocale.str(context, R.string.media_error_rename_length) }
+        require(trimmed.none { it == '\n' || it == '\r' || it == '\u0000' }) { AppLocale.str(context, R.string.media_error_rename_newline) }
+        check(dao.get(id.value) != null) { AppLocale.str(context, R.string.media_error_not_found) }
         dao.rename(id.value, trimmed)
     }
     override suspend fun saveProgress(id: VideoId, positionMs: Long) { dao.progress(id.value, positionMs.coerceAtLeast(0), System.currentTimeMillis()) }

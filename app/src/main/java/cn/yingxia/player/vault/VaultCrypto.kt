@@ -28,7 +28,7 @@ object VaultCrypto {
     init { AeadConfig.register(); StreamingAeadConfig.register() }
 
     fun create(password: CharArray): Pair<ByteArray, VaultSession> {
-        require(password.size in 8..128) { "密码需要 8–128 个字符" }
+        require(password.size in 8..128) { "Password must be 8–128 characters" }
         val stream = KeysetHandle.generateNew(KeyTemplates.get("AES256_GCM_HKDF_1MB"))
         val meta = KeysetHandle.generateNew(KeyTemplates.get("AES256_GCM"))
         val a = TinkProtoKeysetFormat.serializeKeyset(stream, InsecureSecretKeyAccess.get())
@@ -42,7 +42,7 @@ object VaultCrypto {
     }
 
     private fun seal(bundle: ByteArray, password: CharArray): ByteArray {
-        require(password.size in 8..128) { "密码需要 8–128 个字符" }
+        require(password.size in 8..128) { "Password must be 8–128 characters" }
         val salt = ByteArray(16).also(random::nextBytes)
         val nonce = ByteArray(12).also(random::nextBytes)
         val key = derive(password, salt)
@@ -56,7 +56,7 @@ object VaultCrypto {
 
     private fun <T> withBundle(config: ByteArray, password: CharArray, read: (ByteArray) -> T): T {
         try {
-            require(config.size in 60..65536 && config.copyOfRange(0, header.size).contentEquals(header)) { "保险箱配置损坏或版本不受支持" }
+            require(config.size in 60..65536 && config.copyOfRange(0, header.size).contentEquals(header)) { "Vault configuration is damaged or unsupported" }
             val salt = config.copyOfRange(header.size, header.size + 16)
             val nonce = config.copyOfRange(header.size + 16, header.size + 28)
             val key = derive(password, salt)
@@ -128,7 +128,7 @@ object VaultCrypto {
 class VaultSession internal constructor(private var stream: StreamingAead?, private var meta: Aead?) : Closeable {
     @Volatile private var closed = false
     private val readers = mutableSetOf<SeekableByteChannel>()
-    fun requireOpen() { check(!closed) { "保险箱已锁定，请重新输入密码" } }
+    fun requireOpen() { check(!closed) { "Vault is locked. Enter your password again." } }
     private fun aad(id: String, kind: String) = "yingxia-vault-v1:$kind:$id".toByteArray(Charsets.UTF_8)
     @Synchronized fun encryptMetadata(id: String, bytes: ByteArray): ByteArray { requireOpen(); return meta!!.encrypt(bytes, aad(id, "metadata")) }
     @Synchronized fun decryptMetadata(id: String, bytes: ByteArray): ByteArray { requireOpen(); return meta!!.decrypt(bytes, aad(id, "metadata")) }

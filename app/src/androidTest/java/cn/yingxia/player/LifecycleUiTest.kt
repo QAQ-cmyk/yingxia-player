@@ -32,8 +32,8 @@ class LifecycleUiTest {
                 val cardTag = "video-${video.id.value}"
                 ui.onNodeWithTag("video-grid").performScrollToNode(hasTestTag(cardTag))
                 if (longPress) ui.onNodeWithTag(cardTag).performTouchInput { longClick() }
-                else ui.onNodeWithContentDescription("更多操作：${video.name}").performClick()
-                ui.onNodeWithText("本次不记播放记录").performClick()
+                else ui.onNodeWithContentDescription(context.getString(R.string.action_more_for_video, video.name)).performClick()
+                ui.onNodeWithText(context.getString(R.string.action_watch_without_history)).performClick()
                 ui.waitUntil(15000) { graph.player.state.value.isPlaying }
                 ui.onNodeWithTag("lock-vault-now").assertDoesNotExist()
                 ui.activityRule.scenario.recreate()
@@ -41,8 +41,8 @@ class LifecycleUiTest {
                 ui.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
                 ui.waitUntil(5000) { !graph.player.state.value.isPlaying }
                 ui.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
-                ui.onNodeWithContentDescription("本次不记播放记录").assertExists()
-                ui.onNodeWithContentDescription("返回").performClick()
+                ui.onNodeWithContentDescription(context.getString(R.string.action_watch_without_history)).assertExists()
+                ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
                 ui.waitUntil(5000) { graph.player.state.value.video == null }
                 assertEquals(0L, graph.repository.get(video.id)!!.lastPlayedAt)
                 assertEquals(0L, graph.repository.get(video.id)!!.positionMs)
@@ -90,7 +90,7 @@ class LifecycleUiTest {
         graph.repository.setHidden(setOf(video.id), true)
         withTimeout(5000) { while (graph.player.state.value.video != null) delay(50) }
         ui.onNodeWithTag("nav-3").performClick()
-        ui.onNodeWithText("隐藏管理").assertExists().performClick()
+        ui.onNodeWithText(context.getString(R.string.title_hidden_manager)).assertExists().performClick()
         ui.waitUntil(5000) { ui.onAllNodesWithText("lifecycle").fetchSemanticsNodes().isNotEmpty() }
         ui.onNodeWithText("lifecycle").assertExists()
         graph.repository.setHidden(setOf(video.id), false)

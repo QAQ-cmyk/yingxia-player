@@ -16,9 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import cn.yingxia.player.AppViewModel
+import cn.yingxia.player.R
 import cn.yingxia.player.data.LibraryBackup
 import kotlinx.coroutines.launch
 import java.io.File
@@ -40,17 +42,17 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
         scope.launch {
             runCatching {
                 val json = LibraryBackup.export(vm.graph.repository.allVideos(), vm.settings.value)
-                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } ?: error("无法写入备份")
-            }.onSuccess { vm.message("备份已保存。里面没有视频文件。") }
-                .onFailure { vm.message(it.message ?: "无法保存备份") }
+                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } ?: error(context.getString(R.string.backup_error_write))
+            }.onSuccess { vm.message(context.getString(R.string.backup_saved_notice)) }
+                .onFailure { vm.message(it.message ?: context.getString(R.string.backup_error_save)) }
         }
     }
     val import = rememberLauncherForActivityResult(LocalBackupImport()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: error("无法读取备份")
-            }.onSuccess { vm.restoreBackup(it) }.onFailure { vm.message(it.message ?: "无法读取备份") }
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: error(context.getString(R.string.backup_error_read))
+            }.onSuccess { vm.restoreBackup(it) }.onFailure { vm.message(it.message ?: context.getString(R.string.backup_error_read)) }
         }
     }
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -59,14 +61,14 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconBadge(Icons.Outlined.Download, size = 42.dp)
                     Column(Modifier.padding(start = 14.dp)) {
-                        Text("导出与分享", style = MaterialTheme.typography.titleMedium)
-                        Text("纯文本 JSON，仅保存在本机", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.backup_export_title), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.backup_export_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                Text("备份里有收藏、播放进度、显示名称、裁黑边，以及倍速、排序和防误触。这是本机上的文本文件，应用不会上传。",
+                Text(stringResource(R.string.backup_export_desc),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp, bottom = 14.dp))
                 Button(onClick = { export.launch("YingXia-backup.json") }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("保存备份文件")
+                    Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.backup_save_button))
                 }
                 OutlinedButton(onClick = {
                     scope.launch {
@@ -77,11 +79,11 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                             file.writeText(json)
                             val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
                             val send = Intent(Intent.ACTION_SEND).setType("application/json").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            context.startActivity(Intent.createChooser(send, "分享备份"))
-                        }.onFailure { vm.message(it.message ?: "无法分享备份") }
+                            context.startActivity(Intent.createChooser(send, context.getString(R.string.backup_share_chooser)))
+                        }.onFailure { vm.message(it.message ?: context.getString(R.string.backup_error_share)) }
                     }
                 }, shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Share, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("分享备份")
+                    Icon(Icons.Outlined.Share, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.backup_share_button))
                 }
             }
         }
@@ -90,14 +92,14 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconBadge(Icons.Outlined.Restore, size = 42.dp, container = MaterialTheme.colorScheme.tertiaryContainer, tint = MaterialTheme.colorScheme.tertiary)
                     Column(Modifier.padding(start = 14.dp)) {
-                        Text("恢复记录", style = MaterialTheme.typography.titleMedium)
-                        Text("按本机视频地址自动匹配", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.backup_restore_title), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.backup_restore_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                Text("恢复时按视频地址匹配。手机里已经没有的视频会跳过，不会新建空记录。",
+                Text(stringResource(R.string.backup_restore_desc),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp, bottom = 14.dp))
                 OutlinedButton(onClick = { import.launch(arrayOf("application/json", "text/*", "*/*")) }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Icon(Icons.Outlined.Restore, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("从备份恢复")
+                    Icon(Icons.Outlined.Restore, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.backup_restore_button))
                 }
             }
         }

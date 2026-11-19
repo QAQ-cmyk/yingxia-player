@@ -7,8 +7,9 @@
     <!-- Media3 declares this for network playback. Local files do not use it. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
-    <application android:name=".YingXiaApplication" android:label="映匣" android:theme="@style/Theme.YingXia"
+    <application android:name=".YingXiaApplication" android:label="@string/app_name" android:theme="@style/Theme.YingXia"
         android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
+        android:localeConfig="@xml/locales_config" tools:targetApi="33"
         android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules"
         android:supportsRtl="true" android:allowAudioPlaybackCapture="false">
         <provider android:name=".BackupFileProvider" android:authorities="${applicationId}.files"

@@ -1,6 +1,8 @@
 package cn.yingxia.player.ui
 
+import cn.yingxia.player.AppLocale
 import cn.yingxia.player.AppViewModel
+import cn.yingxia.player.R
 import cn.yingxia.player.core.*
 import cn.yingxia.player.features.*
 import cn.yingxia.player.playback.Media3Controller
@@ -22,6 +24,7 @@ class PlayerUiSession(
     private val notice: (String) -> Unit,
     private val hideAction: ((Set<VideoId>, Boolean) -> Unit)? = null,
     val privateSession: Boolean = false,
+    private val actionError: () -> String = { "Could not save this change. Please try again." },
 ) {
     fun command(command: PlayerCommand) = commandSink(command)
     fun message(text: String) = notice(text)
@@ -33,11 +36,12 @@ class PlayerUiSession(
     fun hide(ids: Set<VideoId>, value: Boolean) { hideAction?.invoke(ids, value) }
     private fun action(block: suspend () -> Unit) { scope.launch {
         try { block() } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { message("未能保存本次操作，请重试") }
+        catch (_: Exception) { message(actionError()) }
     } }
     companion object {
         fun ordinary(vm: AppViewModel) = PlayerUiSession(vm.graph.player, vm.graph.repository,
             vm.videos, vm.bookmarks, vm.graph.loop, vm.graph.timer, vm.graph.bookmarks,
-            vm.graph.tools, vm.graph.scope, vm::command, vm::message, vm::hide)
+            vm.graph.tools, vm.graph.scope, vm::command, vm::message, vm::hide,
+            actionError = { AppLocale.str(vm.graph.appContext, R.string.error_action_not_saved) })
     }
 }

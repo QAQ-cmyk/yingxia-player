@@ -1,6 +1,8 @@
 package cn.yingxia.player.vault
 
 import android.content.Context
+import cn.yingxia.player.AppLocale
+import cn.yingxia.player.R
 import cn.yingxia.player.core.PlayerCommand
 import cn.yingxia.player.core.VideoItem
 import cn.yingxia.player.core.LibraryAccess
@@ -66,16 +68,18 @@ class VaultCoordinator(
     fun dismissImport() { state.update { it.copy(importItems = emptyList()) } }
     fun requestImport(items: List<VideoItem>) { if (!state.value.busy) state.update { it.copy(importItems = items) } }
 
+    private fun str(id: Int, vararg args: Any) = AppLocale.str(context, id, *args)
+
     fun unlock(password: CharArray) {
         if (state.value.busy) { password.fill('\u0000'); return }
-        run("正在解锁") {
+        run(str(R.string.vault_prog_unlocking)) {
             try {
                 withContext(Dispatchers.IO) {
                     if (store.configured) store.unlock(password) else store.setup(password)
                 }
                 state.update { it.copy(configured = true, unlocked = true) }
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { store.lock(); state.update { it.copy(unlocked = false) }; error("密码不正确，或保险箱文件损坏；原文件未改动") }
+            catch (_: Exception) { store.lock(); state.update { it.copy(unlocked = false) }; error(str(R.string.vault_error_wrong_password)) }
             finally { password.fill('\u0000') }
             refresh()
             if (consentAnswer != null) finishConsent()
@@ -92,7 +96,7 @@ class VaultCoordinator(
         val lockedAction = action == RecoveryAction.RESET
         if (!state.value.visible || !state.value.configured || state.value.busy || job?.isActive == true ||
             state.value.unlocked == lockedAction) { clear(); return }
-        run("正在本机核验") {
+        run(str(R.string.vault_prog_verifying_local)) {
             withContext(Dispatchers.IO) {
                 val worker = currentCoroutineContext()
                 val beforeCommit: () -> Unit = { worker.ensureActive(); if (!lockedAction) store.requireSession().requireOpen() }
@@ -103,9 +107,9 @@ class VaultCoordinator(
                 }
             }
             val message = when (action) {
-                RecoveryAction.ENROLL -> "密保已开启。忘记密码时，可在这台手机上回答三题并重设密码。"
-                RecoveryAction.DISABLE -> "密保已关闭，以后需要密码才能打开保险箱。"
-                RecoveryAction.RESET -> "密码已重设。请用新密码解锁，然后按需重新设置密保。"
+                RecoveryAction.ENROLL -> str(R.string.vault_msg_recovery_enabled)
+                RecoveryAction.DISABLE -> str(R.string.vault_msg_recovery_disabled)
+                RecoveryAction.RESET -> str(R.string.vault_msg_password_reset)
             }
             state.update { it.copy(recoveryEnabled = store.recovery.enabled, message = message) }
         }
@@ -118,7 +122,7 @@ class VaultCoordinator(
         if (items.isEmpty()) return
         state.update { it.copy(importItems = emptyList()) }
         if (items.all { it.source == "share" }) {
-            run("准备加密") {
+            run(str(R.string.vault_prog_preparing_encrypt)) {
                 var done = 0
                 try {
                     items.forEach { video ->
@@ -130,15 +134,15 @@ class VaultCoordinator(
                         if (!alreadySaved) store.encrypt(video) { progress("${done + 1}/${items.size} · $it") }
                         done++
                     }
-                    state.update { it.copy(message = "已加密并校验 $done 个视频。相册原件已保留。") }
+                    state.update { it.copy(message = str(R.string.vault_msg_share_encrypt_done, done)) }
                 } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { error("已加密 $done/${items.size} 个视频。其余视频未完成，请检查原件和可用空间。相册原件已保留。") }
+                catch (_: Exception) { error(str(R.string.vault_msg_share_encrypt_partial, done, items.size)) }
                 finally { if (currentCoroutineContext().isActive) refresh() }
             }
             return
         }
         queue = items
-        run("准备加密") { ordinaryPlayer.execute(PlayerCommand.Close); continueImport() }
+        run(str(R.string.vault_prog_preparing_encrypt)) { ordinaryPlayer.execute(PlayerCommand.Close); continueImport() }
     }
     private suspend fun continueImport() {
         while (queue.isNotEmpty()) {
@@ -150,15 +154,15 @@ class VaultCoordinator(
             if (!removeOriginal(entry)) return
             queue = queue.drop(1)
         }
-        state.update { it.copy(message = "已加密并移除所选相册原件。相册中如有其他副本，仍需单独处理。") }
+        state.update { it.copy(message = str(R.string.vault_msg_encrypt_done)) }
     }
     fun retryRemoval(id: String) {
         if (!state.value.unlocked) return
-        run("校验加密副本与原件") { removeOriginal(withContext(Dispatchers.IO) { store.load(id) }); refresh() }
+        run(str(R.string.vault_prog_verify_before_remove)) { removeOriginal(withContext(Dispatchers.IO) { store.load(id) }); refresh() }
     }
     private suspend fun removeOriginal(entry: VaultEntry): Boolean {
-        check(!entry.manageOriginalInGallery) { "请回来源相册管理原件" }
-        progress("校验副本与原件，准备请求移除")
+        check(!entry.manageOriginalInGallery) { str(R.string.vault_error_manage_in_gallery) }
+        progress(str(R.string.vault_prog_verify_request_remove))
         store.verifyBeforeRemoval(entry)
         val removalUri = withContext(Dispatchers.IO) { canonicalVideoUri(context, Uri.parse(entry.sourceUri))?.toString() ?: entry.sourceUri }
         withContext(Dispatchers.IO) { store.save(entry.copy(removalUri = removalUri)) }
@@ -166,7 +170,7 @@ class VaultCoordinator(
             DeleteOutcome.Deleted -> finishRemoval(entry)
             is DeleteOutcome.Consent -> {
                 consentEntry = entry.id; launchedConsent = result; consentAnswer = null
-                state.update { it.copy(consent = result, consentToken = ++serial, busy = true, progress = "请在系统窗口确认移除相册原件") }
+                state.update { it.copy(consent = result, consentToken = ++serial, busy = true, progress = str(R.string.vault_prog_confirm_removal)) }
                 return false
             }
         }
@@ -178,8 +182,8 @@ class VaultCoordinator(
         scope.launch {
             job?.join()
             if (consentAnswer == null) return@launch
-            if (state.value.unlocked) run("核对相册移除结果", allowWaiting = true) { finishConsent() }
-            else state.update { it.copy(message = "请重新解锁，核对刚才的相册操作结果") }
+            if (state.value.unlocked) run(str(R.string.vault_prog_checking_removal), allowWaiting = true) { finishConsent() }
+            else state.update { it.copy(message = str(R.string.vault_msg_reunlock_to_check)) }
         }
     }
     private suspend fun finishConsent() {
@@ -190,7 +194,7 @@ class VaultCoordinator(
         val entry = withContext(Dispatchers.IO) { store.load(id) }
         if (!approved) {
             queue = emptyList()
-            state.update { it.copy(message = "已保留加密副本；未获准移除原件，相册仍可见。可在视频下方继续移除。") }
+            state.update { it.copy(message = str(R.string.vault_msg_removal_cancelled)) }
             refresh(); return
         }
         if (consent.retryDelete) {
@@ -199,7 +203,7 @@ class VaultCoordinator(
         } else files.verifySystemDeletion(consent.mediaUri)
         finishRemoval(entry)
         if (queue.isNotEmpty()) { queue = queue.drop(1); continueImport() }
-        else state.update { it.copy(message = "已确认相册原件移除，加密视频可在保险箱播放") }
+        else state.update { it.copy(message = str(R.string.vault_msg_removal_confirmed)) }
     }
     private suspend fun finishRemoval(entry: VaultEntry) {
         // Also purge plaintext names/history/bookmarks from the ordinary library and JSON backups.
@@ -219,15 +223,15 @@ class VaultCoordinator(
     fun deleteEncrypted(id: String) {
         if (!state.value.unlocked) return
         stopPlaying()
-        run("正在移除保险箱副本") {
+        run(str(R.string.vault_prog_removing_copy)) {
             withContext(Dispatchers.IO) { store.remove(id) }
-            refresh(); state.update { it.copy(message = "已移除保险箱副本，相册中的文件未改动") }
+            refresh(); state.update { it.copy(message = str(R.string.vault_msg_copy_removed)) }
         }
     }
     fun restore(id: String) {
         if (!state.value.unlocked) return
         stopPlaying()
-        run("准备恢复到相册") {
+        run(str(R.string.vault_prog_preparing_restore)) {
             val entry = withContext(Dispatchers.IO) { store.load(id) }
             val result = store.restore(entry, ::progress)
             refresh(); repository.refresh()
@@ -236,7 +240,7 @@ class VaultCoordinator(
     }
     fun play(entry: VaultEntry) {
         if (state.value.busy || !state.value.unlocked) return
-        run("准备安全播放") {
+        run(str(R.string.vault_prog_preparing_playback)) {
             stopPlaying()
             val records = VaultVideoRepository(store)
             records.initialize(state.value.entries)
@@ -272,7 +276,7 @@ class VaultCoordinator(
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 queue = emptyList()
-                if (token == epoch.get()) state.update { it.copy(message = e.message ?: "操作未完成，原文件与已完成的加密副本均未主动清除") }
+                if (token == epoch.get()) state.update { it.copy(message = e.message ?: str(R.string.vault_error_operation_incomplete)) }
             } finally {
                 if (token == epoch.get()) state.update { it.copy(busy = launchedConsent != null && consentAnswer == null, progress = "") }
                 else store.lock() // A slow password derivation must not leave a session unlocked after backgrounding.

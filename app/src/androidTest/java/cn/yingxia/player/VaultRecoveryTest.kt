@@ -99,7 +99,8 @@ class VaultRecoveryTest {
         }
         vault.lock()
         vault = VaultStore(context, directory)
-        assertTrue(rejected { vault.recovery.reset(answers(), fresh.toCharArray()) {} }.message.orEmpty().contains("秒后"))
+        val cooldownMsg = rejected { vault.recovery.reset(answers(), fresh.toCharArray()) {} }.message.orEmpty()
+        assertTrue(cooldownMsg, cooldownMsg.contains("秒后") || cooldownMsg.contains("seconds", ignoreCase = true))
         vault.unlock(old.toCharArray())
         rejected { vault.recovery.disable(fresh.toCharArray()) {} }
         assertTrue(vault.recovery.enabled)

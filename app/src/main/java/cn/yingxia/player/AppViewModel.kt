@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.DeleteOutcome
+import cn.yingxia.player.data.InvalidBackupException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 
 class AppViewModel(val graph: AppGraph) : ViewModel() {
+    private fun str(id: Int, vararg args: Any) = AppLocale.str(graph.appContext, id, *args)
     val videos = graph.repository.videos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val hidden = graph.repository.hiddenVideos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val bookmarks = graph.repository.bookmarks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -23,7 +25,7 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     internal fun receiveShare(incoming: GalleryShare) {
         dismissShare()
         if (graph.vault.state.value.busy || fileOperation.value.busy) {
-            share.value = GalleryShare(error = "请先完成当前文件操作，再从相册分享。")
+            share.value = GalleryShare(error = str(R.string.share_error_busy))
             return
         }
         if (graph.vault.state.value.visible) graph.vault.close()
@@ -52,7 +54,7 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                 share.value = null
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                val message = if (e is PlayerFailure) e.message else "分享的视频无法读取。请确认原件在手机上，再从相册重新分享。"
+                val message = if (e is PlayerFailure) e.message else str(R.string.share_error_unreadable)
                 share.value = GalleryShare(error = message)
             }
         }
@@ -73,14 +75,14 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     fun createFolder(parent: String, name: String, onCreated: (StorageFolder) -> Unit) {
         viewModelScope.launch {
             runCatching { graph.files.createFolder(parent, name).also { graph.settings.addFolder(it) } }
-                .onSuccess { notify("文件夹已创建在手机存储中"); onCreated(it) }
-                .onFailure { notify(it.message ?: "无法新建文件夹") }
+                .onSuccess { notify(str(R.string.file_op_folder_created)); onCreated(it) }
+                .onFailure { notify(it.message ?: str(R.string.file_op_folder_create_failed)) }
         }
     }
     fun manageFiles(items: List<VideoItem>, target: StorageFolder? = null) {
         if (fileOperation.value.busy || items.isEmpty()) return
         fileItems = items.distinctBy { it.id }; fileTarget = target; fileIndex = 0; fileSucceeded = 0; copiedUri = null
-        fileOperation.value = FileOperationState(busy = true)
+        fileOperation.value = FileOperationState(busy = true, message = str(R.string.file_op_preparing))
         viewModelScope.launch {
             if (graph.player.state.value.video?.id in fileItems.map { it.id }) graph.player.execute(PlayerCommand.Close)
             continueFiles()
@@ -89,18 +91,19 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     private suspend fun continueFiles() {
         while (fileIndex < fileItems.size) {
             val video = fileItems[fileIndex]
-            fileOperation.value = FileOperationState(true, "${if (fileTarget == null) "正在删除" else "正在复制并校验"} ${fileIndex + 1}/${fileItems.size}：${video.name}")
+            fileOperation.value = FileOperationState(true, str(if (fileTarget == null) R.string.file_op_deleting else R.string.file_op_copying, fileIndex + 1, fileItems.size, video.name))
             try {
                 if (fileTarget != null && copiedUri == null) copiedUri = graph.files.copyVerified(video, fileTarget!!)
                 when (val result = graph.files.delete(video)) {
                     DeleteOutcome.Deleted -> finishFile()
                     is DeleteOutcome.Consent -> {
-                        fileOperation.value = FileOperationState(true, "请在系统窗口中确认删除${if (fileTarget != null) "原件，完成移动" else "视频"}", result, ++consentSerial)
+                        fileOperation.value = FileOperationState(true, str(if (fileTarget != null) R.string.file_op_consent_move else R.string.file_op_consent_delete), result, ++consentSerial)
                         return
                     }
                 }
             } catch (e: Exception) {
-                finishFiles("${video.name}：${e.message ?: "操作失败"}${if (copiedUri != null) "；副本已校验并保留，原件删除未确认" else ""}")
+                val reason = e.message ?: str(R.string.file_op_failed_fallback)
+                finishFiles(str(if (copiedUri != null) R.string.file_op_failed_copy_kept else R.string.file_op_failed_single, video.name, reason))
                 return
             }
         }
@@ -116,19 +119,19 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
         val consent = fileOperation.value.consent ?: return
         fileOperation.value = fileOperation.value.copy(consent = null)
         viewModelScope.launch {
-            if (!approved) { finishFiles(if (copiedUri != null) "已取消删除原件；原视频和已校验的副本均保留，未完成移动" else "已取消，其余视频未删除"); return@launch }
+            if (!approved) { finishFiles(str(if (copiedUri != null) R.string.file_op_cancelled_move else R.string.file_op_cancelled_delete)); return@launch }
             try {
                 val video = fileItems[fileIndex]
                 if (consent.retryDelete) check(graph.files.delete(video, true) == DeleteOutcome.Deleted)
                 else graph.files.verifySystemDeletion(consent.mediaUri)
                 finishFile(); continueFiles()
-            } catch (e: Exception) { finishFiles(e.message ?: "未能完成文件操作") }
+            } catch (e: Exception) { finishFiles(e.message ?: str(R.string.file_op_incomplete)) }
         }
     }
     private suspend fun finishFiles(detail: String? = null) {
-        val done = "已${if (fileTarget == null) "删除" else "移动"} $fileSucceeded/${fileItems.size} 个视频"
+        val done = str(if (fileTarget == null) R.string.file_op_summary_deleted else R.string.file_op_summary_moved, fileSucceeded, fileItems.size)
         val refreshFailure = runCatching { graph.repository.refresh() }.exceptionOrNull()
-        val report = listOfNotNull(done, detail, refreshFailure?.let { "列表刷新失败，请稍后重新扫描" }).joinToString("。")
+        val report = listOfNotNull(done, detail, refreshFailure?.let { str(R.string.file_op_refresh_failed) }).joinToString("\n")
         fileItems = emptyList(); copiedUri = null; fileTarget = null
         fileOperation.value = FileOperationState(result = report)
     }
@@ -141,7 +144,7 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
             val at = PlaybackRules.resume(video.positionMs, video.durationMs)
             if (at > 0) {
                 val seconds = at / 1000
-                viewModelScope.launch { notify("从 %02d:%02d 继续播放".format(seconds / 60, seconds % 60)) }
+                viewModelScope.launch { notify(str(R.string.notice_resume_from, "%02d:%02d".format(seconds / 60, seconds % 60))) }
             }
         }
         command(PlayerCommand.Open(video.id, queue.map { it.id }, position, recordHistory))
@@ -150,21 +153,21 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
         if (ids.isEmpty()) return
         viewModelScope.launch {
             graph.repository.setHidden(ids, hidden)
-            if (hidden) notify("已隐藏 ${ids.size} 个视频，没有删除文件", "撤销") {
+            if (hidden) notify(str(R.string.notice_hidden_count, ids.size), str(R.string.action_undo)) {
                 viewModelScope.launch {
                     graph.repository.setHidden(ids, false)
-                    notify("已恢复显示")
+                    notify(str(R.string.notice_restored_visible))
                 }
-            } else notify("已恢复 ${ids.size} 个视频")
+            } else notify(str(R.string.notice_unhidden_count, ids.size))
         }
     }
     fun favorite(ids: Set<VideoId>, favorite: Boolean) {
-        viewModelScope.launch { graph.repository.setFavorite(ids, favorite); notify(if (favorite) "已加入收藏" else "已取消收藏") }
+        viewModelScope.launch { graph.repository.setFavorite(ids, favorite); notify(str(if (favorite) R.string.notice_favorited else R.string.notice_unfavorited)) }
     }
     fun savePicture(id: VideoId, cropBars: Boolean) {
         viewModelScope.launch {
             runCatching { graph.repository.savePicture(id, cropBars) }
-                .onFailure { notify(it.message ?: "无法保存画面设置") }
+                .onFailure { notify(it.message ?: str(R.string.notice_picture_save_failed)) }
         }
     }
     fun startLibraryScan() {
@@ -188,12 +191,12 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                 }
                 if (bad != null) unreadable += video to bad!! else if (key != null) keys += video to key!!
             }
-            libraryScan.value = LibraryScanState(false, videos.size, videos.size, "检查完成", duplicateGroups(keys), unreadable)
+            libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(keys), unreadable)
         }
     }
     fun cancelLibraryScan() {
         scanJob?.cancel()
-        libraryScan.value = libraryScan.value.copy(running = false, label = "已取消")
+        libraryScan.value = libraryScan.value.copy(running = false, label = str(R.string.scan_cancelled_label))
     }
     fun restoreBackup(text: String) {
         viewModelScope.launch {
@@ -202,21 +205,21 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                 graph.settings.replacePlayback(plan.settings)
                 graph.repository.restoreRecords(plan.matched)
                 plan
-            }.onSuccess { notify(if (it.skipped == 0) "已恢复 ${it.matched.size} 条记录" else "已恢复 ${it.matched.size} 条记录，${it.skipped} 条找不到对应视频") }
-                .onFailure { notify(it.message ?: "无法读取备份") }
+            }.onSuccess { notify(if (it.skipped == 0) str(R.string.backup_restored_all, it.matched.size) else str(R.string.backup_restored_partial, it.matched.size, it.skipped)) }
+                .onFailure { notify(if (it is InvalidBackupException) str(R.string.backup_error_invalid_file) else it.message ?: str(R.string.backup_error_read)) }
         }
     }
     fun rename(id: VideoId, displayName: String) {
         viewModelScope.launch {
             runCatching { graph.repository.rename(id, displayName) }
-                .onSuccess { notify("已更新显示名称") }
-                .onFailure { notify(it.message ?: "无法重命名") }
+                .onSuccess { notify(str(R.string.notice_renamed)) }
+                .onFailure { notify(it.message ?: str(R.string.notice_rename_failed)) }
         }
     }
     fun importVideo(uri: String) {
         viewModelScope.launch {
             runCatching { graph.repository.importVideo(uri) }.onSuccess { open(it, listOf(it)) }
-                .onFailure { notify(it.message ?: "未能打开这个视频") }
+                .onFailure { notify(it.message ?: str(R.string.notice_import_failed)) }
         }
     }
     fun refresh() { viewModelScope.launch { graph.repository.refresh() } }
@@ -230,7 +233,7 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     }
 }
 
-data class FileOperationState(val busy: Boolean = false, val message: String = "正在准备文件操作",
+data class FileOperationState(val busy: Boolean = false, val message: String = "",
     val consent: DeleteOutcome.Consent? = null, val token: Long = 0, val result: String? = null)
 
 /** A short message. [actionLabel] is shown on the snackbar when the action can be undone. */
@@ -239,7 +242,7 @@ data class LibraryScanState(
     val running: Boolean = false,
     val done: Int = 0,
     val total: Int = 0,
-    val label: String = "还没有检查",
+    val label: String = "",
     val duplicates: List<List<VideoItem>> = emptyList(),
     val unreadable: List<Pair<VideoItem, String>> = emptyList(),
 )

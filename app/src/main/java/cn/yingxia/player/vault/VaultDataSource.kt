@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSpec
+import cn.yingxia.player.R
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.SeekableByteChannel
@@ -23,25 +24,25 @@ class VaultDataSource(private val store: VaultStore, private val entryId: String
             val entry = store.load(entryId)
             val channel = active.open(entryId, store.payload(entryId))
             session = active; reader = channel
-            if (dataSpec.position > entry.bytes) throw IOException("播放位置超出视频长度")
+            if (dataSpec.position > entry.bytes) throw IOException(store.str(R.string.vault_ds_seek_oob))
             channel.position(dataSpec.position)
             remaining = entry.bytes - dataSpec.position
             if (dataSpec.length != C.LENGTH_UNSET.toLong()) remaining = minOf(remaining, dataSpec.length)
             currentUri = dataSpec.uri
             transferStarted(dataSpec)
             return remaining
-        } catch (e: Exception) { close(); throw IOException("保险箱视频无法读取：已锁定或文件校验失败", e) }
+        } catch (e: Exception) { close(); throw IOException(store.str(R.string.vault_ds_open_failed), e) }
     }
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
         if (remaining == 0L) return C.RESULT_END_OF_INPUT
         try {
-            session?.requireOpen() ?: throw IOException("保险箱已锁定")
+            session?.requireOpen() ?: throw IOException(store.str(R.string.vault_ds_locked))
             val n = reader!!.read(ByteBuffer.wrap(buffer, offset, minOf(length.toLong(), remaining).toInt()))
-            if (n < 0) throw IOException("加密视频不完整")
+            if (n < 0) throw IOException(store.str(R.string.vault_ds_truncated))
             remaining -= n; if (n > 0) bytesTransferred(n)
             return n
-        } catch (e: Exception) { throw IOException("无法解密视频：文件损坏或保险箱已锁定", e) }
+        } catch (e: Exception) { throw IOException(store.str(R.string.vault_ds_read_failed), e) }
     }
     override fun getUri(): Uri? = currentUri
     override fun close() {
