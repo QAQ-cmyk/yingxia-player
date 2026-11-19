@@ -37,19 +37,24 @@ object VaultCrypto {
             DataOutputStream(output).use { it.writeInt(a.size); it.write(a); it.writeInt(b.size); it.write(b) }
         }.toByteArray()
         try {
-            val salt = ByteArray(16).also(random::nextBytes)
-            val nonce = ByteArray(12).also(random::nextBytes)
-            val key = derive(password, salt)
-            try {
-                val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-                cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
-                cipher.updateAAD(header + salt)
-                return (header + salt + nonce + cipher.doFinal(bundle)) to session(stream, meta)
-            } finally { key.fill(0) }
+            return seal(bundle, password) to session(stream, meta)
         } finally { a.fill(0); b.fill(0); bundle.fill(0); password.fill('\u0000') }
     }
 
-    fun unlock(config: ByteArray, password: CharArray): VaultSession {
+    private fun seal(bundle: ByteArray, password: CharArray): ByteArray {
+        require(password.size in 8..128) { "密码需要 8–128 个字符" }
+        val salt = ByteArray(16).also(random::nextBytes)
+        val nonce = ByteArray(12).also(random::nextBytes)
+        val key = derive(password, salt)
+        try {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
+            cipher.updateAAD(header + salt)
+            return header + salt + nonce + cipher.doFinal(bundle)
+        } finally { key.fill(0) }
+    }
+
+    private fun <T> withBundle(config: ByteArray, password: CharArray, read: (ByteArray) -> T): T {
         try {
             require(config.size in 60..65536 && config.copyOfRange(0, header.size).contentEquals(header)) { "保险箱配置损坏或版本不受支持" }
             val salt = config.copyOfRange(header.size, header.size + 16)
@@ -61,22 +66,31 @@ object VaultCrypto {
                 cipher.updateAAD(header + salt)
                 cipher.doFinal(config.copyOfRange(header.size + 28, config.size))
             } finally { key.fill(0) }
-            try {
-                DataInputStream(ByteArrayInputStream(clear)).use { input ->
-                    fun readKey(): KeysetHandle {
-                        val length = input.readInt()
-                        require(length in 1..16384 && length <= input.available())
-                        val bytes = ByteArray(length).also(input::readFully)
-                        return try { TinkProtoKeysetFormat.parseKeyset(bytes, InsecureSecretKeyAccess.get()) }
-                        finally { bytes.fill(0) }
-                    }
-                    val stream = readKey(); val meta = readKey()
-                    require(input.available() == 0)
-                    return session(stream, meta)
-                }
-            } finally { clear.fill(0) }
+            return try { read(clear) } finally { clear.fill(0) }
         } finally { password.fill('\u0000') }
     }
+
+    internal fun rewrap(config: ByteArray, current: CharArray, credential: () -> CharArray): ByteArray =
+        withBundle(config, current) { clear ->
+            val replacement = credential()
+            try { seal(clear, replacement) } finally { replacement.fill('\u0000') }
+        }
+
+    fun unlock(config: ByteArray, password: CharArray): VaultSession =
+        withBundle(config, password) { clear ->
+            DataInputStream(ByteArrayInputStream(clear)).use { input ->
+                fun readKey(): KeysetHandle {
+                    val length = input.readInt()
+                    require(length in 1..16384 && length <= input.available())
+                    val bytes = ByteArray(length).also(input::readFully)
+                    return try { TinkProtoKeysetFormat.parseKeyset(bytes, InsecureSecretKeyAccess.get()) }
+                    finally { bytes.fill(0) }
+                }
+                val stream = readKey(); val meta = readKey()
+                require(input.available() == 0)
+                session(stream, meta)
+            }
+        }
 
     private fun session(stream: KeysetHandle, meta: KeysetHandle) = VaultSession(
         stream.getPrimitive(StreamingAead::class.java), meta.getPrimitive(Aead::class.java))

@@ -38,7 +38,7 @@ class VaultLifecycleTest {
             withContext(Dispatchers.Main) { graph.vault.show(listOf(video)) }
             ui.onNodeWithTag("vault-password").performTextInput("UI test password 123")
             ui.onNodeWithTag("vault-password-confirm").performTextInput("UI test password 123")
-            ui.onNodeWithText("我已了解：忘记密码无法恢复；卸载应用、清空数据会丢失视频。普通记录备份不包含保险箱。").performScrollTo().performClick()
+            ui.onNodeWithTag("vault-acknowledge").performScrollTo().performClick()
             ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
             withTimeout(60000) { while (!graph.vault.state.value.unlocked || graph.vault.state.value.busy) delay(100) }
             created = true
@@ -124,6 +124,31 @@ class VaultLifecycleTest {
             assertTrue(reopened.player.state.value.positionMs >= 4200)
             assertTrue(reopened.repository.get(privateId)!!.favorite)
             assertEquals("安全播放界面的私密书签", reopened.repository.bookmarks.value.single().note)
+            withContext(Dispatchers.Main) { graph.vault.stopPlaying() }
+            ui.onNodeWithText("设置密保问题").performScrollTo().performClick()
+            fun fillAnswers() {
+                listOf("island willow", "blue night library", "hello future").forEachIndexed { index, phrase ->
+                    ui.onNodeWithTag("recovery-answer-" + index).performScrollTo().performTextInput(phrase)
+                }
+            }
+            fillAnswers()
+            ui.onNodeWithTag("recovery-password").performScrollTo().performTextInput("UI test password 123")
+            ui.onNodeWithTag("recovery-submit").performScrollTo().performClick()
+            ui.waitUntil(60000) { graph.vault.state.value.recoveryEnabled }
+            ui.onNodeWithText("知道了").performClick()
+            ui.onNodeWithContentDescription("立即锁定").performClick()
+            ui.onNodeWithText("忘记密码？回答密保问题").performScrollTo().performClick()
+            fillAnswers()
+            ui.onNodeWithTag("recovery-password").performScrollTo().performTextInput("my new UI password")
+            ui.onNodeWithTag("recovery-confirm").performScrollTo().performTextInput("my new UI password")
+            ui.onNodeWithTag("recovery-submit").performScrollTo().performClick()
+            ui.waitUntil(60000) { !graph.vault.state.value.recoveryEnabled }
+            ui.onNodeWithText("知道了").performClick()
+            ui.onNodeWithTag("vault-password").performScrollTo().performTextInput("my new UI password")
+            ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
+            ui.waitUntil(60000) { graph.vault.state.value.entries.size == 1 && !graph.vault.state.value.busy }
+            assertEquals(privateId.value, graph.vault.state.value.entries.single().id)
+
         } finally {
             withContext(Dispatchers.Main) { graph.vault.close() }
             if (created) graph.vault.store.directory.deleteRecursively()

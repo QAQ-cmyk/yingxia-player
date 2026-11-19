@@ -13,8 +13,8 @@ if not __import__('re').fullmatch(r'\d+\.\d+\.\d+', version):
 root = Path(__file__).resolve().parents[1]
 delivery = root / 'delivery'
 destination = delivery / f'YingXia-{version}-source.zip'
-roots = ['app', 'gradle', 'scripts', 'docs', 'delivery']
-files = {root / name for name in ['.gitignore', '.gitattributes', 'README.md', 'LICENSE',
+roots = ['.github', 'app', 'gradle', 'scripts', 'docs', 'delivery']
+files = {root / name for name in ['.gitignore', '.gitattributes', 'README.md', 'README.en.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE',
     'settings.gradle.kts', 'build.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat']}
 for folder in roots:
     for path in (root / folder).rglob('*'):

@@ -17,7 +17,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicLong
 
+internal enum class RecoveryAction { ENROLL, DISABLE, RESET }
+
 data class VaultUiState(
+    val recoveryEnabled: Boolean = false,
     val visible: Boolean = false, val configured: Boolean = false, val unlocked: Boolean = false,
     val busy: Boolean = false, val progress: String = "", val message: String? = null,
     val entries: List<VaultEntry> = emptyList(), val importItems: List<VideoItem> = emptyList(),
@@ -32,7 +35,7 @@ class VaultCoordinator(
     private val settings: cn.yingxia.player.data.SettingsRepository,
 ) {
     val store = VaultStore(context)
-    val state = MutableStateFlow(VaultUiState(configured = store.configured))
+    val state = MutableStateFlow(VaultUiState(configured = store.configured, recoveryEnabled = store.recovery.enabled))
     private var job: Job? = null
     private var previousJob: Job? = null
     private val epoch = AtomicLong(0)
@@ -46,7 +49,7 @@ class VaultCoordinator(
 
     fun show(items: List<VideoItem> = emptyList()) {
         if (state.value.busy) return
-        state.update { it.copy(visible = true, configured = store.configured, importItems = items.filter { item -> item.accessible }, message = null) }
+        state.update { it.copy(visible = true, configured = store.configured, recoveryEnabled = store.recovery.enabled, importItems = items.filter { item -> item.accessible }, message = null) }
         scope.launch { ordinaryPlayer.execute(PlayerCommand.Close) }
     }
     fun close() { lock(); state.update { it.copy(visible = false) } }
@@ -56,7 +59,7 @@ class VaultCoordinator(
         try { releasePlayer?.invoke() } finally {
             releasePlayer = null; playback = null
             store.lock(); queue = emptyList()
-            state.value = VaultUiState(visible = state.value.visible, configured = store.configured, epoch = epoch.get())
+            state.value = VaultUiState(visible = state.value.visible, configured = store.configured, recoveryEnabled = store.recovery.enabled, epoch = epoch.get())
         }
     }
     fun dismissMessage() { state.update { it.copy(message = null) } }
@@ -78,6 +81,31 @@ class VaultCoordinator(
             if (consentAnswer != null) finishConsent()
             reconcileRemovedSources()
         }
+    }
+
+    internal fun updateRecovery(action: RecoveryAction, password: CharArray, answers: List<CharArray>) {
+        fun clear() { password.fill('\u0000'); answers.forEach { it.fill('\u0000') } }
+        val lockedAction = action == RecoveryAction.RESET
+        if (!state.value.visible || !state.value.configured || state.value.busy || job?.isActive == true ||
+            state.value.unlocked == lockedAction) { clear(); return }
+        run("正在本机核验") {
+            withContext(Dispatchers.IO) {
+                val worker = currentCoroutineContext()
+                val beforeCommit: () -> Unit = { worker.ensureActive(); if (!lockedAction) store.requireSession().requireOpen() }
+                when (action) {
+                    RecoveryAction.ENROLL -> store.recovery.enroll(password, answers, beforeCommit)
+                    RecoveryAction.DISABLE -> store.recovery.disable(password, beforeCommit)
+                    RecoveryAction.RESET -> store.recovery.reset(answers, password, beforeCommit)
+                }
+            }
+            val message = when (action) {
+                RecoveryAction.ENROLL -> "密保已开启。忘记密码时，可在这台手机上回答三题并重设密码。"
+                RecoveryAction.DISABLE -> "密保已关闭，以后需要密码才能打开保险箱。"
+                RecoveryAction.RESET -> "密码已重设。请用新密码解锁，然后按需重新设置密保。"
+            }
+            state.update { it.copy(recoveryEnabled = store.recovery.enabled, message = message) }
+        }
+        job?.invokeOnCompletion { clear() }
     }
 
     fun importConfirmed() {

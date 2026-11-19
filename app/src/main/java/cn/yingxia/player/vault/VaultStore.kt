@@ -51,6 +51,7 @@ data class VaultInventory(val entries: List<VaultEntry>, val damagedRecords: Int
 /** Private ciphertext storage. All operations are called on IO, under the coordinator's single job. */
 class VaultStore(private val context: Context, val directory: File = File(context.noBackupFilesDir, "encrypted-vault")) {
     init { directory.mkdirs() }
+    internal val recovery = VaultRecovery(context, directory, ::syncDirectory)
     private val config = File(directory, "keyset.bin")
     @Volatile var session: VaultSession? = null; private set
     val configured get() = config.isFile
