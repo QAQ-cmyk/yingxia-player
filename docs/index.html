@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YingXia Player · 映匣 — Offline Android Video Player & AES-256-GCM Encrypted Vault</title>
+  <meta name="description" content="100% offline open-source Android video player with zero internet permission and a real Google Tink AES-256-GCM streaming-encrypted video vault.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="YingXia Player · 映匣 — Offline Android Video Player & Encrypted Vault">
+  <meta property="og:description" content="Zero internet permission. AES-256-GCM streaming decryption in memory with zero plaintext cache. MIT Open Source for Android 8.0+.">
+  <meta property="og:image" content="https://qaq-cmyk.github.io/yingxia-player/social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://qaq-cmyk.github.io/yingxia-player/social-preview.png">
+  <link rel="icon" type="image/png" href="icon.png">
+  <style>
+    :root {
+      --bg: #fffcfd;
+      --bg-soft: #f7f4f6;
+      --surface: #ffffff;
+      --border: #ece7ea;
+      --text: #181a20;
+      --muted: #5f6475;
+      --pink: #e03e68;
+      --pink-deep: #c42c54;
+      --pink-soft: #ffedf2;
+      --violet: #6c5ce7;
+      --violet-soft: #f1efff;
+      --teal: #0f9d74;
+      --shadow: 0 14px 40px rgba(24, 26, 32, 0.06);
+      --code-bg: #141720;
+      --code-text: #eef1f8;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0e1015;
+        --bg-soft: #151822;
+        --surface: #181c26;
+        --border: #262b3a;
+        --text: #f3f4f8;
+        --muted: #9ba1b4;
+        --pink: #ff6e97;
+        --pink-deep: #ff5485;
+        --pink-soft: rgba(255, 110, 151, 0.14);
+        --violet: #b6abff;
+        --violet-soft: rgba(124, 92, 250, 0.16);
+        --teal: #34d399;
+        --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+        --code-bg: #090b10;
+        --code-text: #eef1f8;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Roboto, sans-serif;
+      background:
+        radial-gradient(900px 460px at 15% -5%, var(--pink-soft), transparent 65%),
+        radial-gradient(700px 420px at 88% 4%, var(--violet-soft), transparent 65%),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+    /* Nav */
+    header {
+      position: sticky; top: 0; z-index: 20;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px; gap: 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; }
+    .brand img { width: 32px; height: 32px; border-radius: 8px; }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .nav-link { font-size: 0.9rem; color: var(--muted); padding: 6px 10px; border-radius: 999px; transition: color .15s, background .15s; }
+    .nav-link:hover { color: var(--text); background: var(--bg-soft); }
+    .lang-btn {
+      border: 1px solid var(--border); background: var(--surface); color: var(--text);
+      padding: 6px 12px; border-radius: 999px; font-size: 0.84rem; font-weight: 600;
+      cursor: pointer; transition: border-color .15s, transform .15s;
+    }
+    .lang-btn:hover { border-color: var(--pink); }
+
+    /* Hero */
+    .hero { padding: 72px 0 48px; text-align: center; }
+    .pill-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 22px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 13px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    }
+    .pill.accent { background: var(--pink-soft); border-color: transparent; color: var(--pink); }
+    .pill.vault { background: var(--violet-soft); border-color: transparent; color: var(--violet); }
+    h1 {
+      font-size: clamp(2.1rem, 4.8vw, 3.35rem);
+      line-height: 1.15; letter-spacing: -0.03em; font-weight: 800;
+      max-width: 820px; margin: 0 auto 18px;
+    }
+    h1 span { color: var(--pink); }
+    .lead {
+      font-size: clamp(1rem, 1.8vw, 1.18rem); color: var(--muted);
+      max-width: 680px; margin: 0 auto 30px;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 16px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 13px 24px; border-radius: 999px; font-weight: 700; font-size: 0.96rem;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .btn-primary {
+      background: var(--pink); color: #fff;
+      box-shadow: 0 10px 26px rgba(224, 62, 104, 0.28);
+    }
+    .btn-primary:hover { background: var(--pink-deep); transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--pink); transform: translateY(-1px); }
+    .sub-note { font-size: 0.84rem; color: var(--muted); }
+
+    /* Screenshots Showcase */
+    .section { padding: 54px 0; }
+    .section-head { text-align: center; max-width: 660px; margin: 0 auto 36px; }
+    .section-head h2 { font-size: clamp(1.55rem, 3vw, 2.15rem); letter-spacing: -0.02em; margin-bottom: 10px; }
+    .section-head p { color: var(--muted); font-size: 0.98rem; }
+
+    .shots-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+    }
+    .phone-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 24px;
+      padding: 10px; box-shadow: var(--shadow); transition: transform .2s ease;
+    }
+    .phone-card:hover { transform: translateY(-4px); }
+    .phone-card img {
+      width: 100%; display: block; border-radius: 16px; border: 1px solid var(--border);
+    }
+    .phone-caption {
+      text-align: center; font-size: 0.84rem; font-weight: 600; color: var(--muted);
+      padding: 10px 4px 4px;
+    }
+
+    /* Vault Flow */
+    .flow-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .flow-step {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      padding: 20px 18px; position: relative;
+    }
+    .step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 10px;
+      background: var(--violet-soft); color: var(--violet); font-weight: 800; font-size: 0.88rem;
+      margin-bottom: 12px;
+    }
+    .flow-step h3 { font-size: 1rem; margin-bottom: 6px; }
+    .flow-step p { font-size: 0.88rem; color: var(--muted); }
+
+    /* Comparison Table */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      overflow-x: auto; box-shadow: var(--shadow);
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 640px; }
+    th, td { padding: 15px 18px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.92rem; }
+    th { font-weight: 700; background: var(--bg-soft); }
+    tr:last-child td { border-bottom: none; }
+    td.highlight, th.highlight { background: var(--pink-soft); color: var(--text); font-weight: 600; }
+    .check { color: var(--teal); font-weight: 700; }
+
+    /* Feature Grid */
+    .feat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .feat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      padding: 22px;
+    }
+    .feat-card h3 { font-size: 1.02rem; margin-bottom: 8px; }
+    .feat-card p { font-size: 0.9rem; color: var(--muted); }
+
+    /* Audit terminal */
+    .audit-box {
+      background: var(--code-bg); color: var(--code-text);
+      border-radius: 18px; padding: 24px; box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .audit-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .audit-tag { font-size: 0.78rem; color: #34d399; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .copy-btn {
+      background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.16);
+      padding: 5px 12px; border-radius: 999px; font-size: 0.8rem; cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.18); }
+    pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88rem; overflow-x: auto; line-height: 1.6;
+    }
+    .pass-line { color: #34d399; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border); padding: 36px 0 48px; margin-top: 24px;
+      text-align: center; color: var(--muted); font-size: 0.88rem;
+    }
+    .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-bottom: 12px; }
+    .footer-links a:hover { color: var(--pink); }
+
+    @media (max-width: 900px) {
+      .shots-grid, .flow-grid { grid-template-columns: repeat(2, 1fr); }
+      .feat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .nav-link { display: none; }
+      .hero { padding: 48px 0 32px; }
+      .shots-grid, .flow-grid, .feat-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="#">
+        <img src="icon.png" alt="YingXia Player icon">
+        <span data-en="YingXia Player" data-zh="映匣 · YingXia">YingXia Player</span>
+      </a>
+      <div class="nav-actions">
+        <a class="nav-link" href="#vault" data-en="Encrypted Vault" data-zh="加密保险箱">Encrypted Vault</a>
+        <a class="nav-link" href="#compare" data-en="Compare" data-zh="对比">Compare</a>
+        <a class="nav-link" href="#verify" data-en="Verify APK" data-zh="验证零联网">Verify APK</a>
+        <a class="nav-link" href="https://github.com/QAQ-cmyk/yingxia-player" target="_blank" rel="noopener">GitHub</a>
+        <button class="lang-btn" id="langToggle" type="button">中文</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero container">
+      <div class="pill-row">
+        <span class="pill accent" data-en="Zero INTERNET Permission" data-zh="零联网权限 · CI 自动校验">Zero INTERNET Permission</span>
+        <span class="pill vault" data-en="AES-256-GCM Streaming Vault" data-zh="AES-256-GCM 真流式加密保险箱">AES-256-GCM Streaming Vault</span>
+        <span class="pill" data-en="MIT Open Source · Android 8.0+" data-zh="MIT 开源 · Android 8.0+">MIT Open Source · Android 8.0+</span>
+      </div>
+      <h1 data-en="Your local videos stay <span>offline &amp; encrypted</span> — not in adware."
+          data-zh="把本地视频与私密片段，留在<span>零联网、真加密</span>的手机里">
+        Your local videos stay <span>offline &amp; encrypted</span> — not in adware.
+      </h1>
+      <p class="lead"
+         data-en="YingXia Player is a minimalist, open-source Android video player built with Kotlin, Jetpack Compose, Media3, and Google Tink. Stream-decrypt private videos directly in memory with zero plaintext cache, zero ads, and zero network permissions."
+         data-zh="映匣是一款零联网权限、无广告、无账号的开源 Android 本地视频播放器。内置 Google Tink AES-256-GCM 流式加密保险箱，播放时在内存按需解密不落明文缓存，同时提供长按倍速、A–B 循环与时间书签。">
+        YingXia Player is a minimalist, open-source Android video player built with Kotlin, Jetpack Compose, Media3, and Google Tink. Stream-decrypt private videos directly in memory with zero plaintext cache, zero ads, and zero network permissions.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/QAQ-cmyk/yingxia-player/releases/latest" target="_blank" rel="noopener"
+           data-en="📥 Download Latest APK" data-zh="📥 下载最新 Android APK">📥 Download Latest APK</a>
+        <a class="btn btn-secondary" href="https://github.com/QAQ-cmyk/yingxia-player" target="_blank" rel="noopener"
+           data-en="⭐ Star on GitHub" data-zh="⭐ 去 GitHub 点个 Star">⭐ Star on GitHub</a>
+      </div>
+      <p class="sub-note"
+         data-en="Signed APK + SHA-256 checksums on GitHub Releases · Obtainium auto-updates supported"
+         data-zh="GitHub Releases 提供正式签名 APK 与 SHA-256 校验文件 · 支持 Obtainium 自动追更">
+        Signed APK + SHA-256 checksums on GitHub Releases · Obtainium auto-updates supported
+      </p>
+    </section>
+
+    <section class="section container">
+      <div class="shots-grid">
+        <div class="phone-card">
+          <img src="screenshots/01-home.png" alt="Home library screen" loading="lazy">
+          <div class="phone-caption" data-en="Clean Video Library" data-zh="纯净双列视频库">Clean Video Library</div>
+        </div>
+        <div class="phone-card">
+          <img src="screenshots/02-player.png" alt="Player screen" loading="lazy">
+          <div class="phone-caption" data-en="Gestures, Bookmarks & Queue" data-zh="手势控制与播放队列">Gestures, Bookmarks &amp; Queue</div>
+        </div>
+        <div class="phone-card">
+          <img src="screenshots/03-folders.png" alt="Folders screen" loading="lazy">
+          <div class="phone-caption" data-en="Real Local Folders" data-zh="真实本机目录管理">Real Local Folders</div>
+        </div>
+        <div class="phone-card">
+          <img src="screenshots/04-profile.png" alt="Vault and tools entry" loading="lazy">
+          <div class="phone-caption" data-en="Encrypted Vault & Check" data-zh="加密保险箱与本机体检">Encrypted Vault &amp; Check</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" id="vault">
+      <div class="section-head">
+        <h2 data-en="Real Streaming AEAD Vault — Zero Plaintext Cache" data-zh="真·流式加密保险箱，绝不落明文临时文件">Real Streaming AEAD Vault — Zero Plaintext Cache</h2>
+        <p data-en="Powered by Google Tink AES256_GCM_HKDF_1MB and PBKDF2-HMAC-SHA256 (600,000 iterations). Engineered so private videos are verified before originals are removed."
+           data-zh="基于 Google Tink AES256_GCM_HKDF_1MB 与 PBKDF2-HMAC-SHA256（60 万次迭代），从加密、校验到播放全链路防范明文泄露。">
+          Powered by Google Tink AES256_GCM_HKDF_1MB and PBKDF2-HMAC-SHA256 (600,000 iterations). Engineered so private videos are verified before originals are removed.
+        </p>
+      </div>
+      <div class="flow-grid">
+        <div class="flow-step">
+          <div class="step-num">1</div>
+          <h3 data-en="Encrypt & SHA-256 Verify" data-zh="分段加密并校验">Encrypt &amp; SHA-256 Verify</h3>
+          <p data-en="Writes 1 MB authenticated ciphertext chunks into app-private noBackupFilesDir and verifies SHA-256 end to end."
+             data-zh="以 1MB 认证分段加密写入 noBackupFilesDir，落盘同步并完整复核 SHA-256。">
+            Writes 1 MB authenticated ciphertext chunks into app-private noBackupFilesDir and verifies SHA-256 end to end.
+          </p>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">2</div>
+          <h3 data-en="User-Confirmed Removal" data-zh="系统弹窗确认移原件">User-Confirmed Removal</h3>
+          <p data-en="Requests gallery deletion via Android's system dialog only after verification succeeds. Cancelling keeps the original."
+             data-zh="确认密文无损且原件未变后，才拉起系统弹窗由你确认移除相册原件；取消则保留。">
+            Requests gallery deletion via Android's system dialog only after verification succeeds. Cancelling keeps the original.
+          </p>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">3</div>
+          <h3 data-en="In-Memory Stream Decrypt" data-zh="内存按需流式解密">In-Memory Stream Decrypt</h3>
+          <p data-en="Custom Media3 VaultDataSource decrypts segments on the fly with smooth random seeking — zero plaintext temp files."
+             data-zh="自定义 Media3 VaultDataSource 边播边内存解密，支持拖动进度条，不写明文缓存和缩略图。">
+            Custom Media3 VaultDataSource decrypts segments on the fly with smooth random seeking — zero plaintext temp files.
+          </p>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">4</div>
+          <h3 data-en="One-Tap Lock & Zero-Perm Share" data-zh="一键锁箱与免权限分享">One-Tap Lock &amp; Zero-Perm Share</h3>
+          <p data-en="Tap Lock during playback to stop & return home instantly. Share from your gallery to encrypt without granting full library access."
+             data-zh="播放中一键锁箱静音回首页，支持从系统相册直接分享加密（连完整视频库权限都无需授予）与离线三题密保。">
+            Tap Lock during playback to stop &amp; return home instantly. Share from your gallery to encrypt without granting full library access.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" id="compare">
+      <div class="section-head">
+        <h2 data-en="How YingXia Compares" data-zh="为什么选择映匣？">How YingXia Compares</h2>
+        <p data-en="Built for privacy-conscious users, students reviewing lectures, and anyone tired of bloated local players."
+           data-zh="兼顾隐私极客、考研网课党和纯粹本地观影用户的需求。">
+          Built for privacy-conscious users, students reviewing lectures, and anyone tired of bloated local players.
+        </p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-en="Aspect" data-zh="对比项">Aspect</th>
+              <th data-en="System Gallery" data-zh="系统相册">System Gallery</th>
+              <th data-en="Typical Vault Apps" data-zh="商业“隐藏相册”">Typical Vault Apps</th>
+              <th class="highlight" data-en="YingXia Player" data-zh="映匣 (YingXia)">YingXia Player</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-en="Network & Ads" data-zh="联网与广告">Network &amp; Ads</td>
+              <td data-en="Often cloud-synced" data-zh="常绑定云相册">Often cloud-synced</td>
+              <td data-en="Ads, trackers, INTERNET" data-zh="开屏广告 + 联网权限">Ads, trackers, INTERNET</td>
+              <td class="highlight"><span class="check">✓</span> <span data-en="Zero INTERNET · Zero Ads" data-zh="零联网权限 · 零广告">Zero INTERNET · Zero Ads</span></td>
+            </tr>
+            <tr>
+              <td data-en="Private Video Protection" data-zh="私密视频加密">Private Video Protection</td>
+              <td data-en="OS / Cloud tied" data-zh="依赖厂商云空间">OS / Cloud tied</td>
+              <td data-en="Often fake hiding or paid" data-zh="常见改后缀假隐藏/订阅">Often fake hiding or paid</td>
+              <td class="highlight"><span class="check">✓</span> <span data-en="Tink AES-256-GCM AEAD" data-zh="Tink AES-256-GCM 真加密">Tink AES-256-GCM AEAD</span></td>
+            </tr>
+            <tr>
+              <td data-en="Playback Tools" data-zh="观影与网课工具">Playback Tools</td>
+              <td data-en="Basic scrub only" data-zh="基础播放">Basic scrub only</td>
+              <td data-en="Minimal" data-zh="往往简陋">Minimal</td>
+              <td class="highlight"><span class="check">✓</span> <span data-en="Hold 2×/3×, A–B Loop, Bookmarks" data-zh="长按倍速、A–B 循环、时间书签">Hold 2×/3×, A–B Loop, Bookmarks</span></td>
+            </tr>
+            <tr>
+              <td data-en="Source & Auditability" data-zh="开源与透明">Source &amp; Auditability</td>
+              <td data-en="Closed source" data-zh="闭源">Closed source</td>
+              <td data-en="Closed source" data-zh="闭源">Closed source</td>
+              <td class="highlight"><span class="check">✓</span> <span data-en="MIT Open Source + CI Check" data-zh="MIT 开源 + CI 自动校验">MIT Open Source + CI Check</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section container">
+      <div class="section-head">
+        <h2 data-en="Crafted for Everyday Watching & Studying" data-zh="不止保险箱，也是极顺手的本地播放器">Crafted for Everyday Watching &amp; Studying</h2>
+      </div>
+      <div class="feat-grid">
+        <div class="feat-card">
+          <h3 data-en="⚡ Speed & Gestures" data-zh="⚡ 8 档变速与长按加速">⚡ Speed &amp; Gestures</h3>
+          <p data-en="0.25× to 3× remembered speeds, press-and-hold temporary 2×/3× boost, swipe seek preview, fullscreen brightness & volume, pinch zoom, and touch guard."
+             data-zh="支持 0.25×–3× 变速与长按画面临时 2×/3× 加速松手恢复，左右滑屏定位、全屏调亮度音量、双指缩放、裁黑边与防误触。">
+            0.25× to 3× remembered speeds, press-and-hold temporary 2×/3× boost, swipe seek preview, fullscreen brightness &amp; volume, pinch zoom, and touch guard.
+          </p>
+        </div>
+        <div class="feat-card">
+          <h3 data-en="🔁 A–B Loop & Bookmarks" data-zh="🔁 A–B 循环与时间书签">🔁 A–B Loop &amp; Bookmarks</h3>
+          <p data-en="Repeat tricky lecture segments with A–B loop, save timestamped notes, and pause automatically with a sleep timer — works inside the vault too."
+             data-zh="录课重点反复听，随时打带备注的时间书签一键回跳，配睡眠定时；所有播放工具在加密保险箱内同样独立加密可用。">
+            Repeat tricky lecture segments with A–B loop, save timestamped notes, and pause automatically with a sleep timer — works inside the vault too.
+          </p>
+        </div>
+        <div class="feat-card">
+          <h3 data-en="🗂️ Offline Library Check" data-zh="🗂️ 离线体检与双语界面">🗂️ Offline Library Check</h3>
+          <p data-en="Find exact byte-for-byte duplicates via SHA-256 and unreadable files locally, organize real storage folders, back up metadata as JSON, and switch EN / 中文 anytime."
+             data-zh="离线比对 SHA-256 找出重复视频和坏文件，支持拼音首字母搜索、真实目录校验移动、纯文本 JSON 备份与中英双语一键切换。">
+            Find exact byte-for-byte duplicates via SHA-256 and unreadable files locally, organize real storage folders, back up metadata as JSON, and switch EN / 中文 anytime.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section container" id="verify">
+      <div class="audit-box">
+        <div class="audit-top">
+          <span class="audit-tag" data-en="Don't trust — verify the APK manifest yourself" data-zh="不必轻信口号 — 自己验证安装包零联网权限">Don't trust — verify the APK manifest yourself</span>
+          <button class="copy-btn" id="copyBtn" type="button" data-en="Copy command" data-zh="复制命令">Copy command</button>
+        </div>
+        <pre><code id="cmdText">python3 scripts/check-apk-privacy.py YingXia-1.8.0.apk</code>
+<span class="pass-line"># PASS: network permissions absent; backup disabled; extraction rules declared; debugging disabled.</span></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/QAQ-cmyk/yingxia-player" target="_blank" rel="noopener">GitHub Repository</a>
+        <a href="https://github.com/QAQ-cmyk/yingxia-player/releases/latest" target="_blank" rel="noopener" data-en="Releases" data-zh="下载发行版">Releases</a>
+        <a href="https://github.com/QAQ-cmyk/yingxia-player/blob/main/docs/VAULT_ARCHITECTURE.md" target="_blank" rel="noopener" data-en="Vault Architecture" data-zh="加密架构说明">Vault Architecture</a>
+        <a href="https://github.com/QAQ-cmyk/yingxia-player/blob/main/SECURITY.md" target="_blank" rel="noopener" data-en="Security Policy" data-zh="安全政策">Security Policy</a>
+        <a href="https://github.com/QAQ-cmyk/yingxia-player/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      </div>
+      <p data-en="Built with Kotlin, Jetpack Compose, Media3 & Google Tink · Zero analytics or trackers on this page too."
+         data-zh="使用 Kotlin、Jetpack Compose、Media3 与 Google Tink 构建 · 本官网同样零统计、零追踪器。">
+        Built with Kotlin, Jetpack Compose, Media3 &amp; Google Tink · Zero analytics or trackers on this page too.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+      var btn = document.getElementById('langToggle');
+      var copyBtn = document.getElementById('copyBtn');
+      function applyLang(next) {
+        lang = next;
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+        btn.textContent = lang === 'zh' ? 'English' : '简体中文';
+        document.querySelectorAll('[data-en]').forEach(function (el) {
+          var val = el.getAttribute('data-' + lang);
+          if (val !== null) el.innerHTML = val;
+        });
+      }
+      btn.addEventListener('click', function () { applyLang(lang === 'zh' ? 'en' : 'zh'); });
+      copyBtn.addEventListener('click', function () {
+        var text = document.getElementById('cmdText').textContent;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(function () {
+            copyBtn.textContent = lang === 'zh' ? '已复制 ✓' : 'Copied ✓';
+            setTimeout(function () { copyBtn.textContent = lang === 'zh' ? '复制命令' : 'Copy command'; }, 1600);
+          });
+        }
+      });
+      applyLang(lang);
+    })();
+  </script>
+</body>
+</html>

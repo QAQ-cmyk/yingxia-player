@@ -1,0 +1,19 @@
+YingXia Player is a clean, open-source, 100% offline Android local video player with a real AES-256-GCM streaming-encrypted video vault.
+
+Zero internet permission, no accounts, no ads, and no telemetry. Both INTERNET and ACCESS_NETWORK_STATE are stripped from the manifest and verified in CI.
+
+Encrypted Video Vault:
+- Encrypts local videos using Google Tink AES256_GCM_HKDF_1MB Streaming AEAD with PBKDF2-HMAC-SHA256 (600,000 iterations).
+- Decrypts segments on demand in memory during playback with random seeking — no temporary plaintext video files or thumbnails are written to disk.
+- Verifies encrypted copies via SHA-256 before requesting Android system removal of gallery originals.
+- Isolates vault resume positions, favorites, crop settings, and bookmarks in separate encrypted metadata.
+- Protects vault screens with FLAG_SECURE, locks immediately when moved to background, and offers a one-tap Lock button during playback.
+- Share directly from your Android gallery to watch once without history or save encrypted copies without granting full video library access.
+- Optional offline custom recovery questions stored via Android Keystore to reset a forgotten password on the same device.
+
+Local Playback & Study Tools:
+- 8 playback speeds (0.25x to 3x) plus press-and-hold temporary 2x/3x speed boost.
+- A-B segment loop, timestamped bookmarks with notes, and sleep timer (countdown or end-of-video).
+- Double-tap play/pause, swipe seek, fullscreen brightness/volume gestures, pinch-to-zoom, crop black bars, and accidental-touch guard.
+- Real local folder organization (SHA-256 verified moves), offline duplicate/unreadable video scanner, and local JSON metadata backup/restore.
+- Supports English and Simplified Chinese.

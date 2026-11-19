@@ -1,0 +1,1 @@
+Offline video player with zero internet permission & AES-256-GCM encrypted vault

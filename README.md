@@ -1,39 +1,135 @@
-# 映匣 · YingXia Player
+<div align="center">
 
-[English](README.en.md) · Android 8.0 及以上 · [MIT 开源](LICENSE)
+<img src="docs/social-preview.png" alt="YingXia Player — Offline Android Video Player & AES-256-GCM Encrypted Vault" width="780">
 
-我做映匣，是因为每次想找昨天的录屏，都要在手机相册里翻过一堆照片和截图。现在打开映匣就能看手机里的视频，点一下接着上次的位置播。**无需账号，播放、搜索和加密都在本机完成。**
+# YingXia Player · 映匣
 
-**[下载映匣 1.7.4 安卓安装包](https://github.com/QAQ-cmyk/yingxia-player/releases/download/v1.7.4/YingXia-1.7.4.apk)** · [更新说明与校验文件](https://github.com/QAQ-cmyk/yingxia-player/releases/tag/v1.7.4)
+**100% Offline Android Video Player with a Real AES-256-GCM Streaming-Encrypted Vault**
 
-| 首页 · 找到录屏 | 播放 · 拖到想看的地方 |
-| :---: | :---: |
-| <img src="docs/screenshots/01-home.png" alt="映匣首页的搜索和双列视频列表" width="240"> | <img src="docs/screenshots/02-player.png" alt="本地播放器的进度条与播放队列" width="240"> |
+**English** · [简体中文](README.zh-CN.md)
 
-## 第一次打开
+[![Release](https://img.shields.io/github/v/release/QAQ-cmyk/yingxia-player?color=E03E68&label=Release)](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)
+[![Android CI](https://img.shields.io/github/actions/workflow/status/QAQ-cmyk/yingxia-player/android.yml?label=CI%20%26%20Privacy%20Check)](https://github.com/QAQ-cmyk/yingxia-player/actions/workflows/android.yml)
+[![Zero Internet](https://img.shields.io/badge/Network-Zero%20INTERNET%20Permission-7C5CFA)](scripts/check-apk-privacy.py)
+[![License: MIT](https://img.shields.io/badge/License-MIT-2563EB.svg)](LICENSE)
+[![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://github.com/QAQ-cmyk/yingxia-player/releases/latest)
 
-1. **选视频。** 允许读取相册，或点「打开本地视频」只选一个文件。照片和截图不会挤进视频列表。
-2. **接着看。** 长按画面临时加速，松手恢复。横向滑动定位，给想回看的片段留一个时间书签。录课里听不清的一句，可以设成 A–B 循环反复听。
-3. **收好私密视频。** 在「我的 → 加密保险箱」设置独立密码。导入时会先加密并校验，再请你确认移除相册原件。箱内也能续播、倍速和打书签。
+[📥 Download APK](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) · [🌐 Website](https://qaq-cmyk.github.io/yingxia-player/) · [🔐 Vault Architecture](docs/VAULT_ARCHITECTURE.md) · [📋 Changelog](CHANGELOG.md) · [🛡️ Security](SECURITY.md)
 
-[文件夹界面](docs/screenshots/03-folders.png) · [保险箱入口](docs/screenshots/04-profile.png) · [安装与换机说明](delivery/v1.6.1-notes/安装与使用.md)
+</div>
 
-## 视频和密码在哪里？
+---
 
-| 你做的操作 | 手机上会发生什么 |
+## Why YingXia Player?
+
+Most "private video vault" or "hidden gallery" apps on Android are **closed-source, loaded with ads, demand `INTERNET` permission, push subscriptions, or only use fake hiding** (renaming extensions or `.nomedia`). Meanwhile, default gallery apps bury your screen recordings and lectures under thousands of photos and lack real playback controls.
+
+**YingXia Player** is an auditable, Material 3, strictly offline alternative built with **Kotlin, Jetpack Compose, Media3, and Google Tink**:
+
+| Feature | System Gallery | Typical "Vault" Apps | **YingXia Player** |
+| --- | :---: | :---: | :---: |
+| Network / Ads / Trackers | Often tied to cloud sync | Ads, analytics, `INTERNET` | **Zero `INTERNET` permission · Zero ads · No accounts** (CI-verified) |
+| Private Video Storage | OS / cloud dependent | Often fake hiding or paywalled | **Google Tink AES-256-GCM Streaming AEAD** |
+| Encrypted Playback | — | Often decrypts plaintext temp files | **On-demand in-memory chunk decryption, zero plaintext cache** |
+| Playback & Study Tools | Basic | Minimal | **8 speeds, hold-for-2×/3×, A–B loop, bookmarks, sleep timer** |
+| Open & Verifiable | Closed source | Closed source | **MIT Open Source** + automated APK privacy check |
+
+---
+
+## Screenshots
+
+| Home · Clean Library | Player · Gestures & Queue | Folders · Real Storage | Me · Vault & Library Check |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/01-home.png" alt="Home screen with search and two-column video grid" width="190"> | <img src="docs/screenshots/02-player.png" alt="Player with seekbar, shortcuts, and queue" width="190"> | <img src="docs/screenshots/03-folders.png" alt="Folder browser" width="190"> | <img src="docs/screenshots/04-profile.png" alt="Profile screen with Encrypted Vault and Library Check" width="190"> |
+
+---
+
+## How the Encrypted Vault Works
+
+Unlike vault apps that decrypt your whole video into a plaintext cache file before playing, YingXia plugs a custom Media3 `VaultDataSource` directly into **Google Tink's `AES256_GCM_HKDF_1MB` Streaming AEAD** channel:
+
+```mermaid
+flowchart LR
+    A["Gallery Video"] -->|"1. Encrypt (AES-256-GCM 1MB chunks)"| B[".vault Ciphertext<br/>(noBackupFilesDir)"]
+    B -->|"2. SHA-256 Verify"| C{"Verified?"}
+    C -->|"Yes"| D["3. System Delete Prompt<br/>(User Confirms Original Removal)"]
+    B -->|"4. Unlock (PBKDF2 600k)"| E["VaultDataSource<br/>(In-Memory Segment Decrypt)"]
+    E -->|"Random Seek · Zero Disk Plaintext"| F["Media3 Surface<br/>(FLAG_SECURE + Auto-Lock)"]
+```
+
+- **PBKDF2-HMAC-SHA256 (600,000 iterations)** wraps per-vault Tink keysets inside `keyset.bin`; passwords and clear keysets are never written to disk.
+- **Verify before removing originals**: Gallery deletion is requested via Android's system dialog *only* after the ciphertext is fully written, synced, and SHA-256 verified. Declining keeps your gallery copy intact.
+- **Zero metadata leakage**: Vault titles, resume positions, favorites, crop state, and bookmarks live in separate AAD-authenticated ciphertext files (`.meta` / `.playback`) — completely invisible to search, history, and JSON backups. No plaintext thumbnails are generated.
+- **Instant background lock & one-tap panic lock**: `FLAG_SECURE` blocks screenshots/screen recording; leaving the app locks immediately, and a **Lock** button right on the vault player stops audio/video, locks the vault, and returns straight to Home in one tap.
+- **Zero-library-permission gallery sharing**: Don't even want to grant full gallery read access? Select videos in your Android gallery → **Share → YingXia** to watch once without history or save encrypted copies straight into the vault.
+- **Offline custom recovery questions**: Optionally configure three custom questions encrypted with Android Keystore (with 5-attempt cooldown) to reset a forgotten password locally on the same phone — zero servers involved.
+
+Deep dive: [docs/VAULT_ARCHITECTURE.md](docs/VAULT_ARCHITECTURE.md) · [中文技术文档](docs/加密保险箱.md)
+
+---
+
+## Playback & Local Library Features
+
+- **Effortless speed & gestures**: 8 speeds (`0.25×`–`3×`), **press-and-hold temporary 2×/3× boost** (release to restore), double-tap play/pause, swipe-to-seek preview, fullscreen brightness/volume gestures, pinch-to-zoom, crop black bars, and accidental-touch guard.
+- **Built for lectures & private viewing**: **A–B segment loop**, **timestamped bookmarks** with notes (works both in normal library and inside the encrypted vault), **Watch without history** (one-time playback that preserves prior resume position), and **sleep timer** (countdown or pause at end of video).
+- **Local-first utilities**: Instant search (with Chinese pinyin initials), verified local folder moves (SHA-256 checked before deleting source), offline SHA-256 duplicate & unreadable file scanner, and local JSON metadata backup/restore.
+- **Bilingual UI**: Full **English** and **Simplified Chinese** interface — follows system language or switches instantly in **Me → Playback & Appearance**.
+
+---
+
+## Verify Zero Internet Permission Yourself
+
+Both `INTERNET` and `ACCESS_NETWORK_STATE` are explicitly stripped via `tools:node="remove"` in [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml), and Android cloud backups (`allowBackup`, `fullBackupContent`) are disabled. Every commit runs our privacy check in [GitHub Actions](.github/workflows/android.yml), and you can audit any release APK yourself:
+
+```bash
+python3 scripts/check-apk-privacy.py YingXia-1.8.0.apk
+# PASS: network permissions absent; backup disabled; extraction rules declared; debugging disabled.
+```
+
+<details>
+<summary><strong>Privacy & Data Boundaries (Please Read Before Storing Important Videos)</strong></summary>
+
+| Action | What happens on your device |
 | --- | --- |
-| 普通播放或隐藏 | 视频留在原文件夹。隐藏只影响映匣的列表，系统相册仍能看到原件。 |
-| 从相册分享（1.7.4） | 在相册选视频，点「分享 → 映匣」。单个视频可直接不记记录地播放；单个或多个视频都可解锁后保存为本地加密副本。分享导入会保留相册原件，确认副本可播放后，可按视频下方提示管理原件。 |
-| 本次不记播放记录（1.7.3） | 点视频卡片的「⋮」，或长按选中一个视频，选择「本次不记播放记录」。视频从头播放，原来的续播位置和历史顺序都会保留。下次直接点视频即可正常记进度。 |
-| 播放中锁箱（1.7.3） | 看保险箱视频时点画面右侧的「锁箱」，声音和画面收起并返回首页。全屏、防误触和播放工具面板里也能锁箱。下次进入需要重新解锁。 |
-| 移入保险箱 | 视频、名称和箱内播放记录加密存入映匣的私有目录。播放时按需解密，切到后台会锁箱。取消移除原件时，相册仍保留一份。 |
-| 忘记密码 | 输错密码不会删除文件。从 1.7.2 起，可在解锁后亲手写三道密保问题，再分别填写答案，也可沿用题库里的问题。在原手机上答对全部三题即可重设密码。未提前设置时仍需原密码。 |
-| 换机或卸载 | 先解锁并点「恢复到相册」，把恢复的视频复制到自己的存储设备。卸载或清空数据会删除保险箱。普通记录备份不包含箱内视频。 |
+| **Play or ordinary Hide** | The file stays in its folder. Ordinary Hide only filters YingXia's lists; your system gallery still shows it. |
+| **Move to Encrypted Vault** | Video, display title, and private playback records are encrypted inside `noBackupFilesDir`. Cancelling the system delete prompt keeps the gallery original. |
+| **Forget vault password** | Wrong passwords never delete files. If you enabled on-device recovery questions beforehand, answer all three on the same phone to reset the password; otherwise the original password is required. |
+| **Uninstall or switch phones** | System cloud backup and device migration are intentionally disabled; **uninstalling or clearing app data deletes the vault**. Unlock and tap **Restore to gallery** (`Movies/映匣恢复/`) before migrating. |
 
-发布 APK 不申请联网权限，也不包含账号、广告或统计服务。系统相册的云同步、回收站，以及你主动分享给其他应用的文件，由相应应用管理。[保险箱设计与保护范围](docs/加密保险箱.md) · [如何检查 APK](CONTRIBUTING.md#verify-the-apk)
+</details>
 
-## 参与项目
+---
 
-映匣使用 Kotlin、Jetpack Compose 和 Media3。可以从复现一个播放问题、试一台不同型号的手机，或改进一个不顺手的操作开始。[构建与贡献指南](CONTRIBUTING.md) · [扩展接口](docs/扩展接口.md) · [报告问题](https://github.com/QAQ-cmyk/yingxia-player/issues/new/choose) · [安全反馈](SECURITY.md)
+## Installation & Updates
 
-如果映匣帮你省去了翻相册的时间，欢迎在 GitHub 点个 **Star**。
+- **GitHub Releases**: Download the signed `YingXia-*.apk` and `SHA256SUMS` from [**Latest Release**](https://github.com/QAQ-cmyk/yingxia-player/releases/latest) (Android 8.0+). **Always install over your existing version when upgrading** — uninstalling deletes the vault.
+- **Obtainium (Auto-updates)**: Add `https://github.com/QAQ-cmyk/yingxia-player` in [Obtainium](https://github.com/ImranR98/Obtainium) to track GitHub Releases automatically.
+- **IzzyOnDroid / F-Droid**: Fastlane metadata and clean FOSS builds (`dependenciesInfo` disabled) are ready in-repo; store submission is next on our roadmap.
+- **Build from source**: Requires JDK 17 and Android SDK 35. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Roadmap
+
+Star ⭐ the repository to follow upcoming releases:
+
+- [x] Zero `INTERNET` permission + automated CI manifest verification
+- [x] AES-256-GCM Streaming AEAD encrypted vault (zero plaintext cache)
+- [x] Offline custom recovery questions backed by Android Keystore
+- [x] Full English & Simplified Chinese UI + in-app language switcher
+- [x] Fastlane metadata & clean FOSS release configuration
+- [ ] Biometric (fingerprint / face) quick unlock option for the vault
+- [ ] External subtitle support (`SRT` / `VTT` / `ASS`)
+- [ ] Encrypted portable vault export archive for effortless phone migration
+- [ ] IzzyOnDroid & F-Droid store availability
+
+---
+
+## Contributing & Support
+
+Bug reports, device tests, translations, and pull requests are warmly welcome!
+
+- [Report a bug or request a feature](https://github.com/QAQ-cmyk/yingxia-player/issues/new/choose)
+- [Build & Contribution Guide](CONTRIBUTING.md) · [Security Policy](SECURITY.md)
+
+If YingXia gave you a cleaner offline video player or a trustworthy zero-network vault, **giving it a Star ⭐ really helps independent open-source software get discovered!**

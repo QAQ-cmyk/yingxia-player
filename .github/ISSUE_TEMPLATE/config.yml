@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability privately / 私密报告安全漏洞
+    url: https://github.com/QAQ-cmyk/yingxia-player/security/advisories/new
+    about: Please do not disclose security issues or private media in public issues.
