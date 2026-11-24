@@ -9,8 +9,14 @@ All notable changes to **YingXia Player (映匣)** are documented here.
 - **In-app language switcher & Android 13+ per-app language support**: Switch between Follow system / 简体中文 / English inside **Me → Playback & Appearance**, plus `locales_config.xml` integration.
 - **F-Droid & IzzyOnDroid readiness**: Added `fastlane/metadata/android/` store metadata (`en-US` and `zh-CN` descriptions, icon, feature graphic, and screenshots) and disabled APK `dependenciesInfo` signing blocks for clean FOSS builds.
 - **Project landing page & English documentation**: Added GitHub Pages website (`docs/index.html`), Social Preview artwork (`docs/social-preview.png`), and English vault architecture guide (`docs/VAULT_ARCHITECTURE.md`).
+- **Vault batch import, deduplication & cleanup**:
+  - Android 11+ multi-video vault moves now encrypt and verify all selected videos first, then request **one single system deletion dialog** (up to 100 items per batch) and survive background auto-locking without dropping pending confirmation items.
+  - Cross-entry deduplication by source ID, canonical/removal URI, and exact byte size + SHA-256 content digest prevents duplicate vault copies when re-importing across gallery share, local library, or restored files.
+  - Added one-tap **Remove all originals** for pending items, one-tap verified **Clean duplicate copies** for legacy duplicates, an optional **Also delete vault copy after verified restore** checkbox, direct **Encrypt & remove originals** option for MediaStore gallery shares, and upgraded the in-vault video picker with thumbnails, select-all, and already-in-vault badges.
 
 ### Fixed
+- Fixed duplicate encrypted copies being created when moving/sharing the same video across different URI aliases or after restoring to the gallery.
+- Improved OEM ROM compatibility in `verifySystemDeletion` when `ContentResolver.query` returns `null` after a system MediaStore delete.
 - Player fullscreen gesture feedback icon now tracks brightness vs. volume structurally rather than relying on localized text prefixes.
 - Instrumented UI, gallery share, and vault tests now resolve localized string resources so tests pass on both English and Chinese devices.
 

@@ -236,9 +236,10 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     }
     override suspend fun allVideos() = dao.all().map { it.domain() }
     /** Completed vault moves must not leak names or notes through ordinary history/JSON backups. */
-    suspend fun forgetEncryptedSource(video: VideoItem) = mutex.withLock {
+    suspend fun forgetEncryptedSource(video: VideoItem, extraUris: Set<String> = emptySet()) = mutex.withLock {
         db.withTransaction {
-            dao.all().filter { it.id == video.id.value || it.uri == video.uri }.forEach {
+            val uris = extraUris + video.uri
+            dao.all().filter { it.id == video.id.value || it.uri in uris }.forEach {
                 dao.deleteVideoBookmarks(it.id)
                 dao.removeAlias(it.id)
             }

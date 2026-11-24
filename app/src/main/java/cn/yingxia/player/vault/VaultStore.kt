@@ -14,6 +14,7 @@ import cn.yingxia.player.R
 import cn.yingxia.player.core.VideoId
 import cn.yingxia.player.core.VideoItem
 import cn.yingxia.player.core.displayTitle
+import cn.yingxia.player.data.canonicalVideoUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -78,6 +79,7 @@ class VaultStore(private val context: Context, val directory: File = File(contex
     fun requireSession() = session?.also { it.requireOpen() } ?: error(str(R.string.vault_store_locked))
     private fun safeId(id: String) = UUID.fromString(id).toString().also { require(it == id) }
     fun payload(id: String) = File(directory, "${safeId(id)}.vault")
+    fun hasPlaybackRecord(id: String) = File(directory, "${safeId(id)}.playback").isFile
     fun load(id: String): VaultEntry {
         val file = File(directory, "${safeId(id)}.meta")
         require(file.length() in 1..1048576) { str(R.string.vault_store_record_damaged) }
@@ -133,27 +135,48 @@ class VaultStore(private val context: Context, val directory: File = File(contex
             check()
             Files.move(temp.toPath(), committed.toPath(), StandardCopyOption.ATOMIC_MOVE)
             val uri = Uri.parse(video.uri)
-            val parts = uri.pathSegments
-            val mediaRow = uri.authority == MediaStore.AUTHORITY && parts.size == 4 &&
+            val canonical = canonicalVideoUri(context, uri)
+            val effectiveUri = canonical ?: uri
+            val parts = effectiveUri.pathSegments
+            val mediaRow = effectiveUri.authority == MediaStore.AUTHORITY && parts.size == 4 &&
                 parts[1] == "video" && parts[2] == "media" && parts.last().toLongOrNull() != null
-            val entry = VaultEntry(id, video.displayTitle(), video.name, resolver.getType(uri) ?: "video/mp4",
+            val entry = VaultEntry(
+                id, video.displayTitle(), video.name, resolver.getType(uri) ?: "video/mp4",
                 size, video.durationMs, video.id.value, video.uri, hash.hex(), System.currentTimeMillis(),
-                manageOriginalInGallery = video.source == "share" && !mediaRow)
+                removalUri = if (mediaRow) effectiveUri.toString() else "",
+                manageOriginalInGallery = video.source == "share" && !mediaRow,
+            )
             save(entry)
             entry
         } finally { temp.delete() }
     }
 
-    suspend fun verifyBeforeRemoval(entry: VaultEntry) = withContext(Dispatchers.IO) {
+    suspend fun digestOf(sourceUri: String): Pair<Long, String> = withContext(Dispatchers.IO) {
+        val unlocked = requireSession(); val jobContext = coroutineContext
+        val check = { jobContext.ensureActive(); unlocked.requireOpen() }
+        val (size, hash) = resolver.openInputStream(Uri.parse(sourceUri))?.use { VaultCrypto.digest(it, check) }
+            ?: error(str(R.string.vault_store_source_unreadable))
+        size to hash.hex()
+    }
+
+    suspend fun verifyPayload(entry: VaultEntry) = withContext(Dispatchers.IO) {
         val unlocked = requireSession(); val jobContext = coroutineContext
         val check = { jobContext.ensureActive(); unlocked.requireOpen() }
         verifyFile(unlocked, entry.id, payload(entry.id), entry.bytes, entry.digest.unhex(), check)
-        val actual = resolver.openInputStream(Uri.parse(entry.sourceUri))?.use { VaultCrypto.digest(it, check) }
+    }
+
+    suspend fun verifySourceMatches(entry: VaultEntry, sourceUri: String = entry.sourceUri) = withContext(Dispatchers.IO) {
+        val unlocked = requireSession(); val jobContext = coroutineContext
+        val check = { jobContext.ensureActive(); unlocked.requireOpen() }
+        verifyFile(unlocked, entry.id, payload(entry.id), entry.bytes, entry.digest.unhex(), check)
+        val actual = resolver.openInputStream(Uri.parse(sourceUri))?.use { VaultCrypto.digest(it, check) }
             ?: error(str(R.string.vault_store_reread_failed))
         require(actual.first == entry.bytes && MessageDigest.isEqual(actual.second, entry.digest.unhex())) {
             str(R.string.vault_store_original_changed)
         }
     }
+
+    suspend fun verifyBeforeRemoval(entry: VaultEntry) = verifySourceMatches(entry, entry.sourceUri)
     private fun verifyFile(unlocked: VaultSession, id: String, file: File, expectedSize: Long, hash: ByteArray, check: () -> Unit) {
         val reader = unlocked.open(id, file)
         try {

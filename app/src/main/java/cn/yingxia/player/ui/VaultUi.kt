@@ -7,8 +7,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -28,12 +28,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,10 +81,11 @@ import cn.yingxia.player.vault.*
     var choose by remember(state.epoch) { mutableStateOf(false) }
     var restore by remember(state.epoch) { mutableStateOf<VaultEntry?>(null) }
     var deleting by remember(state.epoch) { mutableStateOf<VaultEntry?>(null) }
-    var restoreAfterPermission by remember(state.epoch) { mutableStateOf<String?>(null) }
+    var cleaningDuplicates by remember(state.epoch) { mutableStateOf(false) }
+    var restoreAfterPermission by remember(state.epoch) { mutableStateOf<Pair<String, Boolean>?>(null) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val target = restoreAfterPermission; restoreAfterPermission = null
-        if (granted && target != null) vault.restore(target)
+        if (granted && target != null) vault.restore(target.first, target.second)
         else vm.message(context.getString(R.string.vault_restore_perm_needed))
     }
     Surface(Modifier.fillMaxSize().testTag("vault-screen"), color = MaterialTheme.colorScheme.background) {
@@ -117,7 +120,6 @@ import cn.yingxia.player.vault.*
                 }
             } else if (!state.unlocked) {
                 VaultPassword(state, vault::unlock, { recoveryAction = RecoveryAction.RESET }, Modifier.weight(1f))
-
             } else {
                 LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
@@ -126,6 +128,22 @@ import cn.yingxia.player.vault.*
                             Text(stringResource(R.string.vault_intro_desc), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                             Button(onClick = { choose = true }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 48.dp)) {
                                 Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.vault_encrypt_local))
+                            }
+                        }
+                    }
+                    if (state.pendingRemovalCount > 1) item {
+                        SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.vault_pending_batch_desc, state.pendingRemovalCount), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                            OutlinedButton(onClick = vault::retryAllRemovals, enabled = !state.busy, shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                                Text(stringResource(R.string.vault_action_retry_all_removals, state.pendingRemovalCount))
+                            }
+                        }
+                    }
+                    if (state.redundantCopies > 0) item {
+                        SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.vault_duplicates_banner_desc, state.redundantCopies), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            OutlinedButton(onClick = { cleaningDuplicates = true }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                                Text(stringResource(R.string.vault_action_clean_duplicates))
                             }
                         }
                     }
@@ -147,7 +165,7 @@ import cn.yingxia.player.vault.*
                                 IconBadge(Icons.Outlined.Lock, size = 44.dp, container = MaterialTheme.colorScheme.tertiaryContainer, tint = MaterialTheme.colorScheme.tertiary)
                                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                                     Text(entry.name, style = MaterialTheme.typography.titleMedium)
-                                    Text("${durationText(entry.duration)} · ${entry.bytes / 1048576} MB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                                    Text("${durationText(entry.duration)} · ${fileSize(entry.bytes)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                                 }
                             }
                             Text(stringResource(if (entry.manageOriginalInGallery) R.string.vault_status_manage_in_gallery else if (!entry.sourceRemoved) R.string.vault_status_pending_removal else if (entry.restoredAt > 0) R.string.vault_status_restored else R.string.vault_status_encrypted),
@@ -181,20 +199,89 @@ import cn.yingxia.player.vault.*
     }
     if (state.unlocked && state.importItems.isNotEmpty() && !state.busy) {
         val shared = state.importItems.all { it.source == "share" }
-        AlertDialog(onDismissRequest = vault::dismissImport, title = { Text(stringResource(R.string.vault_confirm_encrypt_title, state.importItems.size)) },
-            text = { Text(stringResource(if (shared) R.string.vault_confirm_share_desc else R.string.vault_confirm_encrypt_desc)) },
-            confirmButton = { TextButton(onClick = vault::importConfirmed) { Text(stringResource(if (shared) R.string.vault_confirm_share_button else R.string.vault_confirm_encrypt_button)) } },
-            dismissButton = { TextButton(onClick = vault::dismissImport) { Text(stringResource(R.string.action_cancel)) } })
+        val shareCanRemove = shared && state.importItems.any { it.id.value.startsWith("ms:") }
+        AlertDialog(
+            onDismissRequest = vault::dismissImport,
+            title = { Text(stringResource(R.string.vault_confirm_encrypt_title, state.importItems.size)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(
+                            when {
+                                shareCanRemove -> R.string.vault_confirm_share_move_desc
+                                shared -> R.string.vault_confirm_share_desc
+                                else -> R.string.vault_confirm_encrypt_desc
+                            },
+                        ),
+                    )
+                    if (shareCanRemove) {
+                        Button(
+                            onClick = { vault.importConfirmed(removeOriginals = true) },
+                            shape = CircleShape,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+                        ) {
+                            Text(stringResource(R.string.vault_confirm_encrypt_button))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vault.importConfirmed() }) {
+                    Text(stringResource(if (shared) R.string.vault_confirm_share_button else R.string.vault_confirm_encrypt_button))
+                }
+            },
+            dismissButton = { TextButton(onClick = vault::dismissImport) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+    if (cleaningDuplicates && state.unlocked && state.redundantCopies > 0) {
+        AlertDialog(
+            onDismissRequest = { cleaningDuplicates = false },
+            title = { Text(stringResource(R.string.vault_dedup_dialog_title, state.redundantCopies)) },
+            text = { Text(stringResource(R.string.vault_dedup_dialog_desc)) },
+            confirmButton = {
+                TextButton(onClick = { cleaningDuplicates = false; vault.deduplicateEntries() }) {
+                    Text(stringResource(R.string.vault_dedup_dialog_confirm))
+                }
+            },
+            dismissButton = { TextButton(onClick = { cleaningDuplicates = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
     restore?.let { entry ->
-        AlertDialog(onDismissRequest = { restore = null }, title = { Text(stringResource(R.string.vault_restore_dialog_title)) },
-            text = { Text(stringResource(R.string.vault_restore_dialog_desc)) },
-            confirmButton = { TextButton(onClick = {
-                restore = null
-                if (Build.VERSION.SDK_INT <= 28 && ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    restoreAfterPermission = entry.id; permission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                } else vault.restore(entry.id)
-            }) { Text(stringResource(R.string.vault_restore_dialog_confirm)) } }, dismissButton = { TextButton(onClick = { restore = null }) { Text(stringResource(R.string.action_cancel)) } })
+        var removeVaultCopy by remember(entry.id) { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { restore = null },
+            title = { Text(stringResource(R.string.vault_restore_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.vault_restore_dialog_desc))
+                    if (entry.restoredAt > 0) {
+                        Text(
+                            stringResource(R.string.vault_restore_already_restored_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { removeVaultCopy = !removeVaultCopy }.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(removeVaultCopy, { removeVaultCopy = it })
+                        Text(stringResource(R.string.vault_restore_also_delete_vault), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 4.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val deleteCopy = removeVaultCopy
+                    restore = null
+                    if (Build.VERSION.SDK_INT <= 28 && ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                        restoreAfterPermission = entry.id to deleteCopy
+                        permission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    } else vault.restore(entry.id, deleteCopy)
+                }) { Text(stringResource(R.string.vault_restore_dialog_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { restore = null }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
     deleting?.let { entry ->
         AlertDialog(onDismissRequest = { deleting = null }, title = { Text(stringResource(R.string.vault_delete_dialog_title)) },
@@ -204,7 +291,7 @@ import cn.yingxia.player.vault.*
     }
     if (choose && state.unlocked) {
         val videos by vm.videos.collectAsStateWithLifecycle()
-        VaultPicker(videos.filter { it.accessible }, { choose = false }) { selected -> choose = false; vault.requestImport(selected) }
+        VaultPicker(videos.filter { it.accessible }, state.entries, { choose = false }) { selected -> choose = false; vault.requestImport(selected) }
     }
 }
 
@@ -239,18 +326,82 @@ import cn.yingxia.player.vault.*
     }
 }
 
-@Composable private fun VaultPicker(videos: List<VideoItem>, dismiss: () -> Unit, selected: (List<VideoItem>) -> Unit) {
+@Composable private fun VaultPicker(
+    videos: List<VideoItem>,
+    vaultEntries: List<VaultEntry>,
+    dismiss: () -> Unit,
+    selected: (List<VideoItem>) -> Unit,
+) {
     var ids by remember { mutableStateOf(setOf<String>()) }
-    AlertDialog(onDismissRequest = dismiss, title = { Text(stringResource(R.string.vault_picker_title)) }, text = {
-        LazyColumn(Modifier.heightIn(max = 420.dp)) {
-            if (videos.isEmpty()) item { Text(stringResource(R.string.vault_picker_empty)) }
-            items(videos, key = { it.id.value }) { video ->
-                Row(Modifier.fillMaxWidth().clickable { ids = if (video.id.value in ids) ids - video.id.value else ids + video.id.value }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(video.id.value in ids, null)
-                    Text(video.displayTitle(), Modifier.padding(start = 8.dp))
+    val inVaultIds = remember(videos, vaultEntries) {
+        videos.filter { VaultRules.matchesVaultEntry(vaultEntries, it) }.map { it.id.value }.toSet()
+    }
+    val newIds = remember(videos, inVaultIds) {
+        videos.map { it.id.value }.filterNot { it in inVaultIds }.toSet()
+    }
+    val allIds = remember(videos) { videos.map { it.id.value }.toSet() }
+    val allSelected = allIds.isNotEmpty() && ids.containsAll(allIds)
+    AlertDialog(
+        onDismissRequest = dismiss,
+        title = { Text(stringResource(R.string.vault_picker_title)) },
+        text = {
+            Column {
+                if (videos.isNotEmpty()) {
+                    Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (newIds.isNotEmpty() && newIds.size < allIds.size) {
+                            TextButton(onClick = { ids = newIds }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                                Text(stringResource(R.string.vault_picker_select_unencrypted))
+                            }
+                        }
+                        TextButton(
+                            onClick = { ids = if (allSelected) emptySet() else allIds },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        ) {
+                            Text(stringResource(if (allSelected) R.string.action_deselect_all else R.string.action_select_all))
+                        }
+                    }
+                }
+                LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                    if (videos.isEmpty()) item { Text(stringResource(R.string.vault_picker_empty)) }
+                    items(videos, key = { it.id.value }) { video ->
+                        val alreadyInVault = video.id.value in inVaultIds
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                                .clickable { ids = if (video.id.value in ids) ids - video.id.value else ids + video.id.value }
+                                .padding(vertical = 6.dp, horizontal = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(video.id.value in ids, null)
+                            Box(Modifier.padding(start = 6.dp).size(width = 56.dp, height = 36.dp).clip(RoundedCornerShape(6.dp))) {
+                                Thumbnail(video)
+                            }
+                            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                                Text(video.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "${video.folder} · ${durationText(video.durationMs)} · ${fileSize(video.sizeBytes)}",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (alreadyInVault) {
+                                    Text(
+                                        stringResource(R.string.vault_picker_in_vault_badge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
-    }, confirmButton = { TextButton(onClick = { selected(videos.filter { it.id.value in ids }) }, enabled = ids.isNotEmpty()) { Text(stringResource(R.string.vault_picker_confirm, ids.size)) } },
-        dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) } })
+        },
+        confirmButton = {
+            TextButton(onClick = { selected(videos.filter { it.id.value in ids }) }, enabled = ids.isNotEmpty()) {
+                Text(stringResource(R.string.vault_picker_confirm, ids.size))
+            }
+        },
+        dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) } },
+    )
 }

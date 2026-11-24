@@ -19,7 +19,12 @@ import kotlin.coroutines.coroutineContext
 
 sealed interface DeleteOutcome {
     data object Deleted : DeleteOutcome
-    data class Consent(val sender: IntentSender, val retryDelete: Boolean, val mediaUri: String) : DeleteOutcome
+    data class Consent(
+        val sender: IntentSender,
+        val retryDelete: Boolean,
+        val mediaUri: String,
+        val mediaUris: List<String> = listOf(mediaUri),
+    ) : DeleteOutcome
 }
 
 /** All writes are user initiated. A move keeps the source until the destination is re-read and verified. */
@@ -116,6 +121,25 @@ class LocalFileManager(private val context: Context) {
         }
     }
 
+    suspend fun batchMediaDeleteUri(video: VideoItem): Uri? = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < 30) return@withContext null
+        val original = Uri.parse(video.uri)
+        val uri = canonicalVideoUri(context, original) ?: original
+        uri.takeIf { it.authority == MediaStore.AUTHORITY }
+    }
+
+    suspend fun requestBatchDelete(uris: List<Uri>): DeleteOutcome.Consent = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < 30) error("Batch MediaStore delete requires Android 11+")
+        check(uris.isNotEmpty())
+        val unique = uris.distinct()
+        DeleteOutcome.Consent(
+            MediaStore.createDeleteRequest(resolver, unique).intentSender,
+            retryDelete = false,
+            mediaUri = unique.first().toString(),
+            mediaUris = unique.map { it.toString() },
+        )
+    }
+
     suspend fun delete(video: VideoItem, afterGrant: Boolean = false): DeleteOutcome = withContext(Dispatchers.IO) {
         val original = Uri.parse(video.uri)
         val uri = canonicalVideoUri(context, original) ?: original
@@ -136,8 +160,19 @@ class LocalFileManager(private val context: Context) {
 
     suspend fun verifySystemDeletion(mediaUri: String) = withContext(Dispatchers.IO) {
         val uri = Uri.parse(mediaUri)
-        val missing = try { resolver.query(uri, arrayOf("_id"), null, null, null)?.use { !it.moveToFirst() } ?: false }
-            catch (_: FileNotFoundException) { true }
+        val missing = try {
+            val cursor = resolver.query(uri, arrayOf("_id"), null, null, null)
+            if (cursor != null) {
+                cursor.use { !it.moveToFirst() }
+            } else {
+                // Some OEM ROMs return null rather than an empty cursor for a deleted MediaStore row.
+                try {
+                    resolver.openAssetFileDescriptor(uri, "r")?.use { false } ?: true
+                } catch (_: FileNotFoundException) { true }
+                catch (_: IllegalArgumentException) { true }
+            }
+        } catch (_: FileNotFoundException) { true }
+        catch (_: IllegalArgumentException) { true }
         check(missing) { str(R.string.file_error_system_delete_unconfirmed) }
     }
 
