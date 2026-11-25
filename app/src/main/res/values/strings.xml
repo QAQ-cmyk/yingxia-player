@@ -581,5 +581,15 @@
     <string name="vault_store_restore_and_removed_done">Restored to Movies/映匣恢复 and removed the vault copy.</string>
     <string name="vault_picker_in_vault_badge">Already in vault (reused, not duplicated)</string>
     <string name="vault_picker_select_unencrypted">Select new</string>
+    <string name="vault_picker_tab_folders">By folder</string>
+    <string name="vault_picker_tab_videos">All videos</string>
+    <string name="vault_picker_search_hint">Filter folders or video titles</string>
+    <string name="vault_picker_folder_summary">%1$d videos · %2$s</string>
+    <string name="vault_picker_folder_in_vault">%1$d already in vault</string>
+    <string name="vault_picker_folder_selected">%1$d/%2$d selected</string>
+    <string name="vault_picker_expand_folder">Expand folder: %1$s</string>
+    <string name="vault_picker_collapse_folder">Collapse folder: %1$s</string>
+    <string name="folder_action_encrypt">Encrypt folder: %1$s</string>
+    <string name="folder_action_encrypt_current">Encrypt all videos in this folder</string>
     <string name="vault_confirm_share_move_desc">YingXia encrypts and verifies selected videos first. You can keep gallery originals or request system removal right away (videos already in the vault are reused without duplicating).</string>
 </resources>

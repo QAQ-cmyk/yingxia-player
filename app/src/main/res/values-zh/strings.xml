@@ -581,5 +581,15 @@
     <string name="vault_store_restore_and_removed_done">已恢复到 Movies/映匣恢复，并已移除保险箱副本。</string>
     <string name="vault_picker_in_vault_badge">已在保险箱（不重复复制）</string>
     <string name="vault_picker_select_unencrypted">全选未加密</string>
+    <string name="vault_picker_tab_folders">按文件夹</string>
+    <string name="vault_picker_tab_videos">全部视频</string>
+    <string name="vault_picker_search_hint">筛选文件夹或视频名</string>
+    <string name="vault_picker_folder_summary">%1$d 个视频 · %2$s</string>
+    <string name="vault_picker_folder_in_vault">其中 %1$d 个已在保险箱</string>
+    <string name="vault_picker_folder_selected">已选 %1$d/%2$d</string>
+    <string name="vault_picker_expand_folder">展开文件夹：%1$s</string>
+    <string name="vault_picker_collapse_folder">收起文件夹：%1$s</string>
+    <string name="folder_action_encrypt">加密文件夹：%1$s</string>
+    <string name="folder_action_encrypt_current">加密当前文件夹全部视频</string>
     <string name="vault_confirm_share_move_desc">映匣会先加密并完整校验所选视频。你可以仅保存加密副本，或直接请求系统移除相册原件（已在保险箱中的视频会自动复用，不会重复复制）。</string>
 </resources>

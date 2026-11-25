@@ -4,6 +4,17 @@ import cn.yingxia.player.core.VideoItem
 
 internal const val VAULT_DELETE_BATCH_LIMIT = 100
 
+internal data class VaultFolderGroup(
+    val key: String,
+    val name: String,
+    val videos: List<VideoItem>,
+    val totalBytes: Long,
+    val inVaultCount: Int,
+) {
+    val unencryptedVideos: List<VideoItem> get() = videos.filterNot { it.id.value in inVaultIds }
+    internal var inVaultIds: Set<String> = emptySet()
+}
+
 /**
  * Pure vault deduplication and copy-selection helpers kept free of Android framework calls
  * so they can be verified directly with JVM unit tests.
@@ -127,4 +138,26 @@ internal object VaultRules {
                 entry.sourceUri == video.uri ||
                 (entry.removalUri.isNotBlank() && entry.removalUri == video.uri)
         }
+
+    /** Groups accessible library videos by folder key for folder-level batch encryption. */
+    fun groupVideosByFolder(
+        videos: List<VideoItem>,
+        entries: List<VaultEntry>,
+    ): List<VaultFolderGroup> {
+        val inVaultIds = videos.filter { matchesVaultEntry(entries, it) }.map { it.id.value }.toSet()
+        return videos
+            .groupBy { it.folderKey.ifBlank { it.folder } }
+            .entries
+            .map { (key, list) ->
+                val matched = list.map { it.id.value }.filter { it in inVaultIds }.toSet()
+                VaultFolderGroup(
+                    key = key,
+                    name = list.first().folder.ifBlank { key },
+                    videos = list,
+                    totalBytes = list.sumOf { it.sizeBytes.coerceAtLeast(0L) },
+                    inVaultCount = matched.size,
+                ).also { it.inVaultIds = matched }
+            }
+            .sortedWith(compareBy<VaultFolderGroup> { it.name.lowercase() }.thenBy { it.key })
+    }
 }

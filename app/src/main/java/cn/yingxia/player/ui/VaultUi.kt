@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -43,6 +44,7 @@ import cn.yingxia.player.AppViewModel
 import cn.yingxia.player.R
 import cn.yingxia.player.core.VideoItem
 import cn.yingxia.player.core.displayTitle
+import cn.yingxia.player.core.matchesLibraryQuery
 import cn.yingxia.player.vault.*
 
 @Composable fun VaultHost(vm: AppViewModel, onLockedToHome: () -> Unit) {
@@ -333,65 +335,174 @@ import cn.yingxia.player.vault.*
     selected: (List<VideoItem>) -> Unit,
 ) {
     var ids by remember { mutableStateOf(setOf<String>()) }
+    var filterQuery by remember { mutableStateOf("") }
+    var expandedFolders by remember { mutableStateOf(setOf<String>()) }
     val inVaultIds = remember(videos, vaultEntries) {
         videos.filter { VaultRules.matchesVaultEntry(vaultEntries, it) }.map { it.id.value }.toSet()
     }
-    val newIds = remember(videos, inVaultIds) {
-        videos.map { it.id.value }.filterNot { it in inVaultIds }.toSet()
+    val allFolderGroups = remember(videos, vaultEntries) {
+        VaultRules.groupVideosByFolder(videos, vaultEntries)
     }
-    val allIds = remember(videos) { videos.map { it.id.value }.toSet() }
-    val allSelected = allIds.isNotEmpty() && ids.containsAll(allIds)
+    var byFolder by remember(allFolderGroups.size > 1) { mutableStateOf(allFolderGroups.size > 1) }
+    val filteredVideos = remember(videos, filterQuery) {
+        if (filterQuery.isBlank()) videos
+        else videos.filter { matchesLibraryQuery(it.displayTitle(), it.name, it.folder, filterQuery) }
+    }
+    val filteredFolders = remember(allFolderGroups, filterQuery) {
+        if (filterQuery.isBlank()) allFolderGroups
+        else allFolderGroups.filter { group ->
+            matchesLibraryQuery(group.name, group.name, group.name, filterQuery) ||
+                group.videos.any { matchesLibraryQuery(it.displayTitle(), it.name, it.folder, filterQuery) }
+        }
+    }
+    val visibleIds = remember(byFolder, filteredVideos, filteredFolders) {
+        if (byFolder) filteredFolders.flatMap { group -> group.videos.map { it.id.value } }.toSet()
+        else filteredVideos.map { it.id.value }.toSet()
+    }
+    val newVisibleIds = remember(visibleIds, inVaultIds) {
+        visibleIds.filterNot { it in inVaultIds }.toSet()
+    }
+    val allVisibleSelected = visibleIds.isNotEmpty() && visibleIds.all { it in ids }
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text(stringResource(R.string.vault_picker_title)) },
         text = {
             Column {
                 if (videos.isNotEmpty()) {
-                    Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (newIds.isNotEmpty() && newIds.size < allIds.size) {
-                            TextButton(onClick = { ids = newIds }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FilterChip(
+                            selected = byFolder,
+                            onClick = { byFolder = true },
+                            label = { Text(stringResource(R.string.vault_picker_tab_folders)) },
+                            leadingIcon = { Icon(Icons.Outlined.Folder, null, Modifier.size(16.dp)) },
+                            shape = CircleShape,
+                            modifier = Modifier.testTag("vault-picker-tab-folders"),
+                        )
+                        FilterChip(
+                            selected = !byFolder,
+                            onClick = { byFolder = false },
+                            label = { Text(stringResource(R.string.vault_picker_tab_videos)) },
+                            shape = CircleShape,
+                            modifier = Modifier.testTag("vault-picker-tab-videos"),
+                        )
+                    }
+                    OutlinedTextField(
+                        value = filterQuery,
+                        onValueChange = { filterQuery = it.take(60) },
+                        singleLine = true,
+                        placeholder = { Text(stringResource(R.string.vault_picker_search_hint), style = MaterialTheme.typography.bodySmall) },
+                        leadingIcon = { Icon(Icons.Outlined.Search, null, Modifier.size(18.dp)) },
+                        trailingIcon = if (filterQuery.isNotEmpty()) {
+                            { IconButton(onClick = { filterQuery = "" }) { Icon(Icons.Outlined.Close, stringResource(R.string.search_clear), Modifier.size(16.dp)) } }
+                        } else null,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    )
+                    Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (newVisibleIds.isNotEmpty() && newVisibleIds.size < visibleIds.size) {
+                            TextButton(onClick = { ids = ids + newVisibleIds }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)) {
                                 Text(stringResource(R.string.vault_picker_select_unencrypted))
                             }
                         }
                         TextButton(
-                            onClick = { ids = if (allSelected) emptySet() else allIds },
+                            onClick = { ids = if (allVisibleSelected) ids - visibleIds else ids + visibleIds },
+                            enabled = visibleIds.isNotEmpty(),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         ) {
-                            Text(stringResource(if (allSelected) R.string.action_deselect_all else R.string.action_select_all))
+                            Text(stringResource(if (allVisibleSelected) R.string.action_deselect_all else R.string.action_select_all))
                         }
                     }
                 }
-                LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                LazyColumn(Modifier.heightIn(max = 360.dp)) {
                     if (videos.isEmpty()) item { Text(stringResource(R.string.vault_picker_empty)) }
-                    items(videos, key = { it.id.value }) { video ->
-                        val alreadyInVault = video.id.value in inVaultIds
-                        Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                                .clickable { ids = if (video.id.value in ids) ids - video.id.value else ids + video.id.value }
-                                .padding(vertical = 6.dp, horizontal = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(video.id.value in ids, null)
-                            Box(Modifier.padding(start = 6.dp).size(width = 56.dp, height = 36.dp).clip(RoundedCornerShape(6.dp))) {
-                                Thumbnail(video)
+                    else if (byFolder) {
+                        if (filteredFolders.isEmpty()) item { Text(stringResource(R.string.empty_search_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp)) }
+                        filteredFolders.forEach { group ->
+                            val folderIds = group.videos.map { it.id.value }.toSet()
+                            val selectedInFolder = folderIds.count { it in ids }
+                            val toggleState = when {
+                                selectedInFolder == 0 -> ToggleableState.Off
+                                selectedInFolder == folderIds.size -> ToggleableState.On
+                                else -> ToggleableState.Indeterminate
                             }
-                            Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                                Text(video.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    "${video.folder} · ${durationText(video.durationMs)} · ${fileSize(video.sizeBytes)}",
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                if (alreadyInVault) {
-                                    Text(
-                                        stringResource(R.string.vault_picker_in_vault_badge),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.tertiary,
+                            val toggleFolder = {
+                                ids = if (selectedInFolder == folderIds.size) ids - folderIds else ids + folderIds
+                            }
+                            val expanded = group.key in expandedFolders
+                            item(key = "folder:${group.key}") {
+                                Row(
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                                        .clickable(onClick = toggleFolder)
+                                        .padding(vertical = 6.dp, horizontal = 2.dp)
+                                        .testTag("vault-picker-folder-${group.key}"),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    TriStateCheckbox(state = toggleState, onClick = toggleFolder)
+                                    Box(Modifier.padding(start = 4.dp).size(width = 52.dp, height = 34.dp).clip(RoundedCornerShape(6.dp))) {
+                                        Thumbnail(group.videos.first())
+                                    }
+                                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                                        Text(group.name, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                        Text(
+                                            stringResource(R.string.vault_picker_folder_summary, group.videos.size, fileSize(group.totalBytes)),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        if (selectedInFolder > 0 || group.inVaultCount > 0) {
+                                            val meta = buildList {
+                                                if (selectedInFolder > 0) add(stringResource(R.string.vault_picker_folder_selected, selectedInFolder, group.videos.size))
+                                                if (group.inVaultCount > 0) add(stringResource(R.string.vault_picker_folder_in_vault, group.inVaultCount))
+                                            }.joinToString(" · ")
+                                            Text(
+                                                meta,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (selectedInFolder > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { expandedFolders = if (expanded) expandedFolders - group.key else expandedFolders + group.key },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        Icon(
+                                            if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                            stringResource(if (expanded) R.string.vault_picker_collapse_folder else R.string.vault_picker_expand_folder, group.name),
+                                            modifier = Modifier.size(20.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                            if (expanded) {
+                                items(group.videos, key = { "folder-item:${group.key}:${it.id.value}" }) { video ->
+                                    VaultPickerVideoRow(
+                                        video = video,
+                                        checked = video.id.value in ids,
+                                        alreadyInVault = video.id.value in inVaultIds,
+                                        indent = true,
+                                        onToggle = { ids = if (video.id.value in ids) ids - video.id.value else ids + video.id.value },
                                     )
                                 }
                             }
+                        }
+                    } else {
+                        if (filteredVideos.isEmpty()) item { Text(stringResource(R.string.empty_search_title), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp)) }
+                        items(filteredVideos, key = { it.id.value }) { video ->
+                            VaultPickerVideoRow(
+                                video = video,
+                                checked = video.id.value in ids,
+                                alreadyInVault = video.id.value in inVaultIds,
+                                indent = false,
+                                onToggle = { ids = if (video.id.value in ids) ids - video.id.value else ids + video.id.value },
+                            )
                         }
                     }
                 }
@@ -404,4 +515,42 @@ import cn.yingxia.player.vault.*
         },
         dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
+}
+
+@Composable private fun VaultPickerVideoRow(
+    video: VideoItem,
+    checked: Boolean,
+    alreadyInVault: Boolean,
+    indent: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onToggle)
+            .padding(start = if (indent) 24.dp else 2.dp, end = 2.dp, top = 5.dp, bottom = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked, null)
+        Box(Modifier.padding(start = 6.dp).size(width = 52.dp, height = 34.dp).clip(RoundedCornerShape(6.dp))) {
+            Thumbnail(video)
+        }
+        Column(Modifier.weight(1f).padding(start = 10.dp)) {
+            Text(video.displayTitle(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                if (indent) "${durationText(video.durationMs)} · ${fileSize(video.sizeBytes)}"
+                else "${video.folder} · ${durationText(video.durationMs)} · ${fileSize(video.sizeBytes)}",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (alreadyInVault) {
+                Text(
+                    stringResource(R.string.vault_picker_in_vault_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+        }
+    }
 }

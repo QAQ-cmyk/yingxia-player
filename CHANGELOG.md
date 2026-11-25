@@ -2,7 +2,17 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
-## [1.8.0] - Upcoming
+## [1.8.1] - 2026-11-25
+
+### Added
+- **Batch encrypt whole folders into the Encrypted Vault**:
+  - Added a one-tap lock button directly on every folder card in the **Folders** tab (both system media folders and user-managed folders).
+  - Added a quick **Encrypt all videos in this folder** button in the top bar when browsing inside any folder (respects active search filters).
+  - Upgraded the in-vault **Encrypt local videos** picker with **By folder / All videos** tabs, real-time folder/title search (with pinyin initials), tri-state folder checkboxes to select entire folders in one tap, and expandable per-folder video rows to fine-tune exclusions.
+
+---
+
+## [1.8.0] - 2026-11-24
 
 ### Added
 - **Full English & Simplified Chinese internationalization (i18n)**: All screens — including gallery sharing, one-time playback without history, quick vault lock, player controls, vault flows, and library checks — now support English (default) and Simplified Chinese (`values-zh`).

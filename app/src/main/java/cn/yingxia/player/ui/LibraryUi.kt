@@ -187,6 +187,17 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     }
     val requestAccess = { permissions.launch(mediaPermissions()) }
     val importFile = { openFile.launch(Unit) }
+    val encryptBatch: (List<VideoItem>) -> Unit = { batch ->
+        val targets = batch.filter { it.accessible }
+        when {
+            targets.isEmpty() -> vm.message(context.getString(R.string.notice_need_regrant_all))
+            targets.size < batch.size -> {
+                vm.message(context.getString(R.string.notice_skipped_inaccessible))
+                vm.graph.vault.show(targets)
+            }
+            else -> vm.graph.vault.show(targets)
+        }
+    }
     val showSearch = page != "hidden" && page != "settings" && page != "bookmarks" && page != "backup" && page != "scan" && !(tab == 3 && page.isEmpty()) && !(tab == 1 && folder == null && page.isEmpty())
     SideEffect { onNavigationVisible(!searchFocused || !showSearch) }
     DisposableEffect(Unit) { onDispose { onNavigationVisible(true) } }
@@ -250,7 +261,14 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     style = if (topLevel) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (selected.isNotEmpty()) TextButton(onClick = { selected = emptySet() }, modifier = Modifier.heightIn(min = 44.dp)) { Text(stringResource(R.string.action_cancel)) }
-                else IconButton(onClick = importFile) { Icon(Icons.Outlined.Add, stringResource(R.string.action_open_local_video), tint = MaterialTheme.colorScheme.onSurface) }
+                else {
+                    if (folder != null && page.isEmpty() && visible.isNotEmpty()) {
+                        IconButton(onClick = { encryptBatch(visible) }, modifier = Modifier.testTag("folder-encrypt-current")) {
+                            Icon(Icons.Outlined.Lock, stringResource(R.string.folder_action_encrypt_current), tint = MaterialTheme.colorScheme.tertiary)
+                        }
+                    }
+                    IconButton(onClick = importFile) { Icon(Icons.Outlined.Add, stringResource(R.string.action_open_local_video), tint = MaterialTheme.colorScheme.onSurface) }
+                }
             }
             if (selected.isNotEmpty()) {
                 val allVisibleSelected = visible.isNotEmpty() && visible.all { it.id in selected }
@@ -300,7 +318,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 "scan" -> LibraryScanPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
                 "tab3" -> ProfilePage(videos, bookmarks.size, { if (it == "vault") vm.graph.vault.show() else page = it }, importFile)
-                "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }) { folder = it; query = "" }
+                "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }, { folder = it; query = "" }, encryptBatch)
                 else -> {
                     val openedFolder = currentScreen.removePrefix("folder:").takeIf { currentScreen.startsWith("folder:") }
                     val listKind = when (currentScreen) {
@@ -568,7 +586,14 @@ private fun SortOrder.labelRes(): Int = when (this) {
     }
 }
 
-@Composable private fun FolderPage(videos: List<VideoItem>, managed: List<StorageFolder>, keys: Map<String, Set<String>>, onCreate: () -> Unit, onFolder: (String) -> Unit) {
+@Composable private fun FolderPage(
+    videos: List<VideoItem>,
+    managed: List<StorageFolder>,
+    keys: Map<String, Set<String>>,
+    onCreate: () -> Unit,
+    onFolder: (String) -> Unit,
+    onEncryptFolder: (List<VideoItem>) -> Unit,
+) {
     val folders = videos.filterNot { video -> managed.any { target ->
         video.folderKey in keys[target.uri].orEmpty() || belongsToFolder(video, target.uri)
     } }.groupBy { it.folderKey }.entries.sortedBy { it.value.first().folder }
@@ -580,13 +605,18 @@ private fun SortOrder.labelRes(): Int = when (this) {
             }
         }
         items(managed, key = { "managed:${it.uri}" }) { target ->
-            val count = videos.count { it.folderKey in keys[target.uri].orEmpty() || belongsToFolder(it, target.uri) }
+            val folderVideos = videos.filter { it.folderKey in keys[target.uri].orEmpty() || belongsToFolder(it, target.uri) }
             SectionCard {
-                Row(Modifier.fillMaxWidth().clickable { onFolder(target.uri) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable { onFolder(target.uri) }.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconBadge(Icons.Outlined.FolderOpen, size = 44.dp)
                     Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                         Text(target.name, style = MaterialTheme.typography.titleMedium)
-                        Text(stringResource(R.string.folder_managed_count, count), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+                        Text(stringResource(R.string.folder_managed_count, folderVideos.size), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+                    }
+                    if (folderVideos.isNotEmpty()) {
+                        IconButton(onClick = { onEncryptFolder(folderVideos) }) {
+                            Icon(Icons.Outlined.Lock, stringResource(R.string.folder_action_encrypt, target.name), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
+                        }
                     }
                     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -594,15 +624,19 @@ private fun SortOrder.labelRes(): Int = when (this) {
         }
         if (folders.isEmpty() && managed.isEmpty()) item { EmptyState(stringResource(R.string.folder_empty_title), stringResource(R.string.folder_empty_desc)) }
         items(folders, key = { it.key }) { group ->
+            val folderName = group.value.first().folder
             SectionCard {
-                Row(Modifier.fillMaxWidth().clickable { onFolder(group.key) }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clickable { onFolder(group.key) }.padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     val cover = group.value.firstOrNull { it.accessible }
                     Box(Modifier.width(76.dp).aspectRatio(16f / 10f).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainer), contentAlignment = Alignment.Center) {
                         if (cover != null) Thumbnail(cover) else Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text(group.value.first().folder, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(folderName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(stringResource(R.string.folder_video_count_size, group.value.size, fileSize(group.value.sumOf { it.sizeBytes })), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 3.dp))
+                    }
+                    IconButton(onClick = { onEncryptFolder(group.value) }, modifier = Modifier.testTag("folder-encrypt-${group.key}")) {
+                        Icon(Icons.Outlined.Lock, stringResource(R.string.folder_action_encrypt, folderName), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
                     }
                     Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

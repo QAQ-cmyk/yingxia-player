@@ -187,4 +187,20 @@ class VaultRulesTest {
         assertEquals(1, groups.size)
         assertEquals(listOf("removed-with-pb", "removed-no-pb", "pending-old"), groups.single().map { it.id })
     }
+
+    @Test fun groupsVideosByFolderAndCountsExistingVaultEntries() {
+        val cam1 = video(id = "ms:external_primary:1", uri = "content://media/external_primary/video/media/1", name = "a.mp4", bytes = 4000L).copy(folder = "Camera", folderKey = "external_primary:cam")
+        val cam2 = video(id = "ms:external_primary:2", uri = "content://media/external_primary/video/media/2", name = "b.mp4", bytes = 6000L).copy(folder = "Camera", folderKey = "external_primary:cam")
+        val dl1 = video(id = "ms:external_primary:3", uri = "content://media/external_primary/video/media/3", name = "c.mp4", bytes = 9000L).copy(folder = "Download", folderKey = "external_primary:dl")
+        val existing = entry(id = "e1", sourceId = "ms:external_primary:1", sourceUri = "content://media/external_primary/video/media/1")
+
+        val groups = VaultRules.groupVideosByFolder(listOf(dl1, cam1, cam2), listOf(existing))
+        assertEquals(listOf("Camera", "Download"), groups.map { it.name })
+        assertEquals(2, groups[0].videos.size)
+        assertEquals(10_000L, groups[0].totalBytes)
+        assertEquals(1, groups[0].inVaultCount)
+        assertEquals(listOf(cam2), groups[0].unencryptedVideos)
+        assertEquals(1, groups[1].videos.size)
+        assertEquals(0, groups[1].inVaultCount)
+    }
 }
