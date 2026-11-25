@@ -2,6 +2,15 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [1.8.2] - 2026-11-25
+
+### Fixed & Hardened
+- **Bounded backup import (10 MB streaming limit)**: Importing a local backup JSON now streams with a strict 10 MB byte cap (`LibraryBackup.readBoundedUtf8`) and aborts immediately if exceeded, preventing out-of-memory crashes when an oversized file (such as a video) is picked by mistake, with localized error notices in English and Simplified Chinese.
+- **Off-main-thread backup I/O**: Moved backup export, share, and import file I/O onto `Dispatchers.IO` so UI remains responsive.
+- **CI reliability**: Added a CI-only Google Maven Central mirror init-script and Gradle cache in `.github/workflows/android.yml` (keeping `settings.gradle.kts` clean for F-Droid / IzzyOnDroid builds).
+
+---
+
 ## [1.8.1] - 2026-11-25
 
 ### Added
