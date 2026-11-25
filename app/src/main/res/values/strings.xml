@@ -255,6 +255,7 @@
     <string name="backup_error_read">Could not read backup file</string>
     <string name="backup_error_share">Could not share backup</string>
     <string name="backup_error_invalid_file">Not a valid YingXia backup file</string>
+    <string name="backup_error_too_large">Backup file is too large (max 10 MB)</string>
     <string name="backup_restore_title">Restore Records</string>
     <string name="backup_restore_subtitle">Matched automatically against local videos</string>
     <string name="backup_restore_desc">Records are matched to videos currently on your phone. Missing videos are skipped without creating empty entries.</string>

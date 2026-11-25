@@ -1,11 +1,14 @@
 package cn.yingxia.player
 
 import cn.yingxia.player.core.*
+import cn.yingxia.player.data.BackupTooLargeException
 import cn.yingxia.player.data.LibraryBackup
 import cn.yingxia.player.data.LocalFileManager
 import cn.yingxia.player.data.mediaPermissions
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 class PlaybackRulesTest {
     @Test fun supportedSpeedsAndTemporaryBoostNeverSlowPlayback() {
@@ -89,6 +92,27 @@ class PlaybackRulesTest {
         assertTrue(plan.matched[0].favorite)
         assertEquals(0, plan.skipped)
         assertEquals(1, LibraryBackup.plan(emptyList(), LibraryBackup.parse(text)).skipped)
+    }
+    @Test fun backupImportRejectsOversizedStreamsWithoutReadingAll() {
+        val exact = "映匣".toByteArray(Charsets.UTF_8)
+        assertEquals("映匣", LibraryBackup.readBoundedUtf8(ByteArrayInputStream(exact), maxBytes = exact.size))
+
+        var bytesRead = 0
+        val endless = object : InputStream() {
+            override fun read(): Int { bytesRead++; return 'a'.code }
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val n = minOf(len, 4096)
+                b.fill('a'.code.toByte(), off, off + n)
+                bytesRead += n
+                return n
+            }
+        }
+        try {
+            LibraryBackup.readBoundedUtf8(endless, maxBytes = 8 * 1024)
+            fail("Expected BackupTooLargeException")
+        } catch (_: BackupTooLargeException) {
+            assertTrue("Should abort right after exceeding limit", bytesRead <= 16 * 1024)
+        }
     }
     @Test fun duplicateGroupsNeedTwoCopiesOfTheSameKey() {
         fun clip(name: String) = VideoItem(VideoId(name), "content://$name", name, "文件夹", "k", 1, 1)

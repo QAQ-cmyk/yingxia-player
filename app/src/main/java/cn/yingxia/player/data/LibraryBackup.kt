@@ -3,13 +3,33 @@ package cn.yingxia.player.data
 import cn.yingxia.player.core.*
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 
 data class LibraryBackupFile(val settings: UserSettings, val records: List<LibraryRecord>)
 data class RestorePlan(val settings: UserSettings, val matched: List<LibraryRecord>, val skipped: Int)
 
 class InvalidBackupException : IllegalArgumentException("Not a YingXia backup file")
+class BackupTooLargeException : IllegalArgumentException("Backup file exceeds size limit")
 
 object LibraryBackup {
+    const val MAX_IMPORT_BYTES = 10 * 1024 * 1024
+
+    fun readBoundedUtf8(input: InputStream, maxBytes: Int = MAX_IMPORT_BYTES): String {
+        require(maxBytes > 0)
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(minOf(16 * 1024, maxBytes))
+        var total = 0
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) break
+            if (n == 0) continue
+            if (n > maxBytes - total) throw BackupTooLargeException()
+            out.write(buffer, 0, n)
+            total += n
+        }
+        return String(out.toByteArray(), Charsets.UTF_8)
+    }
     fun export(videos: List<VideoItem>, settings: UserSettings): String {
         val records = JSONArray()
         videos.filter { it.favorite || it.positionMs > 0 || it.lastPlayedAt > 0 || !it.displayName.isNullOrBlank() || it.cropBars }

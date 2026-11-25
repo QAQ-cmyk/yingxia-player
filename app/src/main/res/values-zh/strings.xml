@@ -255,6 +255,7 @@
     <string name="backup_error_read">无法读取备份</string>
     <string name="backup_error_share">无法分享备份</string>
     <string name="backup_error_invalid_file">这不是映匣的备份文件</string>
+    <string name="backup_error_too_large">备份文件过大（上限 10 MB）</string>
     <string name="backup_restore_title">恢复记录</string>
     <string name="backup_restore_subtitle">按本机视频地址自动匹配</string>
     <string name="backup_restore_desc">恢复时按视频地址匹配。手机里已经没有的视频会跳过，不会新建空记录。</string>

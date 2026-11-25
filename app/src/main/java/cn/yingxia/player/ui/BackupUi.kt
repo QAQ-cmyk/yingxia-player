@@ -21,8 +21,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import cn.yingxia.player.AppViewModel
 import cn.yingxia.player.R
+import cn.yingxia.player.data.BackupTooLargeException
 import cn.yingxia.player.data.LibraryBackup
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private class LocalBackupExport : ActivityResultContracts.CreateDocument("application/json") {
@@ -42,7 +45,10 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
         scope.launch {
             runCatching {
                 val json = LibraryBackup.export(vm.graph.repository.allVideos(), vm.settings.value)
-                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) } ?: error(context.getString(R.string.backup_error_write))
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                        ?: error(context.getString(R.string.backup_error_write))
+                }
             }.onSuccess { vm.message(context.getString(R.string.backup_saved_notice)) }
                 .onFailure { vm.message(it.message ?: context.getString(R.string.backup_error_save)) }
         }
@@ -51,8 +57,15 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {
-                context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: error(context.getString(R.string.backup_error_read))
-            }.onSuccess { vm.restoreBackup(it) }.onFailure { vm.message(it.message ?: context.getString(R.string.backup_error_read)) }
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { LibraryBackup.readBoundedUtf8(it) }
+                        ?: error(context.getString(R.string.backup_error_read))
+                }
+            }.onSuccess { vm.restoreBackup(it) }.onFailure { error ->
+                val message = if (error is BackupTooLargeException) context.getString(R.string.backup_error_too_large)
+                else error.message ?: context.getString(R.string.backup_error_read)
+                vm.message(message)
+            }
         }
     }
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -74,10 +87,12 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                     scope.launch {
                         runCatching {
                             val json = LibraryBackup.export(vm.graph.repository.allVideos(), vm.settings.value)
-                            val dir = File(context.cacheDir, "backup").apply { mkdirs() }
-                            val file = File(dir, "YingXia-backup.json")
-                            file.writeText(json)
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                            val uri = withContext(Dispatchers.IO) {
+                                val dir = File(context.cacheDir, "backup").apply { mkdirs() }
+                                val file = File(dir, "YingXia-backup.json")
+                                file.writeText(json)
+                                FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                            }
                             val send = Intent(Intent.ACTION_SEND).setType("application/json").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             context.startActivity(Intent.createChooser(send, context.getString(R.string.backup_share_chooser)))
                         }.onFailure { vm.message(it.message ?: context.getString(R.string.backup_error_share)) }
