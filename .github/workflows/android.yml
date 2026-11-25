@@ -14,9 +14,27 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - name: Install Android SDK packages
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"'
+      - name: Configure Google Maven Central mirror for CI
+        run: |
+          cat <<'EOF' > /tmp/ci-mirror.init.gradle
+          gradle.settingsEvaluated { settings ->
+              def mirrorUrl = "https://maven-central.storage-download.googleapis.com/maven2/"
+              [settings.pluginManagement.repositories, settings.dependencyResolutionManagement.repositories].each { repos ->
+                  def mirror = repos.maven {
+                      name = "GoogleMavenCentralMirror"
+                      url = mirrorUrl
+                  }
+                  repos.remove(mirror)
+                  def central = repos.find { it.name == "MavenRepo" }
+                  def idx = central != null ? repos.indexOf(central) : 0
+                  repos.add(idx, mirror)
+              }
+          }
+          EOF
       - name: Build, lint and run unit tests
-        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleRelease
+        run: ./gradlew --init-script /tmp/ci-mirror.init.gradle :app:testDebugUnitTest :app:lintDebug :app:assembleRelease --stacktrace
       - name: Check packaged privacy settings
         run: python3 scripts/check-apk-privacy.py app/build/outputs/apk/release/app-release-unsigned.apk
