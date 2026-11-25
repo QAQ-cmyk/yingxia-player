@@ -8,6 +8,16 @@ import kotlinx.coroutines.flow.*
 import java.io.IOException
 
 private val Context.preferences by preferencesDataStore("preferences")
+
+data class VaultBackupConfig(
+    val treeUri: String = "",
+    val label: String = "",
+    val autoSync: Boolean = false,
+    val lastSyncAt: Long = 0L,
+) {
+    val configured: Boolean get() = treeUri.isNotBlank()
+}
+
 class SettingsRepository(private val context: Context) {
     private val theme = stringPreferencesKey("theme")
     private val speed = floatPreferencesKey("speed")
@@ -15,6 +25,45 @@ class SettingsRepository(private val context: Context) {
     private val sort = stringPreferencesKey("library_sort")
     private val touchGuard = booleanPreferencesKey("touch_guard")
     private val folders = stringSetPreferencesKey("storage_folders")
+    private val vaultBackupUri = stringPreferencesKey("vault_backup_uri")
+    private val vaultBackupLabel = stringPreferencesKey("vault_backup_label")
+    private val vaultBackupAuto = booleanPreferencesKey("vault_backup_auto")
+    private val vaultBackupSyncAt = longPreferencesKey("vault_backup_sync_at")
+
+    val vaultBackup: Flow<VaultBackupConfig> = context.preferences.data.catch {
+        if (it is IOException) emit(emptyPreferences()) else throw it
+    }.map { p ->
+        VaultBackupConfig(
+            treeUri = p[vaultBackupUri].orEmpty(),
+            label = p[vaultBackupLabel].orEmpty(),
+            autoSync = p[vaultBackupAuto] ?: false,
+            lastSyncAt = p[vaultBackupSyncAt] ?: 0L,
+        )
+    }
+
+    suspend fun setVaultBackupLocation(uri: String, label: String) {
+        context.preferences.edit {
+            it[vaultBackupUri] = uri
+            it[vaultBackupLabel] = label
+        }
+    }
+
+    suspend fun setVaultBackupAutoSync(enabled: Boolean) {
+        context.preferences.edit { it[vaultBackupAuto] = enabled }
+    }
+
+    suspend fun setVaultBackupLastSyncAt(timestampMs: Long) {
+        context.preferences.edit { it[vaultBackupSyncAt] = timestampMs }
+    }
+
+    suspend fun clearVaultBackupLocation() {
+        context.preferences.edit {
+            it.remove(vaultBackupUri)
+            it.remove(vaultBackupLabel)
+            it[vaultBackupAuto] = false
+            it.remove(vaultBackupSyncAt)
+        }
+    }
     val storageFolders: Flow<List<StorageFolder>> = context.preferences.data.catch {
         if (it is IOException) emit(emptyPreferences()) else throw it
     }.map { p ->

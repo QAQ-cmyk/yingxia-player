@@ -3,9 +3,14 @@ package cn.yingxia.player.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.view.WindowManager
+import java.text.DateFormat
+import java.util.Date
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
@@ -47,6 +52,17 @@ import cn.yingxia.player.core.displayTitle
 import cn.yingxia.player.core.matchesLibraryQuery
 import cn.yingxia.player.vault.*
 
+private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : ActivityResultContracts.OpenDocumentTree() {
+    override fun createIntent(context: Context, input: Uri?): Intent =
+        super.createIntent(context, input ?: defaultInitialUri)
+            .putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+            .addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+            )
+}
+
 @Composable fun VaultHost(vm: AppViewModel, onLockedToHome: () -> Unit) {
     val vault = vm.graph.vault
     val state by vault.state.collectAsStateWithLifecycle()
@@ -54,6 +70,16 @@ import cn.yingxia.player.vault.*
     val context = LocalContext.current
     val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         vault.consentResult(it.resultCode == Activity.RESULT_OK)
+    }
+    val pickBackupTree = rememberLauncherForActivityResult(
+        VaultBackupTreeContract(VaultBackupLocations.initialBackupPickerUri()),
+    ) { uri ->
+        if (uri != null) vault.configureBackupTree(uri)
+    }
+    val pickRestoreTree = rememberLauncherForActivityResult(
+        VaultBackupTreeContract(VaultBackupLocations.initialRestorePickerUri()),
+    ) { uri ->
+        if (uri != null) vault.stageRestoreTree(uri)
     }
     LaunchedEffect(state.consentToken, state.consent) {
         state.consent?.let {
@@ -121,7 +147,15 @@ import cn.yingxia.player.vault.*
                     vault.updateRecovery(action, password, prompts, answers)
                 }
             } else if (!state.unlocked) {
-                VaultPassword(state, vault::unlock, { recoveryAction = RecoveryAction.RESET }, Modifier.weight(1f))
+                VaultPassword(
+                    state = state,
+                    unlock = vault::unlock,
+                    recover = { recoveryAction = RecoveryAction.RESET },
+                    onPickRestoreTree = { pickRestoreTree.launch(VaultBackupLocations.initialRestorePickerUri()) },
+                    onRestoreLegacy = vault::stageLegacyRestore,
+                    onCancelPendingRestore = vault::dismissPendingRestore,
+                    modifier = Modifier.weight(1f),
+                )
             } else {
                 LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item {
@@ -148,6 +182,16 @@ import cn.yingxia.player.vault.*
                                 Text(stringResource(R.string.vault_action_clean_duplicates))
                             }
                         }
+                    }
+                    item {
+                        VaultBackupCard(
+                            state = state,
+                            onBindFolder = { pickBackupTree.launch(VaultBackupLocations.initialBackupPickerUri()) },
+                            onSyncNow = vault::syncBackupNow,
+                            onToggleAutoSync = vault::setBackupAutoSync,
+                            onMergeRestore = { pickRestoreTree.launch(VaultBackupLocations.initialRestorePickerUri()) },
+                            onUnbind = vault::clearBackupLocation,
+                        )
                     }
                     item {
                         TextButton(onClick = { recoveryAction = if (state.recoveryEnabled) RecoveryAction.DISABLE else RecoveryAction.ENROLL }, enabled = !state.busy) {
@@ -185,7 +229,14 @@ import cn.yingxia.player.vault.*
                             if (!entry.sourceRemoved && !entry.manageOriginalInGallery) OutlinedButton(onClick = { vault.retryRemoval(entry.id) }, enabled = !state.busy, shape = CircleShape, modifier = Modifier.padding(top = 6.dp)) { Text(stringResource(R.string.vault_action_retry_removal)) }
                         }
                     }
-                    item { Text(stringResource(R.string.vault_uninstall_warning), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp)) }
+                    item {
+                        val warningText = if (state.backupConfig.configured) {
+                            stringResource(R.string.vault_uninstall_warning_backed_up, state.backupConfig.label.ifBlank { DEFAULT_VAULT_BACKUP_DIR_NAME })
+                        } else {
+                            stringResource(R.string.vault_uninstall_warning)
+                        }
+                        Text(warningText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
                 }
             }
             if (state.busy) Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -295,13 +346,192 @@ import cn.yingxia.player.vault.*
         val videos by vm.videos.collectAsStateWithLifecycle()
         VaultPicker(videos.filter { it.accessible }, state.entries, { choose = false }) { selected -> choose = false; vault.requestImport(selected) }
     }
+    if ((state.pendingRestoreUri != null || state.pendingRestoreLegacy) && (!state.configured || state.unlocked) && !state.busy) {
+        VaultBackupRestoreDialog(
+            merging = state.configured,
+            onDismiss = vault::dismissPendingRestore,
+            onConfirm = vault::confirmRestoreFromBackup,
+        )
+    }
 }
 
-@Composable private fun VaultPassword(state: VaultUiState, unlock: (CharArray) -> Unit, recover: () -> Unit, modifier: Modifier = Modifier) {
+@Composable private fun VaultBackupRestoreDialog(
+    merging: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (CharArray) -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (merging) R.string.vault_backup_dialog_merge_title else R.string.vault_backup_dialog_restore_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    stringResource(if (merging) R.string.vault_backup_dialog_merge_desc else R.string.vault_backup_dialog_restore_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it.take(128) },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("vault-backup-restore-password"),
+                    label = { Text(stringResource(R.string.vault_password_label)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val chars = password.toCharArray()
+                    password = ""
+                    onConfirm(chars)
+                },
+                enabled = password.length >= 8,
+                modifier = Modifier.testTag("vault-backup-restore-confirm"),
+            ) {
+                Text(stringResource(R.string.vault_backup_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { password = ""; onDismiss() }) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@Composable private fun VaultBackupCard(
+    state: VaultUiState,
+    onBindFolder: () -> Unit,
+    onSyncNow: () -> Unit,
+    onToggleAutoSync: (Boolean) -> Unit,
+    onMergeRestore: () -> Unit,
+    onUnbind: () -> Unit,
+) {
+    val cfg = state.backupConfig
+    SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth().testTag("vault-backup-card")) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(Icons.Outlined.Folder, size = 40.dp, container = MaterialTheme.colorScheme.secondaryContainer, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(stringResource(R.string.vault_backup_card_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                if (cfg.configured) {
+                    Text(
+                        stringResource(R.string.vault_backup_location_label, cfg.label.ifBlank { DEFAULT_VAULT_BACKUP_DIR_NAME }),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+        if (!cfg.configured) {
+            Text(
+                stringResource(R.string.vault_backup_card_desc_unconfigured),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(
+                    onClick = onBindFolder,
+                    enabled = !state.busy,
+                    shape = CircleShape,
+                    modifier = Modifier.weight(1f).testTag("vault-backup-bind"),
+                ) {
+                    Text(stringResource(R.string.vault_backup_action_bind), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(
+                    onClick = onMergeRestore,
+                    enabled = !state.busy,
+                    shape = CircleShape,
+                    modifier = Modifier.testTag("vault-backup-merge"),
+                ) {
+                    Text(stringResource(R.string.vault_backup_action_merge), maxLines = 1)
+                }
+            }
+        } else {
+            val syncText = if (cfg.lastSyncAt > 0L) {
+                val formatted = remember(cfg.lastSyncAt) {
+                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(cfg.lastSyncAt))
+                }
+                stringResource(R.string.vault_backup_last_sync, formatted)
+            } else {
+                stringResource(R.string.vault_backup_never_synced)
+            }
+            Text(
+                syncText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(10.dp))
+                    .clickable(enabled = !state.busy) { onToggleAutoSync(!cfg.autoSync) }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(stringResource(R.string.vault_backup_auto_sync_label), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.vault_backup_auto_sync_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(
+                    checked = cfg.autoSync,
+                    onCheckedChange = onToggleAutoSync,
+                    enabled = !state.busy,
+                    modifier = Modifier.testTag("vault-backup-autosync"),
+                )
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(
+                    onClick = onSyncNow,
+                    enabled = !state.busy,
+                    shape = CircleShape,
+                    modifier = Modifier.weight(1f).testTag("vault-backup-sync-now"),
+                ) {
+                    Text(stringResource(R.string.vault_backup_action_sync_now), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                OutlinedButton(
+                    onClick = onMergeRestore,
+                    enabled = !state.busy,
+                    shape = CircleShape,
+                    modifier = Modifier.testTag("vault-backup-merge"),
+                ) {
+                    Text(stringResource(R.string.vault_backup_action_merge), maxLines = 1)
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onBindFolder, enabled = !state.busy) { Text(stringResource(R.string.vault_backup_action_change)) }
+                TextButton(onClick = onUnbind, enabled = !state.busy) { Text(stringResource(R.string.vault_backup_action_unbind)) }
+            }
+        }
+    }
+}
+
+@Composable private fun VaultPassword(
+    state: VaultUiState,
+    unlock: (CharArray) -> Unit,
+    recover: () -> Unit,
+    onPickRestoreTree: () -> Unit,
+    onRestoreLegacy: () -> Unit,
+    onCancelPendingRestore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var password by remember(state.epoch) { mutableStateOf("") }
     var confirmation by remember(state.epoch) { mutableStateOf("") }
     var acknowledged by remember(state.epoch) { mutableStateOf(false) }
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (state.configured && (state.pendingRestoreUri != null || state.pendingRestoreLegacy)) {
+            SectionCard(padding = 16.dp, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.vault_backup_pending_merge_banner), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                TextButton(onClick = onCancelPendingRestore, enabled = !state.busy, modifier = Modifier.align(Alignment.End)) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        }
         SectionCard(padding = 22.dp, modifier = Modifier.fillMaxWidth()) {
             IconBadge(Icons.Outlined.Lock, size = 56.dp, container = MaterialTheme.colorScheme.tertiaryContainer, tint = MaterialTheme.colorScheme.tertiary)
             Text(stringResource(if (state.configured) R.string.vault_unlock_title else R.string.vault_create_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
@@ -324,6 +554,37 @@ import cn.yingxia.player.vault.*
             }
             if (state.recoveryEnabled) TextButton(onClick = recover, enabled = !state.busy) { Text(stringResource(R.string.vault_forgot_password)) }
             else if (state.configured) Text(stringResource(R.string.vault_recovery_not_enabled), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+        }
+        if (!state.configured) {
+            SectionCard(padding = 20.dp, modifier = Modifier.fillMaxWidth().testTag("vault-backup-restore-card")) {
+                Text(stringResource(R.string.vault_backup_restore_card_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    stringResource(R.string.vault_backup_restore_card_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 14.dp),
+                )
+                if (state.legacyBackupDetected) {
+                    Button(
+                        onClick = onRestoreLegacy,
+                        enabled = !state.busy,
+                        shape = CircleShape,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).heightIn(min = 46.dp).testTag("vault-backup-restore-legacy"),
+                    ) {
+                        Text(stringResource(R.string.vault_backup_action_restore_legacy))
+                    }
+                }
+                OutlinedButton(
+                    onClick = onPickRestoreTree,
+                    enabled = !state.busy,
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp).testTag("vault-backup-restore-pick"),
+                ) {
+                    Icon(Icons.Outlined.Folder, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.vault_backup_action_restore_pick))
+                }
+            }
         }
     }
 }

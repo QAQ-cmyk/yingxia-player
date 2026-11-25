@@ -1,6 +1,7 @@
 package cn.yingxia.player.vault
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
 import cn.yingxia.player.AppLocale
@@ -11,11 +12,13 @@ import cn.yingxia.player.core.VideoItem
 import cn.yingxia.player.data.DeleteOutcome
 import cn.yingxia.player.data.LocalFileManager
 import cn.yingxia.player.data.LocalVideoRepository
+import cn.yingxia.player.data.VaultBackupConfig
 import cn.yingxia.player.data.canonicalVideoUri
 import cn.yingxia.player.data.libraryAccess
 import cn.yingxia.player.playback.Media3Controller
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicLong
 
@@ -29,6 +32,10 @@ data class VaultUiState(
     val consent: DeleteOutcome.Consent? = null, val consentToken: Long = 0,
     val playing: VaultEntry? = null, val epoch: Long = 0, val damagedRecords: Int = 0,
     val pendingRemovalCount: Int = 0, val redundantCopies: Int = 0,
+    val backupConfig: VaultBackupConfig = VaultBackupConfig(),
+    val legacyBackupDetected: Boolean = false,
+    val pendingRestoreUri: String? = null,
+    val pendingRestoreLegacy: Boolean = false,
 )
 
 private data class RemovalTarget(
@@ -61,12 +68,22 @@ class VaultCoordinator(
     private var consentTargets = emptyList<RemovalTarget>()
     private var launchedConsent: DeleteOutcome.Consent? = null
     private var consentAnswer: Boolean? = null
+    private var pendingSyncAfterUnlock = false
     var releasePlayer: (() -> Unit)? = null
     var playback: VaultPlaybackSession? = null; private set
+
+    init {
+        scope.launch {
+            settings.vaultBackup.collect { cfg ->
+                state.update { it.copy(backupConfig = cfg) }
+            }
+        }
+    }
 
     fun show(items: List<VideoItem> = emptyList()) {
         if (state.value.busy) return
         val uniqueItems = items.filter { it.accessible }.distinctBy { it.id }
+        val legacyFound = !store.configured && VaultBackupLocations.detectLegacyLocalBackupDir(context) != null
         state.update {
             it.copy(
                 visible = true,
@@ -74,6 +91,7 @@ class VaultCoordinator(
                 recoveryEnabled = store.recovery.enabled,
                 importItems = uniqueItems,
                 message = null,
+                legacyBackupDetected = legacyFound,
             )
         }
         scope.launch { ordinaryPlayer.execute(PlayerCommand.Close) }
@@ -85,8 +103,9 @@ class VaultCoordinator(
         consentAnswer = null
         pendingRemovals = emptyList()
         batchStats = null
+        pendingSyncAfterUnlock = false
         lock()
-        state.update { it.copy(visible = false) }
+        state.update { it.copy(visible = false, pendingRestoreUri = null, pendingRestoreLegacy = false) }
     }
 
     fun lock() {
@@ -99,11 +118,17 @@ class VaultCoordinator(
                 pendingRemovals = emptyList()
                 batchStats = null
             }
+            val keepRestoreUri = state.value.pendingRestoreUri
+            val keepRestoreLegacy = state.value.pendingRestoreLegacy
             state.value = VaultUiState(
                 visible = state.value.visible,
                 configured = store.configured,
                 recoveryEnabled = store.recovery.enabled,
                 epoch = epoch.get(),
+                backupConfig = state.value.backupConfig,
+                legacyBackupDetected = !store.configured && VaultBackupLocations.detectLegacyLocalBackupDir(context) != null,
+                pendingRestoreUri = keepRestoreUri,
+                pendingRestoreLegacy = keepRestoreLegacy,
             )
         }
     }
@@ -133,6 +158,10 @@ class VaultCoordinator(
             refresh()
             if (consentAnswer != null) finishConsent()
             reconcileRemovedSources()
+            if (pendingSyncAfterUnlock) {
+                pendingSyncAfterUnlock = false
+                runBackupSyncInline(explicit = true)
+            }
         }
     }
 
@@ -250,12 +279,13 @@ class VaultCoordinator(
             }
             refresh()
             if (keepOriginals) {
-                val message = when {
+                val base = when {
                     newlyEncrypted == 0 && reusedExisting > 0 -> str(R.string.vault_msg_share_all_reused, reusedExisting)
                     reusedExisting > 0 -> str(R.string.vault_msg_share_mixed_reused, newlyEncrypted, reusedExisting)
                     else -> str(R.string.vault_msg_share_encrypt_done, newlyEncrypted)
                 }
-                state.update { it.copy(message = message) }
+                val suffix = if (newlyEncrypted > 0) autoSyncBackupSuffix() else ""
+                state.update { it.copy(message = base + suffix) }
                 return@run
             }
             batchStats = BatchImportStats(newlyEncrypted, reusedExisting, shareUnremovable)
@@ -476,17 +506,18 @@ class VaultCoordinator(
         else finishRemovalSummary()
     }
 
-    private fun finishRemovalSummary() {
+    private suspend fun finishRemovalSummary() {
         val stats = batchStats
         batchStats = null
-        val message = when {
+        val base = when {
             stats == null -> str(R.string.vault_msg_removal_confirmed)
             stats.shareUnremovable > 0 -> str(R.string.vault_msg_encrypt_done_partial_gallery, stats.shareUnremovable)
             stats.reusedExisting > 0 && stats.newlyEncrypted == 0 -> str(R.string.vault_msg_encrypt_done_reused_only, stats.reusedExisting)
             stats.reusedExisting > 0 -> str(R.string.vault_msg_encrypt_done_mixed, stats.newlyEncrypted, stats.reusedExisting)
             else -> str(R.string.vault_msg_encrypt_done)
         }
-        state.update { it.copy(message = message) }
+        val suffix = autoSyncBackupSuffix()
+        state.update { it.copy(message = base + suffix) }
     }
 
     private suspend fun finishTargetRemoval(target: RemovalTarget, refreshNow: Boolean = true) {
@@ -544,9 +575,10 @@ class VaultCoordinator(
                 }
             }
             refresh()
-            val message = if (removed > 0) str(R.string.vault_msg_duplicates_cleaned, removed)
+            val base = if (removed > 0) str(R.string.vault_msg_duplicates_cleaned, removed)
             else str(R.string.vault_msg_no_duplicates_cleaned)
-            state.update { it.copy(message = message) }
+            val suffix = if (removed > 0) autoSyncBackupSuffix() else ""
+            state.update { it.copy(message = base + suffix) }
         }
     }
 
@@ -555,7 +587,9 @@ class VaultCoordinator(
         stopPlaying()
         run(str(R.string.vault_prog_removing_copy)) {
             withContext(Dispatchers.IO) { store.remove(id) }
-            refresh(); state.update { it.copy(message = str(R.string.vault_msg_copy_removed)) }
+            refresh()
+            val suffix = autoSyncBackupSuffix()
+            state.update { it.copy(message = str(R.string.vault_msg_copy_removed) + suffix) }
         }
     }
 
@@ -565,12 +599,186 @@ class VaultCoordinator(
         run(str(R.string.vault_prog_preparing_restore)) {
             val entry = withContext(Dispatchers.IO) { store.load(id) }
             val result = store.restore(entry, ::progress)
-            val message = if (removeVaultCopy) {
+            val base = if (removeVaultCopy) {
                 withContext(Dispatchers.IO) { store.remove(id) }
                 str(R.string.vault_store_restore_and_removed_done)
             } else result
             refresh(); repository.refresh()
+            val suffix = if (removeVaultCopy) autoSyncBackupSuffix() else ""
+            state.update { it.copy(message = base + suffix) }
+        }
+    }
+
+    fun configureBackupTree(treeUri: Uri) {
+        scope.launch {
+            runCatching {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        treeUri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                }
+                val backend = withContext(Dispatchers.IO) { SafVaultBackupBackend.forExport(context, treeUri) }
+                settings.setVaultBackupLocation(treeUri.toString(), backend.label)
+                backend.label
+            }.onSuccess { label ->
+                if (state.value.unlocked && !state.value.busy) {
+                    syncBackupNow()
+                } else {
+                    pendingSyncAfterUnlock = true
+                    state.update { it.copy(message = str(R.string.vault_backup_bound_unlock_to_sync, label)) }
+                }
+            }.onFailure { error ->
+                state.update { it.copy(message = error.message ?: str(R.string.vault_backup_error_access)) }
+            }
+        }
+    }
+
+    fun setBackupAutoSync(enabled: Boolean) {
+        scope.launch {
+            settings.setVaultBackupAutoSync(enabled)
+        }
+    }
+
+    fun clearBackupLocation() {
+        pendingSyncAfterUnlock = false
+        scope.launch {
+            settings.clearVaultBackupLocation()
+            state.update { it.copy(message = str(R.string.vault_backup_unbound_notice)) }
+        }
+    }
+
+    fun syncBackupNow() {
+        if (!state.value.unlocked || state.value.busy) return
+        run(str(R.string.vault_backup_prog_scanning)) {
+            runBackupSyncInline(explicit = true)
+        }
+    }
+
+    fun stageRestoreTree(treeUri: Uri) {
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                treeUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        state.update {
+            it.copy(
+                pendingRestoreUri = treeUri.toString(),
+                pendingRestoreLegacy = false,
+                message = null,
+            )
+        }
+    }
+
+    fun stageLegacyRestore() {
+        if (VaultBackupLocations.detectLegacyLocalBackupDir(context) == null) {
+            state.update { it.copy(legacyBackupDetected = false, message = str(R.string.vault_backup_error_not_found)) }
+            return
+        }
+        state.update {
+            it.copy(
+                pendingRestoreUri = null,
+                pendingRestoreLegacy = true,
+                message = null,
+            )
+        }
+    }
+
+    fun dismissPendingRestore() {
+        state.update { it.copy(pendingRestoreUri = null, pendingRestoreLegacy = false) }
+    }
+
+    fun confirmRestoreFromBackup(password: CharArray) {
+        val uriString = state.value.pendingRestoreUri
+        val useLegacy = state.value.pendingRestoreLegacy
+        if (state.value.busy || (uriString.isNullOrBlank() && !useLegacy)) {
+            password.fill('\u0000')
+            return
+        }
+        if (store.configured && !state.value.unlocked) {
+            password.fill('\u0000')
+            state.update { it.copy(message = str(R.string.vault_backup_unlock_first_to_merge)) }
+            return
+        }
+        run(str(R.string.vault_backup_prog_verifying_password)) {
+            try {
+                val backend = withContext(Dispatchers.IO) {
+                    if (useLegacy) {
+                        val dir = VaultBackupLocations.detectLegacyLocalBackupDir(context)
+                            ?: error(str(R.string.vault_backup_error_not_found))
+                        FileVaultBackupBackend(dir, "Documents/$DEFAULT_VAULT_BACKUP_DIR_NAME")
+                    } else {
+                        SafVaultBackupBackend.forRestore(context, Uri.parse(uriString!!))
+                    }
+                }
+                val result = if (!store.configured) {
+                    val restored = VaultBackupEngine.restoreIntoEmpty(context, store, backend, password, ::progress)
+                    if (!useLegacy && !uriString.isNullOrBlank()) {
+                        settings.setVaultBackupLocation(uriString, backend.label)
+                        settings.setVaultBackupLastSyncAt(System.currentTimeMillis())
+                    }
+                    state.update {
+                        it.copy(
+                            configured = true,
+                            unlocked = true,
+                            legacyBackupDetected = false,
+                            pendingRestoreUri = null,
+                            pendingRestoreLegacy = false,
+                        )
+                    }
+                    restored
+                } else {
+                    val merged = VaultBackupEngine.mergeIntoUnlocked(context, store, backend, password, ::progress)
+                    state.update { it.copy(pendingRestoreUri = null, pendingRestoreLegacy = false) }
+                    merged
+                }
+                refresh()
+                val suffix = if (result.mergedIntoExisting && result.restored > 0) autoSyncBackupSuffix() else ""
+                val msg = when {
+                    !result.mergedIntoExisting -> str(R.string.vault_backup_restore_done, result.restored)
+                    result.restored == 0 && result.skippedDuplicates > 0 -> str(R.string.vault_backup_merge_all_duplicate, result.skippedDuplicates)
+                    result.skippedDuplicates > 0 -> str(R.string.vault_backup_merge_mixed, result.restored, result.skippedDuplicates)
+                    else -> str(R.string.vault_backup_merge_done, result.restored)
+                }
+                state.update { it.copy(message = msg + suffix) }
+            } finally {
+                password.fill('\u0000')
+            }
+        }
+    }
+
+    private suspend fun runBackupSyncInline(explicit: Boolean) {
+        val cfg = settings.vaultBackup.first()
+        if (!cfg.configured) {
+            if (explicit) state.update { it.copy(message = str(R.string.vault_backup_error_not_configured)) }
+            return
+        }
+        val backend = withContext(Dispatchers.IO) { SafVaultBackupBackend.forExport(context, Uri.parse(cfg.treeUri)) }
+        val result = VaultBackupEngine.syncTo(context, store, backend, ::progress)
+        settings.setVaultBackupLastSyncAt(result.syncedAt)
+        if (explicit) {
+            val message = if (result.written == 0 && result.removed == 0) {
+                str(R.string.vault_backup_sync_up_to_date, result.totalEntries)
+            } else {
+                str(R.string.vault_backup_sync_done, result.totalEntries, result.written, result.skipped)
+            }
             state.update { it.copy(message = message) }
+        }
+    }
+
+    private suspend fun autoSyncBackupSuffix(): String {
+        val cfg = settings.vaultBackup.first()
+        if (!cfg.configured || !cfg.autoSync || !state.value.unlocked) return ""
+        return try {
+            val backend = withContext(Dispatchers.IO) { SafVaultBackupBackend.forExport(context, Uri.parse(cfg.treeUri)) }
+            val result = VaultBackupEngine.syncTo(context, store, backend, ::progress)
+            settings.setVaultBackupLastSyncAt(result.syncedAt)
+            ""
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            "\n\n" + str(R.string.vault_backup_autosync_failed_suffix)
         }
     }
 
@@ -612,7 +820,7 @@ class VaultCoordinator(
         }
     }
 
-    private fun progress(text: String) { if (state.value.unlocked) state.update { it.copy(progress = text) } }
+    private fun progress(text: String) { if (state.value.busy) state.update { it.copy(progress = text) } }
 
     private fun run(label: String, allowWaiting: Boolean = false, action: suspend () -> Unit) {
         if (job?.isActive == true || state.value.busy && !allowWaiting) return

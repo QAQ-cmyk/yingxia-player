@@ -2,6 +2,18 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [1.9.0] - 2026-11-25
+
+### Added
+- **Uninstall-Safe Pure-Ciphertext Vault Backup & Phone Migration (Zero Network, Zero New Permissions)**:
+  - Bind any local external folder (defaulting to `Documents/YingXiaVault`, or an OTG USB drive / SD card) via Android SAF to maintain an **incremental pure AES-256-GCM ciphertext mirror** (`keyset.bin`, canonical `UUID.{vault,meta,playback}`, `.nomedia`, and checksum-only `manifest.json`).
+  - **Zero plaintext exposure**: No video plaintext, no video titles or original filenames, no passwords, and no device-bound KeyStore security-question envelopes are ever written to the backup folder.
+  - **Optional auto-sync toggle**: Automatically syncs incremental ciphertext changes after encrypting, deleting, or deduplicating vault items (non-blocking if external storage is temporarily disconnected).
+  - **Direct restore after reinstall or phone switch**: Opening an empty vault presents **Restore from encrypted backup** which opens directly at `Documents/YingXiaVault` via `EXTRA_INITIAL_URI` (and smartly discovers `YingXiaVault/` even if a parent directory is picked; auto-detects on Android 8–10). Verifies password + every ciphertext & plaintext SHA-256 before committing, and detaches old-device MediaStore removal URIs so unrelated gallery files on the new device can never be touched.
+  - **Safe merge into an existing vault**: Merge another backup into an already-unlocked vault using its own password, re-encrypting in memory with automatic SHA-256 content deduplication without altering existing entries or your current vault password.
+
+---
+
 ## [1.8.2] - 2026-11-25
 
 ### Fixed & Hardened

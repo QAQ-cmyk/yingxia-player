@@ -76,10 +76,17 @@ class VaultStore(private val context: Context, val directory: File = File(contex
         session?.close(); session = unlocked
     }
     fun lock() { session?.close(); session = null }
+    internal fun adoptUnlockedSession(unlocked: VaultSession) {
+        session?.close()
+        session = unlocked
+    }
     fun requireSession() = session?.also { it.requireOpen() } ?: error(str(R.string.vault_store_locked))
     private fun safeId(id: String) = UUID.fromString(id).toString().also { require(it == id) }
     fun payload(id: String) = File(directory, "${safeId(id)}.vault")
     fun hasPlaybackRecord(id: String) = File(directory, "${safeId(id)}.playback").isFile
+    internal fun playbackFile(id: String) = File(directory, "${safeId(id)}.playback")
+    internal fun metaFile(id: String) = File(directory, "${safeId(id)}.meta")
+    internal fun configFile() = config
     fun load(id: String): VaultEntry {
         val file = File(directory, "${safeId(id)}.meta")
         require(file.length() in 1..1048576) { str(R.string.vault_store_record_damaged) }
@@ -112,7 +119,7 @@ class VaultStore(private val context: Context, val directory: File = File(contex
         check(File(directory, "${safeId(id)}.meta").delete()) { str(R.string.vault_store_remove_meta_failed) }
         syncDirectory()
     }
-    private fun syncDirectory() {
+    internal fun syncDirectory() {
         val descriptor = Os.open(directory.absolutePath, OsConstants.O_RDONLY, 0)
         try { Os.fsync(descriptor) } finally { Os.close(descriptor) }
     }
@@ -177,7 +184,7 @@ class VaultStore(private val context: Context, val directory: File = File(contex
     }
 
     suspend fun verifyBeforeRemoval(entry: VaultEntry) = verifySourceMatches(entry, entry.sourceUri)
-    private fun verifyFile(unlocked: VaultSession, id: String, file: File, expectedSize: Long, hash: ByteArray, check: () -> Unit) {
+    internal fun verifyFile(unlocked: VaultSession, id: String, file: File, expectedSize: Long, hash: ByteArray, check: () -> Unit) {
         val reader = unlocked.open(id, file)
         try {
             val actual = VaultCrypto.digest(Channels.newInputStream(reader), check)
