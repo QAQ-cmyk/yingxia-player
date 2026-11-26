@@ -334,7 +334,11 @@ class EveryFeatureDeepAuditUiTest {
                 put("is_pending", 1)
             })!!
             instrument.context.assets.open("fixture.mp4").use { input ->
-                resolver.openOutputStream(uri)!!.use { input.copyTo(it) }
+                resolver.openOutputStream(uri)!!.use { out ->
+                    input.copyTo(out)
+                    // Unique trailing marker so this pair never groups with unrelated test fixtures.
+                    out.write("YingXiaUniqueDup-$tag".toByteArray())
+                }
             }
             resolver.update(uri, ContentValues().apply { put("is_pending", 0) }, null, null)
             createdUris += uri
@@ -509,7 +513,11 @@ class EveryFeatureDeepAuditUiTest {
                 put("is_pending", 1)
             })!!
             instrument.context.assets.open("fixture.mp4").use { input ->
-                resolver.openOutputStream(uri)!!.use { input.copyTo(it) }
+                resolver.openOutputStream(uri)!!.use { out ->
+                    input.copyTo(out)
+                    // Unique trailing marker so this pair never groups with unrelated test fixtures.
+                    out.write("YingXiaUniqueDup-$tag".toByteArray())
+                }
             }
             resolver.update(uri, ContentValues().apply { put("is_pending", 0) }, null, null)
             createdUris += uri
@@ -550,9 +558,19 @@ class EveryFeatureDeepAuditUiTest {
             // Reset settings cleanly.
             graph.settings.replacePlayback(cn.yingxia.player.core.UserSettings())
 
-            // 2. Library Check -> detect duplicate pair -> delete 1 duplicate -> verify scan list prunes immediately (Bug 15)!
+            // 2. Library Check -> detect duplicate pair -> verify reactive pruning on hide/vault-removal (Bug 22) and delete (Bug 15)!
             ui.onNodeWithTag("nav-3").performClick()
             ui.onNodeWithText(context.getString(R.string.title_scan)).performClick()
+            ui.onNodeWithTag("scan-start").performClick()
+            ui.waitUntil(30_000) {
+                ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            // Hiding v1 removes it from visible videos -> scan duplicate group must prune immediately!
+            graph.repository.setHidden(setOf(v1.id), true)
+            ui.waitUntil(10_000) {
+                ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isEmpty()
+            }
+            graph.repository.setHidden(setOf(v1.id), false)
             ui.onNodeWithTag("scan-start").performClick()
             ui.waitUntil(30_000) {
                 ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isNotEmpty()

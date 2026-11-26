@@ -3,12 +3,14 @@ package cn.yingxia.player.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -118,6 +120,7 @@ internal fun RecoveryForm(action: RecoveryAction, loadPrompts: suspend () -> Lis
 private fun RecoveryQuestionEditor(drafts: List<String>, modifier: Modifier, onEdit: (Int, String) -> Unit,
                                    onNext: () -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val presets = remember(context) { localizedRecoveryPresets(context) }
     val prompts = drafts.map { it.trim() }
     var menu by remember { mutableIntStateOf(-1) }
@@ -134,7 +137,11 @@ private fun RecoveryQuestionEditor(drafts: List<String>, modifier: Modifier, onE
                 label = { Text(stringResource(R.string.recovery_question_label, index + 1)) }, placeholder = { Text(stringResource(R.string.recovery_question_placeholder)) },
                 minLines = 1, maxLines = 3, isError = duplicate,
                 supportingText = if (duplicate) { { Text(stringResource(R.string.recovery_question_duplicate)) } } else null,
-                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next))
+                keyboardOptions = KeyboardOptions(
+                    autoCorrectEnabled = false,
+                    imeAction = if (index == drafts.lastIndex) ImeAction.Done else ImeAction.Next,
+                ),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }))
             Box {
                 TextButton(onClick = { menu = index }, modifier = Modifier.testTag("recovery-presets-" + index)) { Text(stringResource(R.string.recovery_pick_preset)) }
                 DropdownMenu(expanded = menu == index, onDismissRequest = { menu = -1 }) {

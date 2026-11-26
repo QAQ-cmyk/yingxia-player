@@ -167,6 +167,8 @@ class VaultLifecycleTest {
             val preset = context.resources.getStringArray(R.array.vault_recovery_presets).first()
             ui.onNodeWithText(preset).performClick()
             question(2).assertTextContains(preset).performScrollTo().performTextReplacement(chosen[2])
+            delay(350)
+            ui.waitForIdle()
             next.performScrollTo().performClick()
             ui.onNodeWithText(context.getString(R.string.recovery_show_answers)).performScrollTo().performClick()
             answer(0).assertTextContains("keep this answer")

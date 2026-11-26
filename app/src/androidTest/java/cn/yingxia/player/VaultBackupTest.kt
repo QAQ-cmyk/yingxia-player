@@ -117,6 +117,10 @@ class VaultBackupTest {
             vaultRepo.saveProgress(VideoId(entry.id), 4_500L)
             vaultRepo.saveBookmark(VideoId(entry.id), 3_000L, secretBookmark)
             vaultRepo.finish(VideoId(entry.id), 4_500L)
+            // Simulate old-device gallery restore state; phone migration must reset restoredAt to 0L on new device.
+            withContext(Dispatchers.IO) {
+                sourceStore.save(sourceStore.load(entry.id).copy(restoredAt = 1_700_000_000_000L))
+            }
 
             withContext(Dispatchers.IO) {
                 sourceStore.recovery.enroll(
@@ -167,7 +171,8 @@ class VaultBackupTest {
             try {
                 VaultBackupEngine.restoreIntoEmpty(context, freshStore, backupBackend, "wrong-password-999".toCharArray()) {}
                 fail("Wrong password must be rejected")
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                assertEquals(context.getString(R.string.vault_backup_error_wrong_password), e.message)
                 assertFalse("Failed restore must not leave keyset.bin behind", freshStore.configured)
             }
 
@@ -183,6 +188,7 @@ class VaultBackupTest {
             val restoredEntry = entries.single()
             assertEquals(secretTitle, restoredEntry.name)
             assertTrue("Restored entries must detach old gallery removal state", restoredEntry.sourceRemoved)
+            assertEquals("Restored entries must reset old-device restoredAt", 0L, restoredEntry.restoredAt)
             assertEquals("", restoredEntry.removalUri)
             assertFalse(restoredEntry.manageOriginalInGallery)
 
@@ -371,7 +377,8 @@ class VaultBackupTest {
             val restoreStart = SystemClock.elapsedRealtime()
             val restored = VaultBackupEngine.restoreIntoEmpty(context, restoredStore, backend, password.toCharArray()) {}
             val restoreMs = (SystemClock.elapsedRealtime() - restoreStart).coerceAtLeast(1L)
-            val heapDeltaRestore = usedHeapMb() - heapBeforeRestore
+            System.gc()
+            val heapDeltaRestore = (usedHeapMb() - heapBeforeRestore).coerceAtLeast(0.0)
             val restoreThroughput = totalMb / (restoreMs / 1000.0)
             assertEquals(2, restored.restored)
             assertEquals(2, restoredStore.entries().size)

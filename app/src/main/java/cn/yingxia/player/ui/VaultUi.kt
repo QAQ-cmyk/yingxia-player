@@ -81,6 +81,16 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
     ) { uri ->
         if (uri != null) vault.stageRestoreTree(uri)
     }
+    val launchBackupPicker = {
+        runCatching { pickBackupTree.launch(VaultBackupLocations.initialBackupPickerUri()) }
+            .onFailure { vm.message(context.getString(R.string.vault_backup_error_access)) }
+        Unit
+    }
+    val launchRestorePicker = {
+        runCatching { pickRestoreTree.launch(VaultBackupLocations.initialRestorePickerUri()) }
+            .onFailure { vm.message(context.getString(R.string.vault_backup_error_access)) }
+        Unit
+    }
     LaunchedEffect(state.consentToken, state.consent) {
         state.consent?.let {
             vault.consentLaunched()
@@ -151,7 +161,7 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
                     state = state,
                     unlock = vault::unlock,
                     recover = { recoveryAction = RecoveryAction.RESET },
-                    onPickRestoreTree = { pickRestoreTree.launch(VaultBackupLocations.initialRestorePickerUri()) },
+                    onPickRestoreTree = launchRestorePicker,
                     onRestoreLegacy = vault::stageLegacyRestore,
                     onCancelPendingRestore = vault::dismissPendingRestore,
                     modifier = Modifier.weight(1f),
@@ -186,10 +196,10 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
                     item {
                         VaultBackupCard(
                             state = state,
-                            onBindFolder = { pickBackupTree.launch(VaultBackupLocations.initialBackupPickerUri()) },
+                            onBindFolder = launchBackupPicker,
                             onSyncNow = vault::syncBackupNow,
                             onToggleAutoSync = vault::setBackupAutoSync,
-                            onMergeRestore = { pickRestoreTree.launch(VaultBackupLocations.initialRestorePickerUri()) },
+                            onMergeRestore = launchRestorePicker,
                             onUnbind = vault::clearBackupLocation,
                         )
                     }

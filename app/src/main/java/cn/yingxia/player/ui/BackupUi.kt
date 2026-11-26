@@ -81,7 +81,10 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                 }
                 Text(stringResource(R.string.backup_export_desc),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp, bottom = 14.dp))
-                Button(onClick = { export.launch("YingXia-backup.json") }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Button(onClick = {
+                    runCatching { export.launch("YingXia-backup.json") }
+                        .onFailure { vm.message(context.getString(R.string.backup_error_save)) }
+                }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.backup_save_button))
                 }
                 OutlinedButton(onClick = {
@@ -115,7 +118,10 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                 }
                 Text(stringResource(R.string.backup_restore_desc),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp, bottom = 14.dp))
-                OutlinedButton(onClick = { import.launch(arrayOf("application/json", "text/*", "*/*")) }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                OutlinedButton(onClick = {
+                    runCatching { import.launch(arrayOf("application/json", "text/*", "*/*")) }
+                        .onFailure { vm.message(context.getString(R.string.backup_error_read)) }
+                }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                     Icon(Icons.Outlined.Restore, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.backup_restore_button))
                 }
             }

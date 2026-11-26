@@ -10,6 +10,7 @@ import android.provider.DocumentsContract
 import androidx.core.content.ContextCompat
 import cn.yingxia.player.AppLocale
 import cn.yingxia.player.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -25,6 +26,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.UUID
+import javax.crypto.BadPaddingException
 import kotlin.coroutines.coroutineContext
 
 internal const val DEFAULT_VAULT_BACKUP_DIR_NAME = "YingXiaVault"
@@ -292,12 +294,12 @@ internal class SafVaultBackupBackend private constructor(
             childUri(existing.documentId)
         } else {
             DocumentsContract.createDocument(resolver, targetFolderUri, mimeType, name)
-                ?: error("Could not create backup document: $name")
+                ?: error(AppLocale.str(context, R.string.vault_backup_error_write_verify))
         }
         try {
             val out = resolver.openOutputStream(docUri, "wt")
                 ?: resolver.openOutputStream(docUri, "w")
-                ?: error("Could not open backup output stream: $name")
+                ?: error(AppLocale.str(context, R.string.vault_backup_error_write_verify))
             out.use { writer(it) }
         } catch (e: Exception) {
             if (existing == null) runCatching { DocumentsContract.deleteDocument(resolver, docUri) }
@@ -337,7 +339,7 @@ internal class SafVaultBackupBackend private constructor(
                     '@' !in authority &&
                     authority != context.packageName &&
                     !authority.startsWith("${context.packageName}."),
-            ) { "Invalid backup folder URI" }
+            ) { AppLocale.str(context, R.string.vault_backup_error_access) }
         }
 
         private fun queryDisplayName(context: Context, docUri: Uri, fallback: String): String =
@@ -392,7 +394,7 @@ internal class SafVaultBackupBackend private constructor(
                     rootUri,
                     DocumentsContract.Document.MIME_TYPE_DIR,
                     DEFAULT_VAULT_BACKUP_DIR_NAME,
-                ) ?: error("Could not create $DEFAULT_VAULT_BACKUP_DIR_NAME folder")
+                ) ?: error(AppLocale.str(context, R.string.vault_backup_error_access))
             }
             return SafVaultBackupBackend(context, treeUri, subUri, formatTreeLabel(rootId, rootName, nested = true))
         }
@@ -587,12 +589,16 @@ internal object VaultBackupEngine {
             }
             val unlocked = try {
                 VaultCrypto.unlock(keysetBytes, password)
-            } catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: BadPaddingException) {
                 error(AppLocale.str(context, R.string.vault_backup_error_wrong_password))
+            } catch (_: Exception) {
+                error(AppLocale.str(context, R.string.vault_backup_error_damaged))
             }
             backupSession = unlocked
 
-            val ids = discoverEntryIds(remoteFiles, manifest)
+            val ids = discoverEntryIds(context, remoteFiles, manifest)
             val stagedEntries = mutableListOf<Pair<VaultEntry, File>>()
             val stagedPlaybacks = mutableListOf<Pair<String, File>>()
             val stagingDir = File(store.directory, ".restore-staging-${UUID.randomUUID()}").apply { mkdirs() }
@@ -611,6 +617,7 @@ internal object VaultBackupEngine {
                     // Detach old-device gallery deletion/restore tracking so restored items never touch unrelated files on this device.
                     val sanitized = entry.copy(
                         sourceRemoved = true,
+                        restoredAt = 0L,
                         restorePending = "",
                         removalUri = "",
                         restoreTarget = "",
@@ -693,8 +700,12 @@ internal object VaultBackupEngine {
             }
             val unlockedBackup = try {
                 VaultCrypto.unlock(keysetBytes, backupPassword)
-            } catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: BadPaddingException) {
                 error(AppLocale.str(context, R.string.vault_backup_error_wrong_password))
+            } catch (_: Exception) {
+                error(AppLocale.str(context, R.string.vault_backup_error_damaged))
             }
             backupSession = unlockedBackup
 
@@ -703,7 +714,7 @@ internal object VaultBackupEngine {
                 .map { it.bytes to it.digest.lowercase() }
                 .toMutableSet()
 
-            val ids = discoverEntryIds(remoteFiles, manifest)
+            val ids = discoverEntryIds(context, remoteFiles, manifest)
             var restored = 0
             var skippedDuplicates = 0
 
@@ -755,6 +766,7 @@ internal object VaultBackupEngine {
                     val mergedEntry = backupEntry.copy(
                         id = newId,
                         sourceRemoved = true,
+                        restoredAt = 0L,
                         restorePending = "",
                         removalUri = "",
                         restoreTarget = "",
@@ -786,6 +798,7 @@ internal object VaultBackupEngine {
     }
 
     private fun discoverEntryIds(
+        context: Context,
         remoteFiles: Map<String, Long>,
         manifest: VaultBackupManifest?,
     ): List<String> {
@@ -795,7 +808,7 @@ internal object VaultBackupEngine {
             .map { it.removeSuffix(".meta") }
             .sorted()
         metaIds.forEach { id ->
-            require("$id.vault" in remoteFiles) { "Missing encrypted video file for entry $id" }
+            require("$id.vault" in remoteFiles) { AppLocale.str(context, R.string.vault_backup_error_damaged) }
         }
         return metaIds
     }
@@ -817,8 +830,13 @@ internal object VaultBackupEngine {
         manifest: VaultBackupManifest?,
         check: () -> Unit,
     ): ByteArray {
-        val bytes = backend.openInput(name)?.use { readBoundedBytes(it, maxBytes, check) }
-            ?: error(AppLocale.str(context, R.string.vault_backup_error_damaged))
+        val bytes = try {
+            backend.openInput(name)?.use { readBoundedBytes(it, maxBytes, check) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            error(AppLocale.str(context, R.string.vault_backup_error_damaged))
+        } ?: error(AppLocale.str(context, R.string.vault_backup_error_damaged))
         manifest?.files?.get(name)?.let { expected ->
             val actualHash = MessageDigest.getInstance("SHA-256").digest(bytes)
             require(bytes.size.toLong() == expected.bytes && MessageDigest.isEqual(actualHash, expected.sha256.unhex())) {

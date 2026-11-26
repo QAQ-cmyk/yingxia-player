@@ -216,8 +216,14 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             vm.importVideo(uri.toString())
         }
     }
-    val requestAccess = { permissions.launch(mediaPermissions()) }
-    val importFile = { openFile.launch(Unit) }
+    val requestAccess: () -> Unit = {
+        runCatching { permissions.launch(mediaPermissions()) }
+            .onFailure { vm.message(context.getString(R.string.error_action_not_saved)) }
+    }
+    val importFile: () -> Unit = {
+        runCatching { openFile.launch(Unit) }
+            .onFailure { vm.message(context.getString(R.string.notice_import_failed)) }
+    }
     val encryptBatch: (List<VideoItem>) -> Unit = { batch ->
         val targets = batch.filter { it.accessible }
         when {
@@ -806,7 +812,11 @@ private fun SortOrder.labelRes(): Int = when (this) {
                 }
             }
         }
-        item { SectionCard(padding = 16.dp) { OutlinedButton(onClick = { context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), shape = CircleShape) { Text(stringResource(R.string.settings_manage_permissions)) }; Text(stringResource(R.string.settings_manage_permissions_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) } }
+        item { SectionCard(padding = 16.dp) { OutlinedButton(onClick = {
+            runCatching {
+                context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+            }.onFailure { vm.message(context.getString(R.string.error_action_not_saved)) }
+        }, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), shape = CircleShape) { Text(stringResource(R.string.settings_manage_permissions)) }; Text(stringResource(R.string.settings_manage_permissions_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp)) } }
         item { SectionCard(padding = 16.dp) { SettingsTitle(stringResource(R.string.settings_tips_title)); Text(stringResource(R.string.settings_tips_body), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
         item { OutlinedButton(onClick = { clearConfirm = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp), shape = CircleShape,
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text(stringResource(R.string.settings_clear_history)) } }

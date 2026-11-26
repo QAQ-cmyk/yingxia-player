@@ -102,6 +102,8 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                         return
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val reason = e.message ?: str(R.string.file_op_failed_fallback)
                 finishFiles(str(if (copiedUri != null) R.string.file_op_failed_copy_kept else R.string.file_op_failed_single, video.name, reason))
@@ -137,7 +139,8 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                 if (consent.retryDelete) check(graph.files.delete(video, true) == DeleteOutcome.Deleted)
                 else graph.files.verifySystemDeletion(consent.mediaUri)
                 finishFile(); continueFiles()
-            } catch (e: Exception) { finishFiles(e.message ?: str(R.string.file_op_incomplete)) }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { finishFiles(e.message ?: str(R.string.file_op_incomplete)) }
         }
     }
     private suspend fun finishFiles(detail: String? = null) {
@@ -149,6 +152,21 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     }
     init {
         viewModelScope.launch { graph.player.events.collect { if (it is PlayerEvent.Error) notify(it.failure.message) } }
+        viewModelScope.launch {
+            graph.repository.videos.collect { currentVideos ->
+                val scan = libraryScan.value
+                if (!scan.running && (scan.duplicates.isNotEmpty() || scan.unreadable.isNotEmpty())) {
+                    val visibleIds = currentVideos.mapTo(HashSet()) { it.id }
+                    val nextDuplicates = scan.duplicates
+                        .map { group -> group.filter { it.id in visibleIds } }
+                        .filter { it.size > 1 }
+                    val nextUnreadable = scan.unreadable.filter { it.first.id in visibleIds }
+                    if (nextDuplicates != scan.duplicates || nextUnreadable != scan.unreadable) {
+                        libraryScan.value = scan.copy(duplicates = nextDuplicates, unreadable = nextUnreadable)
+                    }
+                }
+            }
+        }
     }
     fun command(command: PlayerCommand) { viewModelScope.launch { graph.player.execute(command) } }
     fun open(video: VideoItem, queue: List<VideoItem>, position: Long? = null, recordHistory: Boolean = true) {

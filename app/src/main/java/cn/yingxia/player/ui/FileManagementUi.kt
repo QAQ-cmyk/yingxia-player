@@ -89,8 +89,13 @@ fun belongsToFolder(video: VideoItem, folderUri: String): Boolean = runCatching 
         } },
         confirmButton = { TextButton(enabled = LocalFileManager.validFolderName(name) && !waiting, onClick = {
             waiting = true
-            picker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION))
+            runCatching {
+                picker.launch(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION))
+            }.onFailure {
+                waiting = false
+                vm.message(context.getString(R.string.file_op_folder_create_failed))
+            }
         }) { Text(stringResource(R.string.folder_dialog_pick_parent)) } },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !waiting) { Text(stringResource(R.string.action_cancel)) } })
 }

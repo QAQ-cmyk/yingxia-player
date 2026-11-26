@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicLong
+import javax.crypto.BadPaddingException
 
 internal enum class RecoveryAction { ENROLL, DISABLE, RESET }
 
@@ -144,16 +145,22 @@ class VaultCoordinator(
     fun unlock(password: CharArray) {
         if (state.value.busy) { password.fill('\u0000'); return }
         run(str(R.string.vault_prog_unlocking)) {
+            val openingExisting = store.configured
             try {
                 withContext(Dispatchers.IO) {
-                    if (store.configured) store.unlock(password) else store.setup(password)
+                    if (openingExisting) store.unlock(password) else store.setup(password)
                 }
                 state.update { it.copy(configured = true, unlocked = true) }
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: BadPaddingException) {
                 store.lock()
                 state.update { it.copy(unlocked = false) }
                 error(str(R.string.vault_error_wrong_password))
+            } catch (e: Exception) {
+                store.lock()
+                state.update { it.copy(unlocked = false) }
+                throw e
             } finally { password.fill('\u0000') }
             refresh()
             if (consentAnswer != null) finishConsent()
