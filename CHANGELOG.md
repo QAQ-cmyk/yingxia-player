@@ -2,6 +2,14 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [1.9.1] - 2026-11-26
+
+### Fixed
+- **Fixed Library Check freeze & ANR crash**: Moved `startLibraryScan()`, `Sha256Check`, and `ReadableVideoCheck` completely off the main thread onto `Dispatchers.IO`, added per-chunk cancellation checks (no longer swallowing `CancellationException`), hardened corrupt-file / file-descriptor cleanup, and fixed progress counter overflow.
+- **Much faster duplicate scanning**: Added exact byte-size pre-filtering (`duplicateCandidateIds`) so videos with unique byte sizes skip unnecessary full-file SHA-256 reads while preserving exact byte-for-byte duplicate accuracy.
+
+---
+
 ## [1.9.0] - 2026-11-25
 
 ### Added
