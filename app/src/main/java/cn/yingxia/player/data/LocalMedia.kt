@@ -285,7 +285,8 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
     override suspend fun saveProgress(id: VideoId, positionMs: Long) { dao.progress(id.value, positionMs.coerceAtLeast(0), System.currentTimeMillis()) }
     override suspend fun saveBookmark(videoId: VideoId, positionMs: Long, note: String, id: Long) {
         val video = requirePlayable(videoId)
-        dao.bookmark(BookmarkEntity(id, videoId.value, PlaybackRules.seek(positionMs, video.durationMs), note.trim().take(200)))
+        val clamped = if (video.durationMs > 0) PlaybackRules.seek(positionMs, video.durationMs) else positionMs.coerceAtLeast(0L)
+        dao.bookmark(BookmarkEntity(id, videoId.value, clamped, note.trim().take(200)))
     }
     override suspend fun deleteBookmark(id: Long) { dao.deleteBookmark(id) }
     override suspend fun clearHistory() { dao.clearHistory() }

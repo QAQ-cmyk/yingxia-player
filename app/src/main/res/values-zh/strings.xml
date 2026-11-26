@@ -97,6 +97,8 @@
     <string name="empty_favorites_desc">播放时点「收藏」，或在卡片的「更多」里收藏。</string>
     <string name="empty_folder_title">这个文件夹还没有视频</string>
     <string name="empty_folder_desc">可以在其他视频的「更多」里选择「移动到文件夹」。</string>
+    <string name="empty_in_progress_title">还没有观看中的视频</string>
+    <string name="empty_in_progress_desc">看到一半暂停的视频会出现在这里，方便下次接着看。</string>
     <string name="empty_library_title">让好视频，有个家</string>
     <string name="empty_library_desc">从相册发现，或选择一个本地文件。\n视频始终留在这台手机里。</string>
 

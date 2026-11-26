@@ -83,10 +83,10 @@ class FullAppWalkthroughUiTest {
 
             // 3. Home sort menu: switch to Newest first and back to Name A-Z.
             ui.onNodeWithContentDescription(context.getString(R.string.action_sort)).performClick()
-            ui.onNodeWithText(context.getString(R.string.sort_newest)).performClick()
+            ui.onAllNodesWithText(context.getString(R.string.sort_newest)).onLast().performClick()
             ui.waitForIdle()
             ui.onNodeWithContentDescription(context.getString(R.string.action_sort)).performClick()
-            ui.onNodeWithText(context.getString(R.string.sort_name_asc)).performClick()
+            ui.onAllNodesWithText(context.getString(R.string.sort_name_asc)).onLast().performClick()
             ui.waitForIdle()
 
             // 3b. Rename videoA via card overflow menu and verify updated display title renders.

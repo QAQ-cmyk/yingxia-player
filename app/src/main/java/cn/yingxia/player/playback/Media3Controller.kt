@@ -189,7 +189,8 @@ class Media3Controller(private val context: Context, private val repository: Vid
         mutableState.value = PlaybackState(video, safeQueue, durationMs = video.durationMs, baseSpeed = speed, effectiveSpeed = speed, repeatMode = mode, buffering = true, recordHistory = recordHistory)
         if (source != null) surfacePlayer.setMediaSource(source.invoke(video)) else surfacePlayer.setMediaItem(mediaItem(video))
         val resumePosition = if (recordHistory) PlaybackRules.resume(video.positionMs, video.durationMs) else 0L
-        surfacePlayer.seekTo(start?.let { PlaybackRules.seek(it, video.durationMs) } ?: resumePosition)
+        val startPosition = start?.let { if (video.durationMs > 0) PlaybackRules.seek(it, video.durationMs) else it.coerceAtLeast(0L) } ?: resumePosition
+        surfacePlayer.seekTo(startPosition)
         surfacePlayer.setPlaybackSpeed(speed)
         surfacePlayer.prepare()
         isClosing = false

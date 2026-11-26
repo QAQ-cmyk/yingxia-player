@@ -97,6 +97,8 @@
     <string name="empty_favorites_desc">Tap Favorite while watching or from a video card menu.</string>
     <string name="empty_folder_title">No videos in this folder</string>
     <string name="empty_folder_desc">Use Move to folder from any video\'s menu to organize files here.</string>
+    <string name="empty_in_progress_title">No videos in progress</string>
+    <string name="empty_in_progress_desc">Videos you pause partway through appear here so you can resume quickly.</string>
     <string name="empty_library_title">A calm home for your videos</string>
     <string name="empty_library_desc">Scan your gallery or pick a single local file.\nEverything stays on this phone.</string>
 

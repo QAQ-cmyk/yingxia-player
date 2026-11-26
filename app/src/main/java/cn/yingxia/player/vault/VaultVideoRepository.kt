@@ -72,12 +72,14 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
         persist(id, next, bookmarks.value)
         videos.value = videos.value.map { if (it.id == id) next else it }
     } }
-    override suspend fun saveProgress(id: VideoId, positionMs: Long) = update(id) { it.copy(positionMs = PlaybackRules.seek(positionMs, it.durationMs)) }
+    private fun clampPosition(positionMs: Long, durationMs: Long) =
+        if (durationMs > 0) PlaybackRules.seek(positionMs, durationMs) else positionMs.coerceAtLeast(0L)
+    override suspend fun saveProgress(id: VideoId, positionMs: Long) = update(id) { it.copy(positionMs = clampPosition(positionMs, it.durationMs)) }
     override suspend fun setFavorite(ids: Set<VideoId>, favorite: Boolean) { ids.forEach { update(it) { v -> v.copy(favorite = favorite) } } }
     override suspend fun rename(id: VideoId, displayName: String) = withContext(Dispatchers.IO) { synchronized(monitor) {
         checkOpen()
         val name = displayName.trim()
-        require(name.isNotEmpty() && name.length <= 80 && '\n' !in name && '\r' !in name)
+        require(name.isNotEmpty() && name.length <= 80 && '\n' !in name && '\r' !in name && '\u0000' !in name)
         val entry = store.load(id.value)
         store.save(entry.copy(name = name))
         videos.value = videos.value.map { if (it.id == id) it.copy(displayName = name) else it }
@@ -89,7 +91,7 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
         val existing = bookmarks.value.firstOrNull { it.id == id }
         require(id == 0L || existing?.videoId == videoId)
         require(id != 0L || bookmarks.value.count { it.videoId == videoId } < 256) { store.str(R.string.vault_repo_bookmark_limit) }
-        val bookmark = Bookmark(if (id == 0L) nextBookmark++ else id, videoId, PlaybackRules.seek(positionMs, video.durationMs), note.take(200))
+        val bookmark = Bookmark(if (id == 0L) nextBookmark++ else id, videoId, clampPosition(positionMs, video.durationMs), note.take(200))
         val next = bookmarks.value.filterNot { it.id == bookmark.id } + bookmark
         persist(videoId, video, next); bookmarks.value = next
     } }
@@ -104,7 +106,7 @@ class VaultVideoRepository(private val store: VaultStore) : VideoRepository {
     fun finish(id: VideoId?, position: Long) = synchronized(monitor) {
         try {
             if (id != null && !closed) videos.value.firstOrNull { it.id == id }?.let {
-                persist(id, it.copy(positionMs = PlaybackRules.seek(position, it.durationMs)), bookmarks.value)
+                persist(id, it.copy(positionMs = clampPosition(position, it.durationMs)), bookmarks.value)
             }
         } finally { closed = true; videos.value = emptyList(); bookmarks.value = emptyList(); damaged.clear() }
     }

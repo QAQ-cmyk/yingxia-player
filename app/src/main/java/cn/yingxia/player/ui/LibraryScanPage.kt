@@ -28,7 +28,14 @@ import cn.yingxia.player.core.displayTitle
     val scan by vm.libraryScan.collectAsStateWithLifecycle()
     var chosen by remember { mutableStateOf(setOf<VideoId>()) }
     var confirm by remember { mutableStateOf<List<VideoItem>?>(null) }
-    confirm?.let { items -> FileActionDialogs(vm, items, false) { confirm = null; chosen = emptySet() } }
+    LaunchedEffect(scan.duplicates, scan.unreadable) {
+        if (chosen.isNotEmpty()) {
+            val valid = (scan.duplicates.flatten() + scan.unreadable.map { it.first }).mapTo(HashSet()) { it.id }
+            val pruned = chosen.filterTo(LinkedHashSet()) { it in valid }
+            if (pruned.size != chosen.size) chosen = pruned
+        }
+    }
+    confirm?.let { items -> FileActionDialogs(vm, items, false) { confirm = null } }
     LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             SectionCard(padding = 18.dp) {

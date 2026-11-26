@@ -113,8 +113,19 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     private suspend fun finishFile() {
         val video = fileItems[fileIndex]
         if (copiedUri != null) graph.repository.relocated(video, copiedUri!!, fileTarget!!.name)
-        else graph.database.videos().unavailable(video.id.value)
+        else {
+            graph.database.videos().unavailable(video.id.value)
+            pruneScanResult(video.id)
+        }
         fileSucceeded++; fileIndex++; copiedUri = null
+    }
+    private fun pruneScanResult(deletedId: VideoId) {
+        val current = libraryScan.value
+        if (current.duplicates.isEmpty() && current.unreadable.isEmpty()) return
+        libraryScan.value = current.copy(
+            duplicates = current.duplicates.map { group -> group.filterNot { it.id == deletedId } }.filter { it.size > 1 },
+            unreadable = current.unreadable.filterNot { it.first.id == deletedId },
+        )
     }
     fun fileConsentResult(approved: Boolean) {
         val consent = fileOperation.value.consent ?: return

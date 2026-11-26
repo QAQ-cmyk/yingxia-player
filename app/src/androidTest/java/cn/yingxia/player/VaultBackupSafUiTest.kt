@@ -113,6 +113,7 @@ class VaultBackupSafUiTest {
         try {
             // Prepare clean Documents state and reset DocumentsUI task history.
             runShell("am force-stop com.google.android.documentsui || true")
+            runShell("am force-stop com.android.externalstorage || true")
             runShell("rm -rf $backupPath && mkdir -p $backupPath")
 
             // 1. Setup vault and encrypt a real fixture video.
@@ -137,6 +138,8 @@ class VaultBackupSafUiTest {
                 graph.vault.unlock(password.toCharArray())
             }
             ui.waitUntil(60_000) { graph.vault.state.value.unlocked && !graph.vault.state.value.busy }
+            ui.onNode(hasAnyAncestor(hasTestTag("vault-screen")) and hasScrollAction())
+                .performScrollToNode(hasTestTag("vault-backup-bind"))
             ui.onNodeWithTag("vault-backup-bind").performClick()
 
             // Approve Documents directly (SafVaultBackupBackend.forExport automatically creates/reuses YingXiaVault inside it!).

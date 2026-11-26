@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -109,6 +110,12 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
         var libraryNav by remember { mutableStateOf(true) }
         var homeGeneration by rememberSaveable { mutableIntStateOf(0) }
+        var tab by rememberSaveable { mutableIntStateOf(0) }
+        var page by rememberSaveable { mutableStateOf("") }
+        var folder by rememberSaveable { mutableStateOf<String?>(null) }
+        var query by rememberSaveable { mutableStateOf("") }
+        var filter by rememberSaveable { mutableIntStateOf(0) }
+        var historyOrder by rememberSaveable { mutableStateOf(SortOrder.RECENT_PLAY) }
         val landscape = LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val showLibrary = player.video == null
         val snackbarLift = when {
@@ -122,11 +129,25 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 AnimatedContent(showLibrary, Modifier.fillMaxSize(), transitionSpec = {
                     fadeIn(motionTween(200)) togetherWith fadeOut(motionTween(150))
                 }, label = "library-player") { library ->
-                    if (library) key(homeGeneration) { LibraryScaffold(vm) { libraryNav = it } }
+                    if (library) key(homeGeneration) {
+                        LibraryScaffold(
+                            vm = vm,
+                            tab = tab, onTab = { tab = it },
+                            page = page, onPage = { page = it },
+                            folder = folder, onFolder = { folder = it },
+                            query = query, onQuery = { query = it },
+                            filter = filter, onFilter = { filter = it },
+                            historyOrder = historyOrder, onHistoryOrder = { historyOrder = it },
+                            onNavigationVisible = { libraryNav = it },
+                        )
+                    }
                     else key(player.video?.source == "share") { PlayerPage(vm, player, settings) }
                 }
                 FileOperationHost(vm)
-                VaultHost(vm, onLockedToHome = { homeGeneration++ })
+                VaultHost(vm, onLockedToHome = {
+                    tab = 0; page = ""; folder = null; query = ""; filter = 0
+                    homeGeneration++
+                })
                 GalleryShareDialog(vm)
                 SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding().padding(start = 16.dp, end = 16.dp, bottom = snackbarLift))
             }
@@ -154,21 +175,27 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         confirmButton = { TextButton(onClick = vm::dismissShare) { Text(stringResource(if (share.error != null) R.string.action_got_it else R.string.action_cancel)) } })
 }
 
-@Composable private fun LibraryScaffold(vm: AppViewModel, onNavigationVisible: (Boolean) -> Unit) {
+@Composable private fun LibraryScaffold(
+    vm: AppViewModel,
+    tab: Int, onTab: (Int) -> Unit,
+    page: String, onPage: (String) -> Unit,
+    folder: String?, onFolder: (String?) -> Unit,
+    query: String, onQuery: (String) -> Unit,
+    filter: Int, onFilter: (Int) -> Unit,
+    historyOrder: SortOrder, onHistoryOrder: (SortOrder) -> Unit,
+    onNavigationVisible: (Boolean) -> Unit,
+) {
     val videos by vm.videos.collectAsStateWithLifecycle()
     val hidden by vm.hidden.collectAsStateWithLifecycle()
     val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
     val scanning by vm.graph.repository.scanning.collectAsStateWithLifecycle()
     val access by vm.graph.repository.access.collectAsStateWithLifecycle()
     val scanError by vm.graph.repository.scanError.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableIntStateOf(0) }
-    var page by rememberSaveable { mutableStateOf("") }
-    var folder by rememberSaveable { mutableStateOf<String?>(null) }
-    var query by rememberSaveable { mutableStateOf("") }
     val settings by vm.settings.collectAsStateWithLifecycle()
     val order = settings.sort
+    val effectiveOrder = if (page == "history") historyOrder else order
     val scope = rememberCoroutineScope()
-    var filter by rememberSaveable { mutableIntStateOf(0) }
+    val focusManager = LocalFocusManager.current
     var selected by remember { mutableStateOf(setOf<VideoId>()) }
     var searchFocused by remember { mutableStateOf(false) }
     var fileItems by remember { mutableStateOf<List<VideoItem>?>(null) }
@@ -203,10 +230,16 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         }
     }
     val showSearch = page != "hidden" && page != "settings" && page != "bookmarks" && page != "backup" && page != "scan" && !(tab == 3 && page.isEmpty()) && !(tab == 1 && folder == null && page.isEmpty())
-    SideEffect { onNavigationVisible(!searchFocused || !showSearch) }
+    val hideNavForKeyboard = showSearch && searchFocused && WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    SideEffect { onNavigationVisible(!hideNavForKeyboard) }
     DisposableEffect(Unit) { onDispose { onNavigationVisible(true) } }
-    BackHandler(selected.isNotEmpty() || page.isNotEmpty() || folder != null) {
-        when { selected.isNotEmpty() -> selected = emptySet(); folder != null -> folder = null; else -> page = "" }
+    BackHandler(selected.isNotEmpty() || query.isNotEmpty() || searchFocused || page.isNotEmpty() || folder != null) {
+        when {
+            selected.isNotEmpty() -> selected = emptySet()
+            query.isNotEmpty() || searchFocused -> { onQuery(""); searchFocused = false; focusManager.clearFocus() }
+            folder != null -> onFolder(null)
+            else -> onPage("")
+        }
     }
     val current = when {
         page == "hidden" -> hidden
@@ -218,10 +251,17 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     val searchMatched = remember(current, query) {
         current.filter { matchesLibraryQuery(it.displayTitle(), it.name, it.folder, query) }
     }
-    val visible = remember(searchMatched, order, filter, page, tab) {
+    val visible = remember(searchMatched, effectiveOrder, filter, page, tab) {
         val filtered = searchMatched
             .filter { tab != 0 || page.isNotEmpty() || filter != 2 || it.positionMs > 0 && it.durationMs - it.positionMs > 5000 }
-        order.apply(filtered)
+        effectiveOrder.apply(filtered)
+    }
+    LaunchedEffect(visible) {
+        if (selected.isNotEmpty()) {
+            val visibleIds = visible.mapTo(HashSet()) { it.id }
+            val pruned = selected.filterTo(LinkedHashSet()) { it in visibleIds }
+            if (pruned.size != selected.size) selected = pruned
+        }
     }
     val titles = listOf(
         stringResource(R.string.nav_home),
@@ -235,11 +275,11 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (!searchFocused || !showSearch) Column {
+            if (!hideNavForKeyboard) Column {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                     titles.forEachIndexed { i, title ->
-                        NavigationBarItem(selected = tab == i, onClick = { tab = i; page = ""; folder = null; query = ""; selected = emptySet(); filter = 0 },
+                        NavigationBarItem(selected = tab == i, onClick = { onTab(i); onPage(""); onFolder(null); onQuery(""); selected = emptySet(); onFilter(0) },
                             icon = { Icon(if (tab == i) selectedIcons[i] else icons[i], title) },
                             label = { Text(title, fontWeight = if (tab == i) FontWeight.SemiBold else FontWeight.Normal) },
                             modifier = Modifier.testTag("nav-$i"),
@@ -263,7 +303,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
             }
             val topLevel = selected.isEmpty() && page.isEmpty() && folder == null
             Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(start = if (topLevel) 16.dp else 4.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (page.isNotEmpty() || folder != null) IconButton(onClick = { page = ""; folder = null; selected = emptySet(); query = "" }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back)) }
+                if (page.isNotEmpty() || folder != null) IconButton(onClick = { onPage(""); onFolder(null); selected = emptySet(); onQuery("") }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.action_back)) }
                 Text(if (selected.isNotEmpty()) stringResource(R.string.title_selected_count, selected.size) else nestedTitle.ifEmpty { if (tab == 0) stringResource(R.string.app_name) else titles[tab] },
                     style = if (topLevel) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -324,8 +364,8 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 "backup" -> BackupPage(vm)
                 "scan" -> LibraryScanPage(vm)
                 "bookmarks" -> BookmarksPage(vm, videos, bookmarks)
-                "tab3" -> ProfilePage(videos, bookmarks.size, { if (it == "vault") vm.graph.vault.show() else page = it }, importFile)
-                "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }, { folder = it; query = "" }, encryptBatch)
+                "tab3" -> ProfilePage(videos, bookmarks.size, { if (it == "vault") vm.graph.vault.show() else onPage(it) }, importFile)
+                "tab1" -> FolderPage(videos, managedFolders, managedKeys, { newFolder = true }, { onFolder(it); onQuery("") }, encryptBatch)
                 else -> {
                     val openedFolder = currentScreen.removePrefix("folder:").takeIf { currentScreen.startsWith("folder:") }
                     val listKind = when (currentScreen) {
@@ -336,11 +376,13 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     }
                     Column(Modifier.fillMaxSize()) {
                     if (listKind != "hidden") {
-                        SearchField(query, { query = it }, { searchFocused = it }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                        SearchField(query, onQuery, { searchFocused = it }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     } else Text(stringResource(R.string.hidden_banner_hint), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    VideoGrid(vm, visible, searchMatched.size, videos, access, scanning, scanError, order, { scope.launch { vm.graph.settings.setSort(it) } }, query,
+                    VideoGrid(vm, visible, searchMatched.size, videos, access, scanning, scanError, effectiveOrder, { next ->
+                        if (page == "history") onHistoryOrder(next) else scope.launch { vm.graph.settings.setSort(next) }
+                    }, query,
                         selected, { selected = it }, listKind, currentScreen == "tab0" && query.isBlank() && filter != 2,
-                        filter, { filter = it }, currentScreen == "tab0",
+                        filter, onFilter, currentScreen == "tab0",
                         requestAccess, importFile, { video, move -> moving = move; fileItems = listOf(video) }, { renaming = it })
                     }
                 }
@@ -486,6 +528,7 @@ private fun SortOrder.labelRes(): Int = when (this) {
                 history -> Triple(R.string.empty_history_title, R.string.empty_history_desc, false)
                 listKind == "favorites" -> Triple(R.string.empty_favorites_title, R.string.empty_favorites_desc, false)
                 listKind == "folder" -> Triple(R.string.empty_folder_title, R.string.empty_folder_desc, false)
+                listKind == "videos" && filter == 2 -> Triple(R.string.empty_in_progress_title, R.string.empty_in_progress_desc, false)
                 else -> Triple(R.string.empty_library_title, R.string.empty_library_desc, true)
             }
             EmptyState(stringResource(emptyTitleRes), stringResource(emptyMessageRes), if (allowImport) importFile else null, if (listKind == "videos" && access == LibraryAccess.NONE && query.isEmpty() && !scanning) requestAccess else null)
