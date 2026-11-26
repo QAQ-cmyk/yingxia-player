@@ -96,12 +96,14 @@ internal fun RecoveryForm(action: RecoveryAction, loadPrompts: suspend () -> Lis
             label = { Text(stringResource(if (reset) R.string.recovery_new_password_label else R.string.recovery_current_password_label)) }, enabled = !busy, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), keyboardOptions = keyboard)
         if (reset) OutlinedTextField(confirm, { confirm = it.take(128) }, Modifier.fillMaxWidth().testTag("recovery-confirm"),
-            label = { Text(stringResource(R.string.recovery_confirm_new_password_label)) }, singleLine = true,
+            label = { Text(stringResource(R.string.recovery_confirm_new_password_label)) }, enabled = !busy, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), keyboardOptions = keyboard)
         Button(onClick = {
             val credential = password.toCharArray()
+            val submittedAnswers = if (action == RecoveryAction.DISABLE) emptyList() else clean.map { it.toCharArray() }
             password = ""
-            onSubmit(credential, prompts, if (action == RecoveryAction.DISABLE) emptyList() else clean.map { it.toCharArray() })
+            confirm = ""
+            onSubmit(credential, prompts, submittedAnswers)
         }, enabled = !busy && password.length >= 8 && validAnswers && (!reset || confirm == password),
             modifier = Modifier.fillMaxWidth().testTag("recovery-submit")) { Text(stringResource(when (action) {
                 RecoveryAction.ENROLL -> R.string.recovery_submit_enroll

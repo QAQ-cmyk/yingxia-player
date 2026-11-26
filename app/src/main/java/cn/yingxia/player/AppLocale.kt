@@ -28,7 +28,7 @@ object AppLocale {
     }
 
     fun set(context: Context, language: AppLanguage) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, language.tag).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, language.tag).commit()
     }
 
     fun wrap(base: Context): Context {

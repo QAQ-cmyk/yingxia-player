@@ -187,7 +187,12 @@ class VaultCoordinator(
             val message = when (action) {
                 RecoveryAction.ENROLL -> str(R.string.vault_msg_recovery_enabled)
                 RecoveryAction.DISABLE -> str(R.string.vault_msg_recovery_disabled)
-                RecoveryAction.RESET -> str(R.string.vault_msg_password_reset)
+                RecoveryAction.RESET -> {
+                    if (state.value.backupConfig.configured && state.value.backupConfig.autoSync) {
+                        pendingSyncAfterUnlock = true
+                    }
+                    str(R.string.vault_msg_password_reset)
+                }
             }
             state.update { it.copy(recoveryEnabled = store.recovery.enabled, message = message) }
         }
@@ -799,10 +804,17 @@ class VaultCoordinator(
     }
 
     fun stopPlaying() {
+        val hadSession = playback != null
         val names = playback?.repository?.videos?.value.orEmpty().associate { it.id.value to (it.displayName ?: it.name) }
         try { releasePlayer?.invoke() } finally {
             releasePlayer = null; playback = null
             state.update { current -> current.copy(playing = null, entries = current.entries.map { entry -> names[entry.id]?.let { entry.copy(name = it) } ?: entry }) }
+        }
+        if (hadSession && state.value.unlocked && state.value.backupConfig.configured && state.value.backupConfig.autoSync && !state.value.busy) {
+            run(str(R.string.vault_backup_prog_scanning)) {
+                val note = autoSyncBackupSuffix().trim()
+                if (note.isNotEmpty()) state.update { it.copy(message = note) }
+            }
         }
     }
 

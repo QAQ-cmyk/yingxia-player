@@ -49,13 +49,17 @@ import cn.yingxia.player.core.displayTitle
                 } else Button(onClick = { chosen = emptySet(); vm.startLibraryScan() }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("scan-start")) { Text(stringResource(if (scan.total == 0) R.string.scan_start else R.string.scan_restart)) }
             }
         }
-        if (!scan.running && scan.total > 0 && scan.duplicates.isEmpty() && scan.unreadable.isEmpty()) item {
+        if (!scan.running && scan.completed && scan.total > 0 && scan.duplicates.isEmpty() && scan.unreadable.isEmpty()) item {
             SectionCard(padding = 18.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.CheckCircleOutline, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.scan_all_good), style = MaterialTheme.typography.bodyMedium)
                 }
+            }
+        } else if (!scan.running && !scan.completed && scan.label.isNotBlank()) item {
+            SectionCard(padding = 18.dp) {
+                Text(scan.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         scan.duplicates.forEachIndexed { index, group ->

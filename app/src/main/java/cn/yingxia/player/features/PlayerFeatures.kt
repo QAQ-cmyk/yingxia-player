@@ -30,7 +30,7 @@ class SleepTimerFeature(private val controller: PlaybackController, private val 
     private var job: Job? = null
     fun start(minutes: Int) { startMilliseconds(minutes * 60_000L) }
     fun stopWhenFinished() {
-        job?.cancel()
+        cancel()
         if (controller.state.value.durationMs <= 0) return
         untilEnd.value = true
         job = scope.launch {

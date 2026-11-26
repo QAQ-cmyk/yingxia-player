@@ -22,6 +22,10 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
@@ -211,8 +215,11 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         folder != null -> videos.filter { it.folderKey == folder || it.folderKey in managedKeys[folder].orEmpty() || belongsToFolder(it, folder!!) }
         else -> videos
     }
-    val visible = remember(current, query, order, filter, page, tab) {
-        val filtered = current.filter { matchesLibraryQuery(it.displayTitle(), it.name, it.folder, query) }
+    val searchMatched = remember(current, query) {
+        current.filter { matchesLibraryQuery(it.displayTitle(), it.name, it.folder, query) }
+    }
+    val visible = remember(searchMatched, order, filter, page, tab) {
+        val filtered = searchMatched
             .filter { tab != 0 || page.isNotEmpty() || filter != 2 || it.positionMs > 0 && it.durationMs - it.positionMs > 5000 }
         order.apply(filtered)
     }
@@ -298,9 +305,9 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                             }
                         }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_play_selected)) }
                         TextButton(onClick = { vm.hide(selected, true); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_hide)) }
-                        TextButton(onClick = { vm.graph.vault.show(visible.filter { it.id in selected }); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_encrypt)) }
-                        TextButton(onClick = { moving = true; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_move)) }
-                        TextButton(onClick = { moving = false; fileItems = visible.filter { it.id in selected } }, modifier = Modifier.heightIn(min = 42.dp), colors = dangerColors) { Text(stringResource(R.string.action_delete)) }
+                        TextButton(onClick = { encryptBatch(visible.filter { it.id in selected }); selected = emptySet() }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_encrypt)) }
+                        TextButton(onClick = { val picked = visible.filter { it.id in selected }; if (picked.isNotEmpty()) { moving = true; fileItems = picked } }, modifier = Modifier.heightIn(min = 42.dp), colors = actionColors) { Text(stringResource(R.string.action_move)) }
+                        TextButton(onClick = { val picked = visible.filter { it.id in selected }; if (picked.isNotEmpty()) { moving = false; fileItems = picked } }, modifier = Modifier.heightIn(min = 42.dp), colors = dangerColors) { Text(stringResource(R.string.action_delete)) }
                     }
                 }
             }
@@ -331,7 +338,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     if (listKind != "hidden") {
                         SearchField(query, { query = it }, { searchFocused = it }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     } else Text(stringResource(R.string.hidden_banner_hint), modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    VideoGrid(vm, visible, videos, access, scanning, scanError, order, { scope.launch { vm.graph.settings.setSort(it) } }, query,
+                    VideoGrid(vm, visible, searchMatched.size, videos, access, scanning, scanError, order, { scope.launch { vm.graph.settings.setSort(it) } }, query,
                         selected, { selected = it }, listKind, currentScreen == "tab0" && query.isBlank() && filter != 2,
                         filter, { filter = it }, currentScreen == "tab0",
                         requestAccess, importFile, { video, move -> moving = move; fileItems = listOf(video) }, { renaming = it })
@@ -344,11 +351,14 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
 }
 
 @Composable private fun SearchField(query: String, onQuery: (String) -> Unit, onFocus: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val focusManager = LocalFocusManager.current
     DisposableEffect(Unit) { onDispose { onFocus(false) } }
     BasicTextField(
         value = query,
         onValueChange = onQuery,
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
         textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = modifier.fillMaxWidth().height(40.dp).clip(CircleShape)
@@ -363,7 +373,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                 }
                 if (query.isNotEmpty()) {
                     Icon(Icons.Outlined.Close, stringResource(R.string.search_clear), tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp).clickable { onQuery("") })
+                        modifier = Modifier.size(18.dp).clickable { onQuery(""); focusManager.clearFocus() })
                 }
             }
         }
@@ -381,7 +391,7 @@ private fun SortOrder.labelRes(): Int = when (this) {
     SortOrder.DURATION -> R.string.sort_duration
 }
 
-@Composable private fun VideoGrid(vm: AppViewModel, items: List<VideoItem>, all: List<VideoItem>, access: LibraryAccess,
+@Composable private fun VideoGrid(vm: AppViewModel, items: List<VideoItem>, totalMatchingCount: Int, all: List<VideoItem>, access: LibraryAccess,
     scanning: Boolean, error: String?, order: SortOrder, onOrder: (SortOrder) -> Unit, query: String,
     selected: Set<VideoId>, onSelect: (Set<VideoId>) -> Unit, listKind: String, showContinue: Boolean,
     filter: Int, onFilter: (Int) -> Unit, showFilterPills: Boolean,
@@ -437,7 +447,7 @@ private fun SortOrder.labelRes(): Int = when (this) {
                             Modifier.padding(end = 18.dp).clip(RoundedCornerShape(6.dp)).clickable { onFilter(index) }.padding(vertical = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(if (index == 0) "$label ${items.size}" else label,
+                            Text(if (index == 0) "$label $totalMatchingCount" else label,
                                 color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = if (on) FontWeight.Bold else FontWeight.Normal)
@@ -771,11 +781,13 @@ private fun SortOrder.labelRes(): Int = when (this) {
     var note by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Bookmark?>(null) }
     val untitled = stringResource(R.string.bookmark_untitled)
+    val visibleBookmarks = remember(bookmarks, byId) {
+        bookmarks.mapNotNull { bookmark -> byId[bookmark.videoId]?.let { bookmark to it } }
+    }
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (bookmarks.isEmpty()) item { EmptyState(stringResource(R.string.bookmarks_empty_title), stringResource(R.string.bookmarks_empty_desc)) }
-        items(bookmarks, key = { it.id }) { bookmark ->
-            val video = byId[bookmark.videoId]
-            if (video != null) SectionCard {
+        if (visibleBookmarks.isEmpty()) item { EmptyState(stringResource(R.string.bookmarks_empty_title), stringResource(R.string.bookmarks_empty_desc)) }
+        items(visibleBookmarks, key = { it.first.id }) { (bookmark, video) ->
+            SectionCard {
                 Row(Modifier.fillMaxWidth().clickable { vm.open(video, videos, bookmark.positionMs) }.padding(start = 12.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
                         Text(durationText(bookmark.positionMs), Modifier.padding(horizontal = 8.dp, vertical = 6.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)

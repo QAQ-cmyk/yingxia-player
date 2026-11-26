@@ -205,21 +205,21 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                     }
                     if (bad != null) unreadable += video to bad else if (key != null) keys += video to key
                 }
-                libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(keys), unreadable)
+                libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(keys), unreadable, completed = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                libraryScan.value = libraryScan.value.copy(running = false, label = e.message ?: str(R.string.scan_error_cannot_open))
+                libraryScan.value = libraryScan.value.copy(running = false, completed = false, label = e.message ?: str(R.string.scan_error_cannot_open))
                 notify(e.message ?: str(R.string.scan_error_cannot_open))
             }
         }
     }
     fun cancelLibraryScan() {
         scanJob?.cancel()
-        libraryScan.value = libraryScan.value.copy(running = false, label = str(R.string.scan_cancelled_label))
+        libraryScan.value = libraryScan.value.copy(running = false, completed = false, label = str(R.string.scan_cancelled_label))
     }
     fun restoreBackup(text: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 val plan = cn.yingxia.player.data.LibraryBackup.plan(graph.repository.allVideos(), cn.yingxia.player.data.LibraryBackup.parse(text))
                 graph.settings.replacePlayback(plan.settings)
@@ -265,4 +265,5 @@ data class LibraryScanState(
     val label: String = "",
     val duplicates: List<List<VideoItem>> = emptyList(),
     val unreadable: List<Pair<VideoItem, String>> = emptyList(),
+    val completed: Boolean = false,
 )

@@ -44,8 +44,9 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             runCatching {
-                val json = LibraryBackup.export(vm.graph.repository.allVideos(), vm.settings.value)
+                val settings = vm.settings.value
                 withContext(Dispatchers.IO) {
+                    val json = LibraryBackup.export(vm.graph.repository.allVideos(), settings)
                     context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
                         ?: error(context.getString(R.string.backup_error_write))
                 }
@@ -86,8 +87,9 @@ private class LocalBackupImport : ActivityResultContracts.OpenDocument() {
                 OutlinedButton(onClick = {
                     scope.launch {
                         runCatching {
-                            val json = LibraryBackup.export(vm.graph.repository.allVideos(), vm.settings.value)
+                            val settings = vm.settings.value
                             val uri = withContext(Dispatchers.IO) {
+                                val json = LibraryBackup.export(vm.graph.repository.allVideos(), settings)
                                 val dir = File(context.cacheDir, "backup").apply { mkdirs() }
                                 val file = File(dir, "YingXia-backup.json")
                                 file.writeText(json)

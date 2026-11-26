@@ -96,6 +96,7 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
     var recoveryAction by remember(state.epoch) { mutableStateOf<RecoveryAction?>(null) }
     LaunchedEffect(state.recoveryEnabled) {
         if (state.recoveryEnabled && recoveryAction == RecoveryAction.ENROLL) recoveryAction = null
+        if (!state.recoveryEnabled && (recoveryAction == RecoveryAction.DISABLE || recoveryAction == RecoveryAction.RESET)) recoveryAction = null
     }
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     BackHandler { if (recoveryAction != null) recoveryAction = null else if (state.playing != null) vault.stopPlaying() else vault.close() }
@@ -143,7 +144,6 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
             val action = recoveryAction
             if (action != null) {
                 RecoveryForm(action, vault::recoveryPrompts, state.busy, Modifier.weight(1f), onCancel = { recoveryAction = null }) { password, prompts, answers ->
-                    if (action != RecoveryAction.ENROLL) recoveryAction = null
                     vault.updateRecovery(action, password, prompts, answers)
                 }
             } else if (!state.unlocked) {
