@@ -6,11 +6,12 @@ import androidx.lifecycle.viewModelScope
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.DeleteOutcome
 import cn.yingxia.player.data.InvalidBackupException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.ensureActive
 
 class AppViewModel(val graph: AppGraph) : ViewModel() {
     private fun str(id: Int, vararg args: Any) = AppLocale.str(graph.appContext, id, *args)
@@ -172,26 +173,45 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     }
     fun startLibraryScan() {
         if (scanJob?.isActive == true) return
-        scanJob = viewModelScope.launch {
-            val videos = graph.repository.allVideos().filter { !it.hidden && it.accessible }
-            val keys = mutableListOf<Pair<VideoItem, String>>()
-            val unreadable = mutableListOf<Pair<VideoItem, String>>()
-            videos.forEachIndexed { index, video ->
-                ensureActive()
-                libraryScan.value = LibraryScanState(true, index, videos.size, video.displayTitle())
-                var bad: String? = null
-                var key: String? = null
-                graph.checks.forEach { check ->
-                    val hit = runCatching { check.inspect(video) { graph.files.openStream(video) } }.getOrNull()
-                    when (hit) {
-                        is CheckHit.Unreadable -> bad = hit.reason
-                        is CheckHit.ContentKey -> if (key == null) key = hit.key
-                        null -> Unit
+        libraryScan.value = LibraryScanState(running = true, done = 0, total = 0, label = str(R.string.scan_preparing))
+        scanJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val videos = graph.repository.allVideos().filter { !it.hidden && it.accessible }.distinctBy { it.id }
+                val duplicateCandidates = duplicateCandidateIds(videos)
+                val orderedChecks = graph.checks.sortedBy { it.id == "sha256" }
+                val keys = mutableListOf<Pair<VideoItem, String>>()
+                val unreadable = mutableListOf<Pair<VideoItem, String>>()
+                videos.forEachIndexed { index, video ->
+                    ensureActive()
+                    libraryScan.value = LibraryScanState(true, index, videos.size, video.displayTitle())
+                    var bad: String? = null
+                    var key: String? = null
+                    for (check in orderedChecks) {
+                        ensureActive()
+                        if (bad != null) break
+                        if (check.id == "sha256" && video.id !in duplicateCandidates) continue
+                        val hit = try {
+                            check.inspect(video) { graph.files.openStream(video) }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            CheckHit.Unreadable(str(R.string.scan_error_cannot_open))
+                        }
+                        when (hit) {
+                            is CheckHit.Unreadable -> bad = hit.reason
+                            is CheckHit.ContentKey -> if (key == null) key = hit.key
+                            null -> Unit
+                        }
                     }
+                    if (bad != null) unreadable += video to bad else if (key != null) keys += video to key
                 }
-                if (bad != null) unreadable += video to bad!! else if (key != null) keys += video to key!!
+                libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(keys), unreadable)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                libraryScan.value = libraryScan.value.copy(running = false, label = e.message ?: str(R.string.scan_error_cannot_open))
+                notify(e.message ?: str(R.string.scan_error_cannot_open))
             }
-            libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(keys), unreadable)
         }
     }
     fun cancelLibraryScan() {

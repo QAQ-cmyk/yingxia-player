@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,11 +42,11 @@ import cn.yingxia.player.core.displayTitle
                 Text(stringResource(R.string.scan_card_desc),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp, bottom = 14.dp))
                 if (scan.running) {
-                    Text(if (scan.total > 0) stringResource(R.string.scan_progress, scan.done + 1, scan.total) else stringResource(R.string.scan_preparing), style = MaterialTheme.typography.titleSmall)
+                    Text(if (scan.total > 0) stringResource(R.string.scan_progress, (scan.done + 1).coerceAtMost(scan.total), scan.total) else stringResource(R.string.scan_preparing), style = MaterialTheme.typography.titleSmall)
                     Text(scan.label.ifBlank { stringResource(R.string.scan_not_started_label) }, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     LinearProgressIndicator(progress = { if (scan.total == 0) 0f else scan.done.toFloat() / scan.total }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
-                    OutlinedButton(onClick = { vm.cancelLibraryScan() }, shape = CircleShape, modifier = Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.action_cancel)) }
-                } else Button(onClick = { chosen = emptySet(); vm.startLibraryScan() }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(if (scan.total == 0) R.string.scan_start else R.string.scan_restart)) }
+                    OutlinedButton(onClick = { vm.cancelLibraryScan() }, shape = CircleShape, modifier = Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = 48.dp).testTag("scan-cancel")) { Text(stringResource(R.string.action_cancel)) }
+                } else Button(onClick = { chosen = emptySet(); vm.startLibraryScan() }, shape = CircleShape, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("scan-start")) { Text(stringResource(if (scan.total == 0) R.string.scan_start else R.string.scan_restart)) }
             }
         }
         if (!scan.running && scan.total > 0 && scan.duplicates.isEmpty() && scan.unreadable.isEmpty()) item {

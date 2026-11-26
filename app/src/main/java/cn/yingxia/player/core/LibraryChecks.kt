@@ -22,3 +22,24 @@ sealed interface CheckHit {
 /** 把相同内容键收成组。只有两份及以上才算重复。 */
 fun duplicateGroups(keys: List<Pair<VideoItem, String>>): List<List<VideoItem>> =
     keys.groupBy { it.second }.values.map { group -> group.map { it.first } }.filter { it.size > 1 }
+
+/**
+ * Finds videos that could possibly share identical bytes with another video in the library.
+ * Videos with a unique positive byte size cannot be byte-for-byte duplicates and do not need
+ * a full-file SHA-256 pass.
+ */
+fun duplicateCandidateIds(videos: List<VideoItem>): Set<VideoId> {
+    val counts = HashMap<Long, Int>(videos.size)
+    for (video in videos) {
+        if (video.sizeBytes > 0L) {
+            counts[video.sizeBytes] = (counts[video.sizeBytes] ?: 0) + 1
+        }
+    }
+    return buildSet {
+        for (video in videos) {
+            if (video.sizeBytes <= 0L || (counts[video.sizeBytes] ?: 0) > 1) {
+                add(video.id)
+            }
+        }
+    }
+}

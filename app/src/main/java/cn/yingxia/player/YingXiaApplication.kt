@@ -44,7 +44,7 @@ class AppGraph(application: Application) {
     val tools: List<PlayerTool> = yingxiaTools(loop, bookmarks, timer)
     val features = FeatureRegistry(player, scope, tools.map { it.feature })
     /** 本机检查。新增一项会在「检查视频」里执行。 */
-    val checks: List<LibraryCheck> = listOf(Sha256Check(application), ReadableVideoCheck(application))
+    val checks: List<LibraryCheck> = listOf(ReadableVideoCheck(application), Sha256Check(application))
     init { scope.launch { settings.clearRetiredPreferences() } }
     private var refreshJob: Job? = null
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {

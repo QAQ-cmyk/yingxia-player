@@ -115,12 +115,15 @@ class PlaybackRulesTest {
         }
     }
     @Test fun duplicateGroupsNeedTwoCopiesOfTheSameKey() {
-        fun clip(name: String) = VideoItem(VideoId(name), "content://$name", name, "文件夹", "k", 1, 1)
-        val a = clip("a"); val b = clip("b"); val c = clip("c")
+        fun clip(name: String, size: Long = 1) = VideoItem(VideoId(name), "content://$name", name, "文件夹", "k", 1, size)
+        val a = clip("a", 500); val b = clip("b", 900); val c = clip("c", 500); val d = clip("d", 0)
         val groups = duplicateGroups(listOf(a to "h", b to "other", c to "h"))
         assertEquals(1, groups.size)
         assertEquals(setOf("a", "c"), groups.single().map { it.name }.toSet())
         assertTrue(duplicateGroups(listOf(a to "only")).isEmpty())
+        val candidates = duplicateCandidateIds(listOf(a, b, c, d))
+        assertEquals(setOf(a.id, c.id, d.id), candidates)
+        assertFalse(b.id in candidates)
     }
     @Test fun permissionRequestsMatchAndroid8_13_14_16() {
         assertArrayEquals(arrayOf("android.permission.READ_EXTERNAL_STORAGE"), mediaPermissions(26))
