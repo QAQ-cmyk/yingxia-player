@@ -121,7 +121,9 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
     var restore by remember(state.epoch) { mutableStateOf<VaultEntry?>(null) }
     var deleting by remember(state.epoch) { mutableStateOf<VaultEntry?>(null) }
     var cleaningDuplicates by remember(state.epoch) { mutableStateOf(false) }
+    var enrollingBiometric by remember(state.epoch) { mutableStateOf(false) }
     var restoreAfterPermission by remember(state.epoch) { mutableStateOf<Pair<String, Boolean>?>(null) }
+    val fragmentActivity = activity as? androidx.fragment.app.FragmentActivity
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val target = restoreAfterPermission; restoreAfterPermission = null
         if (granted && target != null) vault.restore(target.first, target.second)
@@ -160,6 +162,9 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
                 VaultPassword(
                     state = state,
                     unlock = vault::unlock,
+                    unlockBiometric = if (state.biometricEnabled && fragmentActivity != null) {
+                        { vault.unlockWithBiometric(fragmentActivity) }
+                    } else null,
                     recover = { recoveryAction = RecoveryAction.RESET },
                     onPickRestoreTree = launchRestorePicker,
                     onRestoreLegacy = vault::stageLegacyRestore,
@@ -204,8 +209,21 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
                         )
                     }
                     item {
-                        TextButton(onClick = { recoveryAction = if (state.recoveryEnabled) RecoveryAction.DISABLE else RecoveryAction.ENROLL }, enabled = !state.busy) {
-                            Text(stringResource(if (state.recoveryEnabled) R.string.vault_disable_recovery else R.string.vault_setup_recovery))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { recoveryAction = if (state.recoveryEnabled) RecoveryAction.DISABLE else RecoveryAction.ENROLL }, enabled = !state.busy) {
+                                Text(stringResource(if (state.recoveryEnabled) R.string.vault_disable_recovery else R.string.vault_setup_recovery))
+                            }
+                            if (state.biometricAvailable && fragmentActivity != null) {
+                                TextButton(
+                                    onClick = {
+                                        if (state.biometricEnabled) vault.disableBiometric()
+                                        else enrollingBiometric = true
+                                    },
+                                    enabled = !state.busy,
+                                ) {
+                                    Text(stringResource(if (state.biometricEnabled) R.string.vault_biometric_disable_btn else R.string.vault_biometric_enable_btn))
+                                }
+                            }
                         }
                     }
                     if (state.entries.isEmpty()) item {
@@ -294,6 +312,37 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
                 }
             },
             dismissButton = { TextButton(onClick = vault::dismissImport) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+    if (enrollingBiometric && state.unlocked && fragmentActivity != null) {
+        var pwd by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { enrollingBiometric = false },
+            title = { Text(stringResource(R.string.vault_biometric_enroll_title)) },
+            text = {
+                OutlinedTextField(
+                    value = pwd,
+                    onValueChange = { pwd = it.take(128) },
+                    label = { Text(stringResource(R.string.vault_password_label)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = pwd.length >= 8,
+                    onClick = {
+                        val chars = pwd.toCharArray()
+                        pwd = ""
+                        enrollingBiometric = false
+                        vault.enrollBiometric(fragmentActivity, chars)
+                    },
+                ) { Text(stringResource(R.string.action_save)) }
+            },
+            dismissButton = { TextButton(onClick = { enrollingBiometric = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
     if (cleaningDuplicates && state.unlocked && state.redundantCopies > 0) {
@@ -524,6 +573,7 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
 @Composable private fun VaultPassword(
     state: VaultUiState,
     unlock: (CharArray) -> Unit,
+    unlockBiometric: (() -> Unit)? = null,
     recover: () -> Unit,
     onPickRestoreTree: () -> Unit,
     onRestoreLegacy: () -> Unit,
@@ -561,6 +611,18 @@ private class VaultBackupTreeContract(private val defaultInitialUri: Uri) : Acti
                 enabled = !state.busy && password.length >= 8 && (state.configured || password == confirmation && acknowledged),
                 shape = CircleShape, modifier = Modifier.fillMaxWidth().padding(top = 18.dp).heightIn(min = 48.dp).testTag("vault-unlock")) {
                 Text(stringResource(if (state.configured) R.string.vault_unlock_button else R.string.vault_create_button), fontWeight = FontWeight.SemiBold)
+            }
+            if (state.configured && unlockBiometric != null) {
+                FilledTonalButton(
+                    onClick = unlockBiometric,
+                    enabled = !state.busy,
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 46.dp).testTag("vault-unlock-biometric"),
+                ) {
+                    Icon(Icons.Outlined.Fingerprint, null, Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.vault_biometric_unlock_btn))
+                }
             }
             if (state.recoveryEnabled) TextButton(onClick = recover, enabled = !state.busy) { Text(stringResource(R.string.vault_forgot_password)) }
             else if (state.configured) Text(stringResource(R.string.vault_recovery_not_enabled), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))

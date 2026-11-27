@@ -1,4 +1,4 @@
-name: Android
+name: Android & Ktor Server
 on:
   push:
     branches: [main]
@@ -34,7 +34,7 @@ jobs:
               }
           }
           EOF
-      - name: Build, lint and run unit tests
-        run: ./gradlew --init-script /tmp/ci-mirror.init.gradle :app:testDebugUnitTest :app:lintDebug :app:assembleRelease --stacktrace
-      - name: Check packaged privacy settings
-        run: python3 scripts/check-apk-privacy.py app/build/outputs/apk/release/app-release-unsigned.apk
+      - name: Build, lint and run unit & server tests
+        run: ./gradlew --init-script /tmp/ci-mirror.init.gradle :shared-protocol:test :server:test :app:testOfflineDebugUnitTest :app:testSyncDebugUnitTest :app:lintOfflineDebug :app:assembleOfflineRelease :app:assembleSyncRelease --stacktrace
+      - name: Check packaged offline APK privacy & DEX isolation
+        run: python3 scripts/check-apk-privacy.py app/build/outputs/apk/offline/release/app-offline-release-unsigned.apk

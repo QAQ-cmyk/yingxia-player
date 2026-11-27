@@ -63,11 +63,11 @@ flowchart LR
 
 ## 自己验证「零联网权限」
 
-发布 APK 在 [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml) 中显式移除了 `INTERNET` 和 `ACCESS_NETWORK_STATE`，并禁用了 `allowBackup` 和 `fullBackupContent`。每次提交都会在 [GitHub Actions](.github/workflows/android.yml) 自动检查，你也可以在本地直接验证任意发行版 APK：
+发布 APK 在 [`AndroidManifest.xml`](app/src/offline/AndroidManifest.xml) 中显式移除了 `INTERNET` 和 `ACCESS_NETWORK_STATE`，并禁用了 `allowBackup` 和 `fullBackupContent`。每次提交都会在 [GitHub Actions](.github/workflows/android.yml) 自动检查，你也可以在本地直接验证任意发行版 APK：
 
 ```bash
-python3 scripts/check-apk-privacy.py YingXia-1.8.0.apk
-# PASS: network permissions absent; backup disabled; extraction rules declared; debugging disabled.
+python3 scripts/check-apk-privacy.py YingXia-2.0.0.apk
+# PASS: network permissions absent; zero sync/network DEX classes; backup disabled; extraction rules declared; debugging disabled.
 ```
 
 <details>
@@ -102,9 +102,9 @@ python3 scripts/check-apk-privacy.py YingXia-1.8.0.apk
 - [x] 离线自拟三道密保问题（Android Keystore）
 - [x] 完整中英双语界面与应用内一键语言切换
 - [x] Fastlane 商店元数据与纯净 FOSS 构建配置
-- [ ] 保险箱生物识别（指纹 / 面部）快捷解锁
+- [x] 保险箱生物识别（指纹 / 面部）快捷解锁
 - [ ] 外挂字幕支持（`SRT` / `VTT` / `ASS`）
-- [ ] 加密保险箱离线换机导出包
+- [x] 加密保险箱离线换机导出包
 - [ ] 上架 IzzyOnDroid 与 F-Droid
 
 ---

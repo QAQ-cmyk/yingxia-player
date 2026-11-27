@@ -27,6 +27,8 @@ internal enum class RecoveryAction { ENROLL, DISABLE, RESET }
 
 data class VaultUiState(
     val recoveryEnabled: Boolean = false,
+    val biometricAvailable: Boolean = false,
+    val biometricEnabled: Boolean = false,
     val visible: Boolean = false, val configured: Boolean = false, val unlocked: Boolean = false,
     val busy: Boolean = false, val progress: String = "", val message: String? = null,
     val entries: List<VaultEntry> = emptyList(), val importItems: List<VideoItem> = emptyList(),
@@ -59,7 +61,14 @@ class VaultCoordinator(
     private val settings: cn.yingxia.player.data.SettingsRepository,
 ) {
     val store = VaultStore(context)
-    val state = MutableStateFlow(VaultUiState(configured = store.configured, recoveryEnabled = store.recovery.enabled))
+    val state = MutableStateFlow(
+        VaultUiState(
+            configured = store.configured,
+            recoveryEnabled = store.recovery.enabled,
+            biometricAvailable = store.biometric.hardwareAvailable(),
+            biometricEnabled = store.biometric.enabled,
+        )
+    )
     private var job: Job? = null
     private var previousJob: Job? = null
     private val epoch = AtomicLong(0)
@@ -90,6 +99,8 @@ class VaultCoordinator(
                 visible = true,
                 configured = store.configured,
                 recoveryEnabled = store.recovery.enabled,
+                biometricAvailable = store.biometric.hardwareAvailable(),
+                biometricEnabled = store.biometric.enabled,
                 importItems = uniqueItems,
                 message = null,
                 legacyBackupDetected = legacyFound,
@@ -125,6 +136,8 @@ class VaultCoordinator(
                 visible = state.value.visible,
                 configured = store.configured,
                 recoveryEnabled = store.recovery.enabled,
+                biometricAvailable = store.biometric.hardwareAvailable(),
+                biometricEnabled = store.biometric.enabled,
                 epoch = epoch.get(),
                 backupConfig = state.value.backupConfig,
                 legacyBackupDetected = !store.configured && VaultBackupLocations.detectLegacyLocalBackupDir(context) != null,
@@ -172,6 +185,113 @@ class VaultCoordinator(
         }
     }
 
+    fun unlockWithBiometric(activity: androidx.fragment.app.FragmentActivity) {
+        if (state.value.busy || !store.configured || !store.biometric.enabled) return
+        val cipher = runCatching { store.biometric.createUnlockCipher() }.getOrElse { err ->
+            state.update { it.copy(biometricEnabled = store.biometric.enabled, message = err.message) }
+            return
+        }
+        val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+            .setTitle(str(R.string.vault_biometric_title))
+            .setSubtitle(str(R.string.vault_biometric_unlock_subtitle))
+            .setNegativeButtonText(str(R.string.action_cancel))
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build()
+        val prompt = androidx.biometric.BiometricPrompt(
+            activity,
+            androidx.core.content.ContextCompat.getMainExecutor(activity),
+            object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                    val authed = result.cryptoObject?.cipher ?: return
+                    run(str(R.string.vault_prog_unlocking)) {
+                        val unlocked = withContext(Dispatchers.IO) { store.biometric.unlockWithCipher(authed) }
+                        store.adoptUnlockedSession(unlocked)
+                        state.update { it.copy(configured = true, unlocked = true, biometricEnabled = store.biometric.enabled) }
+                        refresh()
+                        if (consentAnswer != null) finishConsent()
+                        reconcileRemovedSources()
+                        if (pendingSyncAfterUnlock) {
+                            pendingSyncAfterUnlock = false
+                            runBackupSyncInline(explicit = true)
+                        }
+                    }
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    if (errorCode != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED &&
+                        errorCode != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                    ) {
+                        state.update { it.copy(message = errString.toString()) }
+                    }
+                }
+            }
+        )
+        prompt.authenticate(promptInfo, androidx.biometric.BiometricPrompt.CryptoObject(cipher))
+    }
+
+    fun enrollBiometric(activity: androidx.fragment.app.FragmentActivity, password: CharArray) {
+        if (state.value.busy || !store.configured || !store.biometric.hardwareAvailable()) {
+            password.fill('\u0000')
+            return
+        }
+        val cipher = runCatching { store.biometric.createEnrollCipher() }.getOrElse { err ->
+            password.fill('\u0000')
+            state.update { it.copy(message = err.message) }
+            return
+        }
+        val pwdCopy = password.clone()
+        password.fill('\u0000')
+        val promptInfo = androidx.biometric.BiometricPrompt.PromptInfo.Builder()
+            .setTitle(str(R.string.vault_biometric_enroll_title))
+            .setSubtitle(str(R.string.vault_biometric_enroll_subtitle))
+            .setNegativeButtonText(str(R.string.action_cancel))
+            .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG)
+            .build()
+        val prompt = androidx.biometric.BiometricPrompt(
+            activity,
+            androidx.core.content.ContextCompat.getMainExecutor(activity),
+            object : androidx.biometric.BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: androidx.biometric.BiometricPrompt.AuthenticationResult) {
+                    val authed = result.cryptoObject?.cipher ?: run { pwdCopy.fill('\u0000'); return }
+                    run(str(R.string.vault_prog_verifying_local)) {
+                        try {
+                            withContext(Dispatchers.IO) { store.biometric.completeEnroll(pwdCopy, authed) }
+                            state.update {
+                                it.copy(
+                                    biometricEnabled = store.biometric.enabled,
+                                    message = str(R.string.vault_biometric_enabled_msg),
+                                )
+                            }
+                        } finally {
+                            pwdCopy.fill('\u0000')
+                        }
+                    }
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    pwdCopy.fill('\u0000')
+                    if (errorCode != androidx.biometric.BiometricPrompt.ERROR_USER_CANCELED &&
+                        errorCode != androidx.biometric.BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                    ) {
+                        state.update { it.copy(message = errString.toString()) }
+                    }
+                }
+            }
+        )
+        prompt.authenticate(promptInfo, androidx.biometric.BiometricPrompt.CryptoObject(cipher))
+    }
+
+    fun disableBiometric() {
+        if (state.value.busy) return
+        run(str(R.string.vault_prog_verifying_local)) {
+            withContext(Dispatchers.IO) { store.biometric.disable() }
+            state.update {
+                it.copy(
+                    biometricEnabled = false,
+                    message = str(R.string.vault_biometric_disabled_msg),
+                )
+            }
+        }
+    }
+
     internal suspend fun recoveryPrompts(): List<String> = withContext(Dispatchers.IO) {
         store.recovery.enrolledPrompts()
     }
@@ -188,7 +308,10 @@ class VaultCoordinator(
                 when (action) {
                     RecoveryAction.ENROLL -> store.recovery.enroll(password, prompts, answers, beforeCommit)
                     RecoveryAction.DISABLE -> store.recovery.disable(password, beforeCommit)
-                    RecoveryAction.RESET -> store.recovery.reset(answers, password, beforeCommit)
+                    RecoveryAction.RESET -> {
+                        store.recovery.reset(answers, password, beforeCommit)
+                        store.biometric.disable()
+                    }
                 }
             }
             val message = when (action) {
@@ -201,7 +324,13 @@ class VaultCoordinator(
                     str(R.string.vault_msg_password_reset)
                 }
             }
-            state.update { it.copy(recoveryEnabled = store.recovery.enabled, message = message) }
+            state.update {
+                it.copy(
+                    recoveryEnabled = store.recovery.enabled,
+                    biometricEnabled = store.biometric.enabled,
+                    message = message,
+                )
+            }
         }
         job?.invokeOnCompletion { clear() }
     }
@@ -821,6 +950,23 @@ class VaultCoordinator(
             run(str(R.string.vault_backup_prog_scanning)) {
                 val note = autoSyncBackupSuffix().trim()
                 if (note.isNotEmpty()) state.update { it.copy(message = note) }
+            }
+        }
+    }
+
+    internal suspend fun refreshUnlockedInventory() {
+        if (store.configured && store.session != null && state.value.unlocked) {
+            refresh()
+        } else {
+            withContext(Dispatchers.Main) {
+                state.update {
+                    it.copy(
+                        configured = store.configured,
+                        recoveryEnabled = store.recovery.enabled,
+                        biometricAvailable = store.biometric.hardwareAvailable(),
+                        biometricEnabled = store.biometric.enabled,
+                    )
+                }
             }
         }
     }

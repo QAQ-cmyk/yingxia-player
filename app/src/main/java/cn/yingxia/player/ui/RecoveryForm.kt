@@ -94,13 +94,19 @@ internal fun RecoveryForm(action: RecoveryAction, loadPrompts: suspend () -> Lis
             if (enroll && clean.filter { it.isNotEmpty() }.let { it.size != it.distinct().size })
                 Text(stringResource(R.string.recovery_duplicate_answers), color = MaterialTheme.colorScheme.error)
         }
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
         OutlinedTextField(password, { password = it.take(128) }, Modifier.fillMaxWidth().testTag("recovery-password"),
             label = { Text(stringResource(if (reset) R.string.recovery_new_password_label else R.string.recovery_current_password_label)) }, enabled = !busy, singleLine = true,
-            visualTransformation = PasswordVisualTransformation(), keyboardOptions = keyboard)
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = keyboard.copy(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focusManager.clearFocus() }))
         if (reset) OutlinedTextField(confirm, { confirm = it.take(128) }, Modifier.fillMaxWidth().testTag("recovery-confirm"),
             label = { Text(stringResource(R.string.recovery_confirm_new_password_label)) }, enabled = !busy, singleLine = true,
-            visualTransformation = PasswordVisualTransformation(), keyboardOptions = keyboard)
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = keyboard.copy(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focusManager.clearFocus() }))
         Button(onClick = {
+            focusManager.clearFocus()
             val credential = password.toCharArray()
             val submittedAnswers = if (action == RecoveryAction.DISABLE) emptyList() else clean.map { it.toCharArray() }
             password = ""

@@ -35,7 +35,7 @@ class VaultLifecycleTest {
         graph.settings.setTouchGuard(false)
         var created = false
         try {
-            ui.onNodeWithTag("nav-3").performClick()
+            ui.onNodeWithTag("nav-2").performClick()
             withContext(Dispatchers.Main) { graph.vault.show(listOf(video)) }
             ui.onNodeWithTag("vault-password").performTextInput("UI test password 123")
             ui.onNodeWithTag("vault-password-confirm").performTextInput("UI test password 123")
@@ -141,7 +141,7 @@ class VaultLifecycleTest {
             assertTrue(reopened.repository.bookmarks.value.isEmpty())
             ui.onNodeWithTag("vault-screen").assertDoesNotExist()
             ui.onNodeWithTag("nav-0").assertIsSelected()
-            ui.onNodeWithTag("nav-3").performClick()
+            ui.onNodeWithTag("nav-2").performClick()
             ui.onNodeWithText(context.getString(R.string.profile_vault_title)).performScrollTo().performClick()
             ui.onNodeWithTag("vault-password").performTextInput("UI test password 123")
             ui.onNodeWithTag("vault-unlock").performScrollTo().performClick()
@@ -187,6 +187,8 @@ class VaultLifecycleTest {
             ui.onNodeWithText(context.getString(R.string.action_got_it)).performClick()
             answer(0).assertTextContains("island willow")
             ui.onNodeWithTag("recovery-password").performScrollTo().performTextInput("UI test password 123")
+            ui.onNodeWithTag("recovery-password").performImeAction()
+            ui.waitForIdle()
             ui.onNodeWithTag("recovery-submit").performScrollTo().performClick()
             ui.waitUntil(60000) { graph.vault.state.value.recoveryEnabled }
             ui.onNodeWithText(context.getString(R.string.action_got_it)).performClick()

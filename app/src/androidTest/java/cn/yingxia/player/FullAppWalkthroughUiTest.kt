@@ -23,6 +23,15 @@ import java.util.UUID
 class FullAppWalkthroughUiTest {
     @get:Rule val ui = createAndroidComposeRule<MainActivity>()
 
+    @Before fun grantMediaPermission() {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val context = instrument.targetContext
+        val perm = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_VIDEO else android.Manifest.permission.READ_EXTERNAL_STORAGE
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            instrument.uiAutomation.executeShellCommand("pm grant ${context.packageName} $perm"),
+        ).use { it.readBytes() }
+    }
+
     @Test fun walkThroughAllAppTabsPlayerToolsAndSettingsWithoutCrash() = runBlocking {
         Assume.assumeTrue(Build.VERSION.SDK_INT >= 30)
         val instrument = InstrumentationRegistry.getInstrumentation()
@@ -76,8 +85,9 @@ class FullAppWalkthroughUiTest {
             val allPrefix = context.getString(R.string.filter_all_videos)
             val beforeAllNode = ui.onNodeWithText("$allPrefix ", substring = true).fetchSemanticsNode()
             val expectedAllLabel = beforeAllNode.config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString("") { it.text }
-            ui.onNodeWithText(context.getString(R.string.filter_in_progress)).performClick()
+            ui.onNodeWithTag("filter-pill-2").performScrollTo().performClick()
             ui.waitForIdle()
+            ui.onNodeWithTag("filter-pill-0").performScrollTo()
             ui.onNodeWithText(expectedAllLabel).assertIsDisplayed()
             ui.onNodeWithText(expectedAllLabel).performClick()
 
@@ -100,13 +110,24 @@ class FullAppWalkthroughUiTest {
                 ui.onAllNodesWithText(renamedTitle).fetchSemanticsNodes().isNotEmpty()
             }
 
-            // 4. Multi-select bar: long press videoA -> favorite -> exit selection.
+            // 4. Multi-select island: long press videoA -> More -> favorite -> exit selection.
             ui.onNodeWithTag("video-${videoA.id.value}").performTouchInput { longClick() }
+            ui.onNodeWithContentDescription(context.getString(R.string.multi_action_more)).performClick()
             ui.onNodeWithText(context.getString(R.string.action_favorite)).performClick()
+            ui.waitUntil(5_000) {
+                ui.onAllNodesWithContentDescription(context.getString(R.string.multi_action_more)).fetchSemanticsNodes().isEmpty()
+            }
             ui.waitForIdle()
 
             // 5. Folders tab & folder detail.
             ui.onNodeWithTag("nav-1").performClick()
+            try {
+                ui.waitUntil(3_000) {
+                    ui.onAllNodesWithText(context.getString(R.string.folder_section_local)).fetchSemanticsNodes().isNotEmpty()
+                }
+            } catch (_: Throwable) {
+                ui.onNodeWithTag("nav-1").performClick()
+            }
             ui.waitUntil(10_000) {
                 ui.onAllNodesWithText("YXWalkA$tag", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
@@ -114,8 +135,9 @@ class FullAppWalkthroughUiTest {
             ui.onNodeWithTag("folder-encrypt-current").assertIsDisplayed()
             ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
 
-            // 6. Favorites tab.
-            ui.onNodeWithTag("nav-2").performClick()
+            // 6. Library -> Favorites filter capsule.
+            ui.onNodeWithTag("nav-0").performClick()
+            ui.onNodeWithTag("filter-pill-1").performScrollTo().performClick()
             ui.waitUntil(10_000) {
                 ui.onAllNodesWithTag("video-${videoA.id.value}").fetchSemanticsNodes().isNotEmpty()
             }
@@ -128,7 +150,9 @@ class FullAppWalkthroughUiTest {
                 repeat(3) {
                     if (ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty()) return
                     instrument.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-                    ui.waitForIdle()
+                    runCatching {
+                        ui.waitUntil(2_000) { ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty() }
+                    }
                 }
                 ui.waitUntil(5_000) { ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty() }
             }
@@ -142,7 +166,7 @@ class FullAppWalkthroughUiTest {
             dismissSheet(context.getString(R.string.player_speed_title))
 
             // Bookmarks panel -> add a bookmark.
-            ui.onNodeWithText(context.getString(R.string.player_shortcut_bookmark)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_shortcut_bookmark)).performScrollTo().performClick()
             val markNote = "WalkMark-$tag"
             ui.onNodeWithText(context.getString(R.string.bookmark_note_optional)).performTextInput(markNote)
             ui.onNodeWithText(context.getString(R.string.bookmark_add_at, ""), substring = true).performClick()
@@ -150,8 +174,12 @@ class FullAppWalkthroughUiTest {
             dismissSheet(context.getString(R.string.bookmark_note_optional))
 
             // Tools sheet -> Loop A-B, Sleep timer, Crop bars.
-            ui.onNodeWithText(context.getString(R.string.player_tools)).performClick()
-            ui.onNodeWithText(context.getString(R.string.feature_loop_title), substring = true).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_tools)).performScrollTo().performClick()
+            ui.waitUntil(5_000) {
+                ui.onAllNodesWithText(context.getString(R.string.feature_sleep_title), substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            val loopButtons = ui.onAllNodesWithText(context.getString(R.string.feature_loop_title), substring = true)
+            loopButtons[loopButtons.fetchSemanticsNodes().lastIndex].performClick()
             ui.onNodeWithText(context.getString(R.string.loop_set_a)).performClick()
             ui.onNodeWithText(context.getString(R.string.loop_forward_5s)).performClick()
             ui.waitUntil(5_000) {
@@ -162,10 +190,10 @@ class FullAppWalkthroughUiTest {
             ui.waitUntil(5_000) { graph.player.state.value.loop != null }
             ui.onNodeWithText(context.getString(R.string.loop_clear)).performClick()
             ui.waitUntil(5_000) { graph.player.state.value.loop == null }
-            dismissSheet(context.getString(R.string.loop_panel_title))
+            dismissSheet(context.getString(R.string.loop_panel_desc))
 
             // Sleep timer 15m -> cancel.
-            ui.onNodeWithText(context.getString(R.string.player_tools)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_tools)).performScrollTo().performClick()
             ui.onNodeWithText(context.getString(R.string.feature_sleep_title), substring = true).performClick()
             ui.onNodeWithText(context.getString(R.string.sleep_minutes, 15)).performClick()
             ui.waitUntil(5_000) { graph.timer.remainingMs.value > 0L }
@@ -177,22 +205,21 @@ class FullAppWalkthroughUiTest {
             withContext(Dispatchers.Main) { graph.player.execute(PlayerCommand.Close) }
             ui.waitUntil(10_000) { graph.player.state.value.video == null }
 
-            // 8. Me tab -> History, Bookmarks (incl. hidden-video empty-state fix), Backup, Settings (theme + live language switch).
-            ui.onNodeWithTag("nav-3").performClick()
-            ui.onNodeWithText(context.getString(R.string.title_history)).performClick()
+            // 8. Library History & Bookmarks capsules + Space tab (Backup, Settings).
+            ui.onNodeWithTag("nav-0").performClick()
+            ui.onNodeWithTag("filter-pill-4").performScrollTo().performClick()
             ui.waitUntil(10_000) {
                 ui.onAllNodesWithTag("video-${videoA.id.value}").fetchSemanticsNodes().isNotEmpty()
             }
-            ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
 
-            // Bookmarks page shows the bookmark, and after hiding videoA it renders empty state cleanly (not blank screen!).
-            ui.onNode(hasText(context.getString(R.string.title_bookmarks)) and hasClickAction()).performClick()
+            // Bookmarks capsule shows the bookmark, and after hiding videoA it renders empty state cleanly.
+            ui.onNodeWithTag("filter-pill-3").performScrollTo().performClick()
             ui.onNodeWithText(markNote).assertIsDisplayed()
             graph.repository.setHidden(setOf(videoA.id), true)
             ui.waitUntil(10_000) {
                 ui.onAllNodesWithText(context.getString(R.string.bookmarks_empty_title)).fetchSemanticsNodes().isNotEmpty()
             }
-            ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
+            ui.onNodeWithTag("nav-2").performClick()
 
             // Hidden Videos manager: videoA appears here -> tap to select -> Unhide -> verify restored.
             ui.onNodeWithText(context.getString(R.string.title_hidden_manager)).performClick()
@@ -213,7 +240,9 @@ class FullAppWalkthroughUiTest {
             ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
 
             // Settings page: theme toggles, live Chinese <-> English language switching, clear history.
-            ui.onNodeWithText(context.getString(R.string.title_settings)).performClick()
+            val settingsTitle = context.getString(R.string.title_settings)
+            ui.onNode(hasScrollAction()).performScrollToNode(hasText(settingsTitle))
+            ui.onNodeWithText(settingsTitle).performClick()
             ui.onNodeWithText(context.getString(R.string.theme_dark)).performClick()
             ui.waitForIdle()
             // Language and Appearance both have a "Follow system" chip; index 1 is Appearance.

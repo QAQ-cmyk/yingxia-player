@@ -63,11 +63,11 @@ Deep dive: [docs/VAULT_ARCHITECTURE.md](docs/VAULT_ARCHITECTURE.md) · [中文�
 
 ## Verify Zero Internet Permission Yourself
 
-Both `INTERNET` and `ACCESS_NETWORK_STATE` are explicitly stripped via `tools:node="remove"` in [`AndroidManifest.xml`](app/src/main/AndroidManifest.xml), and Android cloud backups (`allowBackup`, `fullBackupContent`) are disabled. Every commit runs our privacy check in [GitHub Actions](.github/workflows/android.yml), and you can audit any release APK yourself:
+Both `INTERNET` and `ACCESS_NETWORK_STATE` are explicitly stripped via `tools:node="remove"` in [`AndroidManifest.xml`](app/src/offline/AndroidManifest.xml), and Android cloud backups (`allowBackup`, `fullBackupContent`) are disabled. Every commit runs our privacy check in [GitHub Actions](.github/workflows/android.yml), and you can audit any release APK yourself:
 
 ```bash
-python3 scripts/check-apk-privacy.py YingXia-1.8.0.apk
-# PASS: network permissions absent; backup disabled; extraction rules declared; debugging disabled.
+python3 scripts/check-apk-privacy.py YingXia-2.0.0.apk
+# PASS: network permissions absent; zero sync/network DEX classes; backup disabled; extraction rules declared; debugging disabled.
 ```
 
 <details>
@@ -102,9 +102,9 @@ Star ⭐ the repository to follow upcoming releases:
 - [x] Offline custom recovery questions backed by Android Keystore
 - [x] Full English & Simplified Chinese UI + in-app language switcher
 - [x] Fastlane metadata & clean FOSS release configuration
-- [ ] Biometric (fingerprint / face) quick unlock option for the vault
+- [x] Biometric (fingerprint / face) quick unlock option for the vault
 - [ ] External subtitle support (`SRT` / `VTT` / `ASS`)
-- [ ] Encrypted portable vault export archive for effortless phone migration
+- [x] Encrypted portable vault export archive for effortless phone migration
 - [ ] IzzyOnDroid & F-Droid store availability
 
 ---

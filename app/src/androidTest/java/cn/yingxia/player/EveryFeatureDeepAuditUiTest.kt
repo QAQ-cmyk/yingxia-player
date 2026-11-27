@@ -29,6 +29,15 @@ import java.util.UUID
 class EveryFeatureDeepAuditUiTest {
     @get:Rule val ui = createAndroidComposeRule<MainActivity>()
 
+    @Before fun grantMediaPermission() {
+        val instrument = InstrumentationRegistry.getInstrumentation()
+        val context = instrument.targetContext
+        val perm = if (Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_VIDEO else android.Manifest.permission.READ_EXTERNAL_STORAGE
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(
+            instrument.uiAutomation.executeShellCommand("pm grant ${context.packageName} $perm"),
+        ).use { it.readBytes() }
+    }
+
     @Test fun libraryPlayerOrientationHistoryBookmarksAndSettingsDeepAudit(): Unit = runBlocking {
         Assume.assumeTrue(Build.VERSION.SDK_INT >= 30)
         val instrument = InstrumentationRegistry.getInstrumentation()
@@ -57,7 +66,9 @@ class EveryFeatureDeepAuditUiTest {
             repeat(3) {
                 if (ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty()) return
                 instrument.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-                ui.waitForIdle()
+                runCatching {
+                    ui.waitUntil(2_000) { ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty() }
+                }
             }
             ui.waitUntil(5_000) { ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty() }
         }
@@ -82,11 +93,11 @@ class EveryFeatureDeepAuditUiTest {
             }
 
             // 1. "In progress" empty state when no videos are in progress (Bug 12 regression check).
-            ui.onNodeWithText(context.getString(R.string.filter_in_progress)).performClick()
+            ui.onNodeWithTag("filter-pill-2").performScrollTo().performClick()
             ui.waitUntil(5_000) {
                 ui.onAllNodesWithText(context.getString(R.string.empty_in_progress_title)).fetchSemanticsNodes().isNotEmpty()
             }
-            ui.onNodeWithText(context.getString(R.string.filter_all_videos), substring = true).performClick()
+            ui.onNodeWithTag("filter-pill-0").performScrollTo().performClick()
             ui.waitUntil(5_000) {
                 ui.onAllNodesWithTag("video-${videoA.id.value}").fetchSemanticsNodes().isNotEmpty()
             }
@@ -155,16 +166,16 @@ class EveryFeatureDeepAuditUiTest {
             }
 
             // 5b. Player Favorite toggle & Restart.
-            ui.onNodeWithText(context.getString(R.string.action_favorite)).performClick()
+            ui.onNodeWithText(context.getString(R.string.action_favorite)).performScrollTo().performClick()
             ui.waitUntil(5_000) { runBlocking { graph.repository.get(videoA.id)?.favorite == true } }
-            ui.onNodeWithText(context.getString(R.string.player_favorited)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_favorited)).performScrollTo().performClick()
             ui.waitUntil(5_000) { runBlocking { graph.repository.get(videoA.id)?.favorite == false } }
             withContext(Dispatchers.Main) { graph.player.execute(PlayerCommand.Seek(4_000L)) }
-            ui.onNodeWithText(context.getString(R.string.player_restart)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_restart)).performScrollTo().performClick()
             ui.waitUntil(5_000) { graph.player.state.value.positionMs < 2_500L }
 
             // 5c. Player Bookmarks: add untitled -> edit note -> delete via confirmation.
-            ui.onNodeWithText(context.getString(R.string.player_shortcut_bookmark)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_shortcut_bookmark)).performScrollTo().performClick()
             ui.onNodeWithText(context.getString(R.string.bookmark_add_at, ""), substring = true).performClick()
             ui.waitUntil(5_000) {
                 ui.onAllNodesWithText(context.getString(R.string.bookmark_untitled)).fetchSemanticsNodes().isNotEmpty()
@@ -184,7 +195,7 @@ class EveryFeatureDeepAuditUiTest {
             dismissSheet(context.getString(R.string.bookmark_note_optional))
 
             // 5d. Player Tools: Crop black bars toggle + Repeat modes + Sleep "Stop after current".
-            ui.onNodeWithText(context.getString(R.string.player_tools)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_tools)).performScrollTo().performClick()
             ui.onNode(isToggleable()).performClick()
             ui.waitUntil(5_000) { runBlocking { graph.repository.get(videoA.id)?.cropBars == true } }
             ui.onNode(isToggleable()).performClick()
@@ -224,7 +235,7 @@ class EveryFeatureDeepAuditUiTest {
             }
 
             // 5f. Player Tools -> Hide this video closes player & Snackbar Undo restores it!
-            ui.onNodeWithText(context.getString(R.string.player_tools)).performClick()
+            ui.onNodeWithText(context.getString(R.string.player_tools)).performScrollTo().performClick()
             ui.onNodeWithText(context.getString(R.string.player_hide_current), substring = true).performScrollTo().performClick()
             ui.waitUntil(10_000) {
                 graph.player.state.value.video == null &&
@@ -245,11 +256,11 @@ class EveryFeatureDeepAuditUiTest {
             withContext(Dispatchers.Main) { graph.player.execute(PlayerCommand.Close) }
             ui.waitUntil(10_000) { graph.player.state.value.video == null }
 
-            // 7. Watch History defaults to RECENT_PLAY even while Home sort is NAME_ASC (Bug 13)!
+            // 7. Watch History capsule defaults to RECENT_PLAY even while Home sort is NAME_ASC!
             delay(50)
             graph.repository.saveProgress(videoB.id, 5_000L) // videoB ("Z_Zulu") watched AFTER videoA ("A_PlayerRename").
-            ui.onNodeWithTag("nav-3").performClick()
-            ui.onNodeWithText(context.getString(R.string.title_history)).performClick()
+            ui.onNodeWithTag("nav-0").performClick()
+            ui.onNodeWithTag("filter-pill-4").performScrollTo().performClick()
             ui.waitUntil(10_000) {
                 ui.onAllNodesWithTag("video-${videoA.id.value}").fetchSemanticsNodes().isNotEmpty() &&
                     ui.onAllNodesWithTag("video-${videoB.id.value}").fetchSemanticsNodes().isNotEmpty()
@@ -260,12 +271,11 @@ class EveryFeatureDeepAuditUiTest {
                 "More recently watched videoB must appear before videoA in History (posB=$posB, posA=$posA)",
                 posB.top < posA.top || (posB.top == posA.top && posB.left < posA.left),
             )
-            ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
 
-            // 8. Me -> Bookmarks click-to-jump + edit + delete.
+            // 8. Library -> Bookmarks capsule click-to-jump + delete.
             val jumpNote = "Jump6s-$tag"
             graph.repository.saveBookmark(videoA.id, 6_000L, jumpNote)
-            ui.onNode(hasText(context.getString(R.string.title_bookmarks)) and hasClickAction()).performClick()
+            ui.onNodeWithTag("filter-pill-3").performScrollTo().performClick()
             ui.waitUntil(5_000) { ui.onAllNodesWithText(jumpNote).fetchSemanticsNodes().isNotEmpty() }
             ui.onNodeWithText(jumpNote).performClick()
             ui.waitUntil(20_000) { graph.player.state.value.video?.id == videoA.id && graph.player.state.value.isPlaying }
@@ -276,9 +286,9 @@ class EveryFeatureDeepAuditUiTest {
             ui.onNodeWithContentDescription(context.getString(R.string.bookmark_delete)).performClick()
             ui.onNodeWithText(context.getString(R.string.action_delete)).performClick()
             ui.waitUntil(5_000) { ui.onAllNodesWithText(jumpNote).fetchSemanticsNodes().isEmpty() }
-            ui.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
 
-            // 9. Settings -> Speed, Hold speed, Touch guard switch, Light/Dark/System theme.
+            // 9. Space -> Settings -> Speed, Hold speed, Touch guard switch, Light/Dark/System theme.
+            ui.onNodeWithTag("nav-2").performClick()
             ui.onNodeWithText(context.getString(R.string.title_settings)).performClick()
             ui.onNodeWithText(context.getString(R.string.theme_light)).performClick()
             ui.waitUntil(5_000) { graph.settings.settings.let { runBlocking { graph.settings.settings } }; ui.onAllNodesWithText(context.getString(R.string.theme_light)).fetchSemanticsNodes().isNotEmpty() }
@@ -349,7 +359,9 @@ class EveryFeatureDeepAuditUiTest {
             repeat(3) {
                 if (ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty()) return
                 instrument.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-                ui.waitForIdle()
+                runCatching {
+                    ui.waitUntil(2_000) { ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty() }
+                }
             }
         }
 
@@ -360,8 +372,8 @@ class EveryFeatureDeepAuditUiTest {
             graph.repository.importVideo(uriB.toString())
             graph.repository.refresh()
 
-            // 1. Open Encrypted Vault from Me tab & verify Create form validation.
-            ui.onNodeWithTag("nav-3").performClick()
+            // 1. Open Encrypted Vault from Space tab & verify Create form validation.
+            ui.onNodeWithTag("nav-2").performClick()
             ui.onNodeWithText(context.getString(R.string.profile_vault_title)).performClick()
             ui.onNodeWithTag("vault-unlock").assertIsNotEnabled()
             ui.onNodeWithTag("vault-password").performTextInput("short")
@@ -559,11 +571,12 @@ class EveryFeatureDeepAuditUiTest {
             graph.settings.replacePlayback(cn.yingxia.player.core.UserSettings())
 
             // 2. Library Check -> detect duplicate pair -> verify reactive pruning on hide/vault-removal (Bug 22) and delete (Bug 15)!
-            ui.onNodeWithTag("nav-3").performClick()
+            ui.onNodeWithTag("nav-2").performClick()
             ui.onNodeWithText(context.getString(R.string.title_scan)).performClick()
             ui.onNodeWithTag("scan-start").performClick()
             ui.waitUntil(30_000) {
-                ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isNotEmpty()
+                ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isNotEmpty() &&
+                    ui.onAllNodesWithText(context.getString(R.string.scan_restart)).fetchSemanticsNodes().isNotEmpty()
             }
             // Hiding v1 removes it from visible videos -> scan duplicate group must prune immediately!
             graph.repository.setHidden(setOf(v1.id), true)
@@ -573,7 +586,8 @@ class EveryFeatureDeepAuditUiTest {
             graph.repository.setHidden(setOf(v1.id), false)
             ui.onNodeWithTag("scan-start").performClick()
             ui.waitUntil(30_000) {
-                ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isNotEmpty()
+                ui.onAllNodesWithText("PruneDup2_$tag", substring = true).fetchSemanticsNodes().isNotEmpty() &&
+                    ui.onAllNodesWithText(context.getString(R.string.scan_restart)).fetchSemanticsNodes().isNotEmpty()
             }
             // Select PruneDup2's checkbox row and delete it through the real Android 14 delete confirmation dialog.
             val dup2Checkbox = ui.onAllNodesWithContentDescription(context.getString(R.string.action_select)).onLast()

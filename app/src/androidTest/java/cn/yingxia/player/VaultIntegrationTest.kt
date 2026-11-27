@@ -292,8 +292,13 @@ class VaultIntegrationTest {
     @Test fun installedAppHasNoNetworkPermissionAndDisablesBackup() {
         val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
         val permissions = info.requestedPermissions.orEmpty().toSet()
-        assertFalse(Manifest.permission.INTERNET in permissions)
-        assertFalse(Manifest.permission.ACCESS_NETWORK_STATE in permissions)
+        if (BuildConfig.SYNC_ENABLED) {
+            assertTrue(Manifest.permission.INTERNET in permissions)
+            assertFalse(Manifest.permission.ACCESS_NETWORK_STATE in permissions)
+        } else {
+            assertFalse(Manifest.permission.INTERNET in permissions)
+            assertFalse(Manifest.permission.ACCESS_NETWORK_STATE in permissions)
+        }
         assertEquals(0, context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_ALLOW_BACKUP)
         assertTrue(store.directory.canonicalPath.startsWith(context.noBackupFilesDir.canonicalPath + File.separator))
     }

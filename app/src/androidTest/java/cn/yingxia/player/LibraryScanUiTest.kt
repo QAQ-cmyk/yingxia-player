@@ -64,8 +64,8 @@ class LibraryScanUiTest {
             // Insert corrupt row directly via repository refresh or file import helper if needed.
             graph.repository.refresh()
 
-            // Navigate to Me -> Library Check -> Start Check via real Compose UI.
-            ui.onNodeWithText(context.getString(R.string.nav_profile)).performClick()
+            // Navigate to Space -> Library Check -> Start Check via real Compose UI.
+            ui.onNodeWithTag("nav-2").performClick()
             ui.onNodeWithText(context.getString(R.string.title_scan)).performClick()
             ui.onNodeWithTag("scan-start").performClick()
 

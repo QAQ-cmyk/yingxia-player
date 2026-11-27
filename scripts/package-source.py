@@ -13,7 +13,7 @@ if not __import__('re').fullmatch(r'\d+\.\d+\.\d+', version):
 root = Path(__file__).resolve().parents[1]
 delivery = root / 'delivery'
 destination = delivery / f'YingXia-{version}-source.zip'
-roots = ['.github', 'app', 'gradle', 'scripts', 'docs', 'delivery', 'fastlane']
+roots = ['.github', 'app', 'shared-protocol', 'server', 'gradle', 'scripts', 'docs', 'delivery', 'fastlane']
 files = {root / name for name in ['.gitignore', '.gitattributes', 'README.md', 'README.zh-CN.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE',
     'settings.gradle.kts', 'build.gradle.kts', 'gradle.properties', 'gradlew', 'gradlew.bat']}
 for folder in roots:
@@ -34,9 +34,12 @@ with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as
 with zipfile.ZipFile(destination) as archive:
     assert archive.testzip() is None
     assert not any('/.tools/' in name or name.endswith(('.p12', '.jks', '.keystore')) for name in archive.namelist())
-lines = []
-for path in [delivery / f'YingXia-{version}.apk', destination]:
-    lines.append(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}')
+targets = [delivery / f'YingXia-{version}.apk']
+sync_apk = delivery / f'YingXia-{version}-sync.apk'
+if sync_apk.exists():
+    targets.append(sync_apk)
+targets.append(destination)
+lines = [f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}' for path in targets]
 (delivery / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 (delivery / f'SHA256SUMS-{version}.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 print(f'Created source archive: {len(files)} files, {destination.stat().st_size:,} bytes')

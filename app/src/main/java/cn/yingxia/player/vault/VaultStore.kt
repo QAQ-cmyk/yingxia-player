@@ -58,6 +58,7 @@ data class VaultInventory(val entries: List<VaultEntry>, val damagedRecords: Int
 class VaultStore(private val context: Context, val directory: File = File(context.noBackupFilesDir, "encrypted-vault")) {
     init { directory.mkdirs() }
     internal val recovery = VaultRecovery(context, directory, ::syncDirectory)
+    internal val biometric = VaultBiometric(context, directory, ::syncDirectory)
     private val config = File(directory, "keyset.bin")
     @Volatile var session: VaultSession? = null; private set
     val configured get() = config.isFile

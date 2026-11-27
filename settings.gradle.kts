@@ -4,4 +4,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "YingXia"
-include(":app")
+include(":app", ":shared-protocol", ":server")

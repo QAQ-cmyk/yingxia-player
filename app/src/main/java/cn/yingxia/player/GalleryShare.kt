@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.IntentCompat
 
+internal const val MAX_SHARED_VIDEO_URIS = 100
+
 internal data class GalleryShare(
     val uris: List<Uri> = emptyList(),
     val loading: Boolean = false,
@@ -11,9 +13,13 @@ internal data class GalleryShare(
 )
 
 /** Keep incoming grants in memory only. A share must never resolve through our own providers. */
-internal fun Intent.galleryShare(packageName: String, invalidMessage: String = "No readable local videos received. Select videos in your gallery and share them to YingXia."): GalleryShare? {
+internal fun Intent.galleryShare(
+    packageName: String,
+    invalidMessage: String = "No readable local videos received. Select videos in your gallery and share them to YingXia.",
+): GalleryShare? {
     if (action !in setOf(Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE) ||
-        flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return null
+        flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+    ) return null
     val invalid = GalleryShare(error = invalidMessage)
     if (type?.startsWith("video/", ignoreCase = true) != true) return invalid
     return try {
@@ -21,13 +27,26 @@ internal fun Intent.galleryShare(packageName: String, invalidMessage: String = "
         if (action == Intent.ACTION_SEND) {
             IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)?.let(uris::add)
         } else {
-            IntentCompat.getParcelableArrayListExtra(this, Intent.EXTRA_STREAM, Uri::class.java)?.let(uris::addAll)
+            val streamList = IntentCompat.getParcelableArrayListExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
+            if (streamList != null) {
+                if (streamList.size > MAX_SHARED_VIDEO_URIS) return invalid
+                uris.addAll(streamList)
+            }
         }
-        clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let(uris::add) }
+        clipData?.let { clip ->
+            if (clip.itemCount > MAX_SHARED_VIDEO_URIS) return invalid
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i).uri?.let(uris::add)
+                if (uris.size > MAX_SHARED_VIDEO_URIS) return invalid
+            }
+        }
         if (uris.isEmpty() || (action == Intent.ACTION_SEND && uris.size != 1) || uris.any {
                 val authority = it.authority.orEmpty()
                 it.scheme != "content" || authority.isBlank() || '@' in authority || authority == packageName ||
                     authority.startsWith("$packageName.")
-            }) invalid else GalleryShare(uris.toList())
-    } catch (_: RuntimeException) { invalid }
+            }
+        ) invalid else GalleryShare(uris.toList())
+    } catch (_: RuntimeException) {
+        invalid
+    }
 }

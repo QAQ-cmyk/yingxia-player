@@ -2,6 +2,24 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [2.0.0] - 2026-11-26
+
+### Added & Changed
+- **Minimalist 2.0 UI & UX Overhaul**:
+  - Replaced high-saturation pink/candy accents with a crisp Monochrome + Slate Blue (`#2563EB` / `#60A5FA`) palette, unified neutral icon badges, and full edge-to-edge transparency across all screens.
+  - Streamlined bottom navigation from 4 tabs to 3 (`Library | Folders | Space`) with automatic `NavigationRail` adaptation on wide screens (`>= 600dp`), consolidating All, In-Progress, Favorites, Bookmarks, and History into single-row filter capsules on Library.
+  - Upgraded multi-select to a floating obsidian action island (`Play`, `Vault`, `Delete`, `More ⋯`), added a dismissible floating continue-watching capsule, and unified the portrait/landscape player under Cinema Dark (`#0B0D11`) with single-row action capsules and inline bookmark jump pills.
+- **Dual-Edition Gradle Architecture & Self-Hosted Ktor Backend**:
+  - Split `:app` into `offline` (`cn.yingxia.player`, permanent zero network permissions) and `sync` (`cn.yingxia.player.sync`) product flavors via `SyncExtensionBridge`.
+  - Added `:shared-protocol` (`ZeroKnowledgeCrypto` with PBKDF2-HMAC-SHA256 600,000 iterations + AES-256-GCM) and self-hosted Kotlin + Ktor `:server` supporting `HTTP 206 Partial Content` range streaming, Zero-Knowledge snapshot sync, and SHA-256-verified `.vault` ciphertext cold backup.
+
+### Performance & Security Hardened
+- Enabled R8 minification (`isMinifyEnabled = true`) and resource shrinking (`isShrinkResources = true`) for release builds with explicit Tink, Room, and Kotlinx Serialization ProGuard rules.
+- Added optional hardware-backed Android Keystore `BiometricPrompt` quick unlock for the Encrypted Vault (`VaultBiometric`), invalidated automatically on password changes or new biometric enrollments.
+- Added password-encrypted local backup export/restore (`.yxbackup.enc`), automatic zero-fill wipe of temporary `cacheDir/backup/` share files (`LibraryBackup.clearShareCache`), `MAX_SHARED_VIDEO_URIS = 100` guard in `GalleryShare`, replaced Coil/OkHttp with a zero-network pure-Android `LocalVideoThumbnails` in-memory `LruCache` loader, Compose `key` + `contentType` + `hasActiveVideo` recomposition isolation, and DEX-level verification in `scripts/check-apk-privacy.py`.
+
+---
+
 ## [1.9.1] - 2026-11-26
 
 ### Fixed

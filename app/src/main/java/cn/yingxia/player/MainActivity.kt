@@ -3,15 +3,17 @@ package cn.yingxia.player
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.fragment.app.FragmentActivity
 import cn.yingxia.player.core.PlayerCommand
+import cn.yingxia.player.data.LibraryBackup
 import cn.yingxia.player.ui.YingXiaApp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val graph get() = (application as YingXiaApplication).graph
     private val model: AppViewModel by viewModels { AppViewModel.Factory(graph) }
     override fun attachBaseContext(newBase: Context) {
@@ -35,14 +37,20 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() { super.onResume(); model.refresh() }
     override fun onStop() {
-        if (!isChangingConfigurations) model.pauseSharePreparation()
-        if (!isChangingConfigurations) graph.vault.lock()
-        if (!isChangingConfigurations) graph.scope.launch { graph.player.execute(PlayerCommand.Pause) }
+        if (!isChangingConfigurations) {
+            model.pauseSharePreparation()
+            graph.vault.lock()
+            graph.scope.launch { graph.player.execute(PlayerCommand.Pause) }
+            graph.scope.launch(Dispatchers.IO) { LibraryBackup.clearShareCache(applicationContext) }
+        }
         super.onStop()
     }
     override fun onDestroy() {
-        if (isFinishing) graph.vault.close()
-        if (isFinishing) graph.scope.launch { graph.player.execute(PlayerCommand.Close) }
+        if (isFinishing) {
+            graph.vault.close()
+            graph.scope.launch { graph.player.execute(PlayerCommand.Close) }
+            graph.scope.launch(Dispatchers.IO) { LibraryBackup.clearShareCache(applicationContext) }
+        }
         super.onDestroy()
     }
 }

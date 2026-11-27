@@ -145,6 +145,7 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
                 dao.upsert(imports.map { it.copy(id = aliases[it.id] ?: it.id) }.filter { it.id !in scannedIds }.map { checked ->
                     (latest[checked.id] ?: checked).copy(accessible = checked.accessible)
                 })
+                extraSources.forEach { candidate -> dao.markSourceUnavailable(candidate.sourceId) }
                 val extra = extraSources.flatMap { candidate -> runCatching { candidate.query() }.getOrDefault(emptyList()) }
                 if (extra.isNotEmpty()) dao.upsert(extra.map { video ->
                     val old = dao.get(video.id.value)
@@ -246,16 +247,20 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         }
     }
     override suspend fun get(id: VideoId) = dao.get(id.value)?.domain()
+    private suspend fun resolveSource(video: VideoItem) {
+        val delegate = extraSources.firstOrNull { it.sourceId == video.source } ?: source
+        delegate.resolve(video)
+    }
     override suspend fun requirePlayable(id: VideoId): VideoItem {
         val video = get(id) ?: throw PlayerFailure(FailureKind.SOURCE_MISSING, AppLocale.str(context, R.string.media_error_not_found))
         if (video.hidden) throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_hidden_play))
-        source.resolve(video)
+        resolveSource(video)
         return video
     }
     override suspend fun requirePlayable(video: VideoItem): VideoItem {
         if (video.source != "share") return requirePlayable(video.id)
         if (get(video.id)?.hidden == true) throw PlayerFailure(FailureKind.ACCESS_DENIED, AppLocale.str(context, R.string.media_error_hidden_play))
-        source.resolve(video)
+        resolveSource(video)
         return video
     }
     override suspend fun setHidden(ids: Set<VideoId>, hidden: Boolean) = db.withTransaction {

@@ -19,6 +19,11 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
     val hidden = graph.repository.hiddenVideos.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val bookmarks = graph.repository.bookmarks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val settings = graph.settings.settings.stateIn(viewModelScope, SharingStarted.Eagerly, UserSettings())
+    val hasActiveVideo = graph.player.state.map { it.video != null }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val continueWatching = videos.map { all ->
+        all.filter { it.positionMs > 3000 && it.durationMs - it.positionMs > 5000 }.maxByOrNull { it.lastPlayedAt }
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val messages = MutableSharedFlow<UserNotice>(extraBufferCapacity = 8)
     internal val share = MutableStateFlow<GalleryShare?>(null)
     private var shareJob: Job? = null
@@ -234,7 +239,12 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
                     }
                     if (bad != null) unreadable += video to bad else if (key != null) keys += video to key
                 }
-                libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(keys), unreadable, completed = true)
+                val latestVisible = graph.repository.allVideos()
+                    .filter { !it.hidden && it.accessible }
+                    .mapTo(HashSet()) { it.id }
+                val filteredKeys = keys.filter { it.first.id in latestVisible }
+                val filteredUnreadable = unreadable.filter { it.first.id in latestVisible }
+                libraryScan.value = LibraryScanState(false, videos.size, videos.size, str(R.string.scan_done_label), duplicateGroups(filteredKeys), filteredUnreadable, completed = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -247,15 +257,37 @@ class AppViewModel(val graph: AppGraph) : ViewModel() {
         scanJob?.cancel()
         libraryScan.value = libraryScan.value.copy(running = false, completed = false, label = str(R.string.scan_cancelled_label))
     }
+    private suspend fun applyRestorePlan(plan: cn.yingxia.player.data.RestorePlan): cn.yingxia.player.data.RestorePlan {
+        graph.settings.replacePlayback(plan.settings)
+        graph.repository.restoreRecords(plan.matched)
+        val existing = graph.repository.bookmarks.first()
+            .mapTo(HashSet()) { Triple(it.videoId.value, it.positionMs, it.note) }
+        plan.matchedBookmarks.forEach { (videoId, bm) ->
+            val key = Triple(videoId.value, bm.positionMs, bm.note)
+            if (existing.add(key)) {
+                graph.repository.saveBookmark(videoId, bm.positionMs, bm.note)
+            }
+        }
+        return plan
+    }
+
     fun restoreBackup(text: String) {
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 val plan = cn.yingxia.player.data.LibraryBackup.plan(graph.repository.allVideos(), cn.yingxia.player.data.LibraryBackup.parse(text))
-                graph.settings.replacePlayback(plan.settings)
-                graph.repository.restoreRecords(plan.matched)
-                plan
+                applyRestorePlan(plan)
             }.onSuccess { notify(if (it.skipped == 0) str(R.string.backup_restored_all, it.matched.size) else str(R.string.backup_restored_partial, it.matched.size, it.skipped)) }
                 .onFailure { notify(if (it is InvalidBackupException) str(R.string.backup_error_invalid_file) else it.message ?: str(R.string.backup_error_read)) }
+        }
+    }
+    fun restoreEncryptedBackup(bytes: ByteArray, password: CharArray) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val parsed = cn.yingxia.player.data.LibraryBackup.decryptBackup(bytes, password)
+                val plan = cn.yingxia.player.data.LibraryBackup.plan(graph.repository.allVideos(), parsed)
+                applyRestorePlan(plan)
+            }.onSuccess { notify(if (it.skipped == 0) str(R.string.backup_restored_all, it.matched.size) else str(R.string.backup_restored_partial, it.matched.size, it.skipped)) }
+                .onFailure { notify(str(R.string.backup_error_wrong_password_or_corrupt)) }
         }
     }
     fun rename(id: VideoId, displayName: String) {

@@ -28,11 +28,14 @@ class LifecycleUiTest {
         try {
             graph.repository.setFavorite(setOf(video.id), true)
             for (longPress in listOf(false, true)) {
-                ui.onNodeWithTag("nav-2").performClick()
+                ui.onNodeWithTag("nav-0").performClick()
+                ui.onNodeWithText(context.getString(R.string.filter_favorites)).performClick()
                 val cardTag = "video-${video.id.value}"
                 ui.onNodeWithTag("video-grid").performScrollToNode(hasTestTag(cardTag))
-                if (longPress) ui.onNodeWithTag(cardTag).performTouchInput { longClick() }
-                else ui.onNodeWithContentDescription(context.getString(R.string.action_more_for_video, video.name)).performClick()
+                if (longPress) {
+                    ui.onNodeWithTag(cardTag).performTouchInput { longClick() }
+                    ui.onNodeWithContentDescription(context.getString(R.string.multi_action_more)).performClick()
+                } else ui.onNodeWithContentDescription(context.getString(R.string.action_more_for_video, video.name)).performClick()
                 ui.onNodeWithText(context.getString(R.string.action_watch_without_history)).performClick()
                 ui.waitUntil(15000) { graph.player.state.value.isPlaying }
                 ui.onNodeWithTag("lock-vault-now").assertDoesNotExist()
@@ -89,7 +92,7 @@ class LifecycleUiTest {
         assertFalse(graph.player.state.value.isPlaying)
         graph.repository.setHidden(setOf(video.id), true)
         withTimeout(5000) { while (graph.player.state.value.video != null) delay(50) }
-        ui.onNodeWithTag("nav-3").performClick()
+        ui.onNodeWithTag("nav-2").performClick()
         ui.onNodeWithText(context.getString(R.string.title_hidden_manager)).assertExists().performClick()
         ui.waitUntil(5000) { ui.onAllNodesWithText("lifecycle").fetchSemanticsNodes().isNotEmpty() }
         ui.onNodeWithText("lifecycle").assertExists()

@@ -15,7 +15,7 @@ import kotlinx.coroutines.sync.withLock
 
 class Media3Controller(private val context: Context, private val repository: VideoRepository,
     private val settings: SettingsRepository, private val scope: CoroutineScope,
-    private val source: ((VideoItem) -> androidx.media3.exoplayer.source.MediaSource)? = null) : PlaybackController {
+    private val source: ((VideoItem) -> androidx.media3.exoplayer.source.MediaSource?)? = null) : PlaybackController {
     private fun str(id: Int) = AppLocale.str(context, id)
     private val mutableState = MutableStateFlow(PlaybackState())
     override val state: StateFlow<PlaybackState> = mutableState.asStateFlow()
@@ -187,7 +187,8 @@ class Media3Controller(private val context: Context, private val repository: Vid
         isClosing = true
         surfacePlayer.stop()
         mutableState.value = PlaybackState(video, safeQueue, durationMs = video.durationMs, baseSpeed = speed, effectiveSpeed = speed, repeatMode = mode, buffering = true, recordHistory = recordHistory)
-        if (source != null) surfacePlayer.setMediaSource(source.invoke(video)) else surfacePlayer.setMediaItem(mediaItem(video))
+        val customSource = source?.invoke(video)
+        if (customSource != null) surfacePlayer.setMediaSource(customSource) else surfacePlayer.setMediaItem(mediaItem(video))
         val resumePosition = if (recordHistory) PlaybackRules.resume(video.positionMs, video.durationMs) else 0L
         val startPosition = start?.let { if (video.durationMs > 0) PlaybackRules.seek(it, video.durationMs) else it.coerceAtLeast(0L) } ?: resumePosition
         surfacePlayer.seekTo(startPosition)

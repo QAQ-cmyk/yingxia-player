@@ -24,8 +24,37 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class PlayerIntegrationTest {
+    private class NoisyBroadcastCapturingContext(base: Context) : android.content.ContextWrapper(base) {
+        @Volatile var noisyReceiver: android.content.BroadcastReceiver? = null
+        override fun getApplicationContext(): Context = this
+        override fun registerReceiver(
+            receiver: android.content.BroadcastReceiver?,
+            filter: android.content.IntentFilter?,
+        ): Intent? {
+            if (receiver != null && filter?.hasAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY) == true) {
+                noisyReceiver = receiver
+            }
+            return super.registerReceiver(receiver, filter)
+        }
+        override fun registerReceiver(
+            receiver: android.content.BroadcastReceiver?,
+            filter: android.content.IntentFilter?,
+            flags: Int,
+        ): Intent? {
+            if (receiver != null && filter?.hasAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY) == true) {
+                noisyReceiver = receiver
+            }
+            return super.registerReceiver(receiver, filter, flags)
+        }
+        override fun unregisterReceiver(receiver: android.content.BroadcastReceiver?) {
+            if (noisyReceiver === receiver) noisyReceiver = null
+            super.unregisterReceiver(receiver)
+        }
+    }
+
     private val instrument = InstrumentationRegistry.getInstrumentation()
     private val context: Context get() = instrument.targetContext
+    private lateinit var playerContext: NoisyBroadcastCapturingContext
     private lateinit var database: VideoDatabase
     private lateinit var repository: LocalVideoRepository
     private lateinit var player: Media3Controller
@@ -39,7 +68,8 @@ class PlayerIntegrationTest {
         val settings = SettingsRepository(context)
         settings.setSpeed(1f)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        player = withContext(Dispatchers.Main) { Media3Controller(context, repository, settings, scope) }
+        playerContext = NoisyBroadcastCapturingContext(context)
+        player = withContext(Dispatchers.Main) { Media3Controller(playerContext, repository, settings, scope) }
         fixture = repository.importVideo(fixtureUri("sample.mp4"))
         second = repository.importVideo(fixtureUri("second.mp4"))
     }
@@ -259,11 +289,17 @@ class PlayerIntegrationTest {
 
     @Test fun unpluggingAudioPausesAndClearsTemporarySpeed() = runBlocking {
         open()
+        eventually { playerContext.noisyReceiver != null }
         player.execute(PlayerCommand.BeginBoost(3f))
-        // A protected system broadcast must be sent by the test shell, not the app UID.
-        instrument.uiAutomation.executeShellCommand("am broadcast -a ${AudioManager.ACTION_AUDIO_BECOMING_NOISY}")
-            .use { android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes() }
-        // Playback and temporary-speed updates arrive asynchronously; await both outcomes.
+        assertTrue(player.state.value.boosting)
+        // Android 14+ rejects shell (uid=2000) protected broadcasts; deliver ACTION_AUDIO_BECOMING_NOISY
+        // on the main looper directly to the real ExoPlayer receiver registered via setHandleAudioBecomingNoisy(true).
+        withContext(Dispatchers.Main) {
+            checkNotNull(playerContext.noisyReceiver).onReceive(
+                playerContext,
+                Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            )
+        }
         eventually { player.state.value.let { !it.isPlaying && !it.boosting } }
         assertFalse(player.state.value.boosting)
         assertEquals(player.state.value.baseSpeed, player.state.value.effectiveSpeed)
