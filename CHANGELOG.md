@@ -2,6 +2,14 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [2.0.2] - 2026-11-28
+
+### Fixed
+- **Restored side-by-side 2-column video grid on standard phones**: Replaced `GridCells.Adaptive(162.dp)` (which collapsed to a single vertical column on 360dp–376dp Android phones and zoomed display settings) with `ResponsiveVideoGridCells` (`videoGridColumnCount` guaranteed `>= 2` columns on portrait phones while still scaling up to 3–4+ columns on landscape/tablet screens).
+- **Aligned 16dp page margins & filter pill spacing**: Restored `16.dp` horizontal margins across Library, Folders, Space, Settings, and Bookmarks, and tightened filter capsule spacing so `All`, `In Progress`, and `Favorites` remain clearly visible on 360dp screens.
+
+---
+
 ## [2.0.1] - 2026-11-28
 
 ### Fixed

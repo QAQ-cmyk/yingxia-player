@@ -61,6 +61,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.ImageBitmap
@@ -406,7 +407,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                     Row(
                         Modifier.fillMaxWidth()
                             .heightIn(min = 52.dp)
-                            .padding(start = if (topLevel) 20.dp else 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+                            .padding(start = if (topLevel) 16.dp else 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (!topLevel) {
@@ -522,11 +523,11 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                                 }
                                 Column(Modifier.fillMaxSize()) {
                                     if (listKind != "hidden") {
-                                        SearchField(query, onQuery, { searchFocused = it }, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                                        SearchField(query, onQuery, { searchFocused = it }, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                                     } else {
                                         Text(
                                             stringResource(R.string.hidden_banner_hint),
-                                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.bodySmall,
                                         )
@@ -540,7 +541,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                                             order = effectiveOrder,
                                             onRefresh = vm::refresh,
                                             onOrder = { scope.launch { vm.graph.settings.setSort(it) } },
-                                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
                                         )
                                         BookmarksPage(vm, videos, bookmarks, searchFilter = query)
                                     } else {
@@ -589,7 +590,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                         shadowElevation = 4.dp,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                             .fillMaxWidth(),
                     ) {
                         Row(
@@ -662,7 +663,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                         onDelete = { val picked = visible.filter { it.id in selected }; if (picked.isNotEmpty()) { moving = false; fileItems = picked } },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                     )
                 }
             }
@@ -828,7 +829,7 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     Row(modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.weight(1f).horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             pills.forEach { (idx, label) ->
@@ -855,12 +856,12 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
                         fontSize = 12.sp,
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     )
                 }
             }
         }
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(4.dp))
         if (scanning) {
             CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
         } else {
@@ -897,6 +898,27 @@ private fun SortOrder.labelRes(): Int = when (this) {
     SortOrder.DURATION -> R.string.sort_duration
 }
 
+internal fun videoGridColumnCount(availableSizePx: Int, minCardSizePx: Int, spacingPx: Int): Int {
+    if (availableSizePx <= 0 || minCardSizePx <= 0) return 2
+    return ((availableSizePx + spacingPx) / (minCardSizePx + spacingPx)).coerceAtLeast(2)
+}
+
+private object ResponsiveVideoGridCells : GridCells {
+    override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): List<Int> {
+        val count = videoGridColumnCount(
+            availableSizePx = availableSize,
+            minCardSizePx = 158.dp.roundToPx(),
+            spacingPx = spacing,
+        )
+        val gridSizeWithoutSpacing = (availableSize - spacing * (count - 1)).coerceAtLeast(0)
+        val slotSize = gridSizeWithoutSpacing / count
+        val remainingPixels = gridSizeWithoutSpacing % count
+        return List(count) { index ->
+            slotSize + if (index < remainingPixels) 1 else 0
+        }
+    }
+}
+
 @Composable private fun VideoGrid(
     vm: AppViewModel,
     items: List<VideoItem>,
@@ -925,11 +947,11 @@ private fun SortOrder.labelRes(): Int = when (this) {
     val selecting = selected.isNotEmpty()
 
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(162.dp),
+        columns = ResponsiveVideoGridCells,
         modifier = Modifier.fillMaxSize().testTag("video-grid"),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 84.dp),
-        horizontalArrangement = Arrangement.spacedBy(13.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 84.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (!hidden && access != LibraryAccess.FULL) {
             item(key = "banner-access", span = { GridItemSpan(maxLineSpan) }, contentType = "banner") {
@@ -1246,7 +1268,7 @@ private object LocalVideoThumbnails {
     }
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "local-header", contentType = "section-header") {
@@ -1356,7 +1378,7 @@ private object LocalVideoThumbnails {
     )
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         // 1. Hero Obsidian Encrypted Vault Card
@@ -1603,7 +1625,7 @@ private object LocalVideoThumbnails {
     var clearConfirm by remember { mutableStateOf(false) }
     var currentLang by remember { mutableStateOf(AppLocale.current(context)) }
     LazyColumn(
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 32.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "set-lang", contentType = "card") {
@@ -1730,7 +1752,7 @@ private object LocalVideoThumbnails {
                 searchFilter.isBlank() || bm.note.contains(searchFilter, ignoreCase = true) || matchesLibraryQuery(vid.displayTitle(), vid.name, vid.folder, searchFilter)
             }
     }
-    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (visibleBookmarks.isEmpty()) item(key = "bm-empty", contentType = "empty") { EmptyState(stringResource(R.string.bookmarks_empty_title), stringResource(R.string.bookmarks_empty_desc)) }
         items(visibleBookmarks, key = { it.first.id }, contentType = { "bookmark-row" }) { (bookmark, video) ->
             SectionCard {

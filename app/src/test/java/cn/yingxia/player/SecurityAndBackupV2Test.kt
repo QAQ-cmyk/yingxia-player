@@ -2,6 +2,7 @@ package cn.yingxia.player
 
 import cn.yingxia.player.core.*
 import cn.yingxia.player.data.LibraryBackup
+import cn.yingxia.player.ui.videoGridColumnCount
 import org.junit.Assert.*
 import org.junit.Test
 import javax.crypto.AEADBadTagException
@@ -65,5 +66,16 @@ class SecurityAndBackupV2Test {
         assertFalse(isSafeSharedAuthority("0@$pkg.files", pkg))
         assertFalse(isSafeSharedAuthority("evil@media", pkg))
         assertFalse(isSafeSharedAuthority("0@evil@media", pkg))
+    }
+
+    @Test
+    fun videoGridAlwaysUsesAtLeastTwoColumnsAndScalesOnWideScreens() {
+        // 3x density phone widths with 16dp*2 horizontal content padding
+        assertEquals(2, videoGridColumnCount(availableSizePx = 0, minCardSizePx = 474, spacingPx = 36))
+        assertEquals(2, videoGridColumnCount(availableSizePx = 288 * 3, minCardSizePx = 158 * 3, spacingPx = 12 * 3)) // 320dp
+        assertEquals(2, videoGridColumnCount(availableSizePx = 328 * 3, minCardSizePx = 158 * 3, spacingPx = 12 * 3)) // 360dp
+        assertEquals(2, videoGridColumnCount(availableSizePx = 379 * 3, minCardSizePx = 158 * 3, spacingPx = 12 * 3)) // 411dp
+        assertEquals(3, videoGridColumnCount(availableSizePx = 528 * 3, minCardSizePx = 158 * 3, spacingPx = 12 * 3)) // 640dp landscape
+        assertEquals(4, videoGridColumnCount(availableSizePx = 728 * 3, minCardSizePx = 158 * 3, spacingPx = 12 * 3)) // 840dp tablet
     }
 }
