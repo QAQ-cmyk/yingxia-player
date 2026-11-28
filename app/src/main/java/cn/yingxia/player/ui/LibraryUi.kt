@@ -1679,10 +1679,18 @@ private object LocalVideoThumbnails {
                 }
                 Spacer(Modifier.height(12.dp))
                 SettingsTitle(stringResource(R.string.settings_hold_speed))
-                Row {
-                    listOf(2f, 3f).forEach { speed -> FilterChip(settings.holdSpeed == speed, { scope.launch { vm.graph.settings.setHoldSpeed(speed) } }, label = { Text(speedText(speed)) }, shape = CircleShape, modifier = Modifier.padding(end = 8.dp)) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PlaybackRules.holdSpeeds.forEach { speed ->
+                        FilterChip(
+                            selected = settings.holdSpeed == speed,
+                            onClick = { scope.launch { vm.graph.settings.setHoldSpeed(speed) } },
+                            label = { Text(speedText(speed)) },
+                            shape = CircleShape,
+                            modifier = Modifier.testTag("settings-hold-speed-${speedText(speed)}"),
+                        )
+                    }
                 }
-                Text(stringResource(R.string.settings_hold_speed_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_hold_speed_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }
         item(key = "set-guard", contentType = "card") {

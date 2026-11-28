@@ -2,6 +2,16 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [2.0.4] - 2026-11-28
+
+### Added
+- **Selectable Long-Press Boost Speed (`1.5× / 2× / 2.5× / 3× / 4×`)**:
+  - Expanded long-press speed presets in `PlaybackRules.holdSpeeds` (`1.5×`, `2×`, `2.5×`, `3×`, `4×`), persisted via `PlayerCommand.SetHoldSpeed` / `SettingsRepository` and preserved in encrypted backups (`LibraryBackup`).
+  - Added interactive long-press speed selector chips directly inside the **Player Speed Sheet** (in both ordinary and encrypted Vault playback) as well as in **Space → Settings**.
+  - Added **live slide-to-adjust while holding**: after long-pressing to enter temporary boost, sliding your finger horizontally adjusts the boost speed live across `1.5×`–`4×` with haptic ticks and restores normal speed on release (never dropping below current playback speed).
+
+---
+
 ## [2.0.3] - 2026-11-28
 
 ### Fixed

@@ -26,7 +26,7 @@ class SecurityAndBackupV2Test {
                 cropBars = true,
             )
         )
-        val settings = UserSettings(theme = ThemeMode.DARK, speed = 1.25f, holdSpeed = 3f, sort = SortOrder.RECENT_PLAY, touchGuard = true)
+        val settings = UserSettings(theme = ThemeMode.DARK, speed = 1.25f, holdSpeed = 2.5f, sort = SortOrder.RECENT_PLAY, touchGuard = true)
         val bookmarks = listOf(Bookmark(1L, videos.first().id, 22_000L, "Starlight scene"))
         val encrypted = LibraryBackup.exportEncrypted(videos, settings, "VaultGradeBackup#9".toCharArray(), bookmarks)
         assertTrue(LibraryBackup.isEncryptedBackup(encrypted))
@@ -37,6 +37,7 @@ class SecurityAndBackupV2Test {
         val parsed = LibraryBackup.decryptBackup(encrypted, "VaultGradeBackup#9".toCharArray())
         assertEquals(ThemeMode.DARK, parsed.settings.theme)
         assertEquals(1.25f, parsed.settings.speed)
+        assertEquals(2.5f, parsed.settings.holdSpeed)
         assertEquals(1, parsed.records.size)
         assertEquals("Night Walk 4K", parsed.records.single().displayName)
         assertEquals(1, parsed.bookmarks.size)

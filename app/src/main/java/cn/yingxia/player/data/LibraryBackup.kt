@@ -190,7 +190,7 @@ object LibraryBackup {
         val settings = UserSettings(
             theme = runCatching { ThemeMode.valueOf(prefs.optString("theme", "SYSTEM")) }.getOrDefault(ThemeMode.SYSTEM),
             speed = PlaybackRules.speed(prefs.optDouble("speed", 1.0).toFloat()),
-            holdSpeed = if (prefs.optDouble("holdSpeed", 2.0).toFloat() == 3f) 3f else 2f,
+            holdSpeed = PlaybackRules.holdSpeed(prefs.optDouble("holdSpeed", 2.0).toFloat()),
             sort = runCatching { SortOrder.valueOf(prefs.optString("sort", "NEWEST")) }.getOrDefault(SortOrder.NEWEST),
             touchGuard = prefs.optBoolean("touchGuard", false),
         )

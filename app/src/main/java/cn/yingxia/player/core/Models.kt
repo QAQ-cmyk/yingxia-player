@@ -77,6 +77,7 @@ sealed interface PlayerCommand {
     data object Toggle : PlayerCommand
     data class Seek(val positionMs: Long) : PlayerCommand
     data class SetSpeed(val speed: Float) : PlayerCommand
+    data class SetHoldSpeed(val speed: Float) : PlayerCommand
     data class BeginBoost(val speed: Float) : PlayerCommand
     data object EndBoost : PlayerCommand
     data object Next : PlayerCommand
@@ -144,8 +145,17 @@ interface PlayerFeature {
 
 object PlaybackRules {
     val speeds = listOf(.25f, .5f, .75f, 1f, 1.25f, 1.5f, 2f, 3f)
+    val holdSpeeds = listOf(1.5f, 2f, 2.5f, 3f, 4f)
     fun speed(value: Float) = if (value in speeds) value else 1f
-    fun temporarySpeed(base: Float, hold: Float) = maxOf(speed(base), if (hold == 3f) 3f else 2f)
+    fun holdSpeed(value: Float) = if (value in holdSpeeds) value else 2f
+    fun temporarySpeed(base: Float, hold: Float) = maxOf(speed(base), holdSpeed(hold))
+    fun boostSpeedForSlide(base: Float, initialHold: Float, stepDelta: Int): Float {
+        val minSpeed = speed(base)
+        val options = holdSpeeds.filter { it >= minSpeed }.ifEmpty { listOf(holdSpeeds.last()) }
+        val startSpeed = temporarySpeed(base, initialHold)
+        val startIndex = options.indexOfFirst { it >= startSpeed }.takeIf { it >= 0 } ?: options.lastIndex
+        return options[(startIndex + stepDelta).coerceIn(0, options.lastIndex)]
+    }
     fun seek(positionMs: Long, durationMs: Long) = positionMs.coerceIn(0, durationMs.coerceAtLeast(0))
     fun resume(positionMs: Long, durationMs: Long): Long =
         if (positionMs < 3000 || durationMs <= 0 || durationMs - positionMs <= 5000) 0 else seek(positionMs, durationMs)

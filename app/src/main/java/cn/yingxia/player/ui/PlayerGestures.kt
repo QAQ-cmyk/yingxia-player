@@ -29,9 +29,14 @@ internal class PlayerGestureView(context: Context) : View(context) {
     var onTransform: (Float, Float, Float) -> Unit = { _, _, _ -> }
     private val handler = Handler(Looper.getMainLooper())
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    private val boostStepPx = 44f * context.resources.displayMetrics.density
     private var mode = GestureMode.PENDING
     private var downX = 0f
     private var downY = 0f
+    private var lastMoveX = 0f
+    private var boostAnchorX = 0f
+    private var boostStartSpeed = 2f
+    private var boostActiveSpeed = 2f
     private var start = 0L
     private var duration = 0L
     private var target = 0L
@@ -49,7 +54,10 @@ internal class PlayerGestureView(context: Context) : View(context) {
     private val hold = Runnable {
         if (active && !moved && !double && mode == GestureMode.PENDING && snapshot().isPlaying && !locked) {
             mode = GestureMode.BOOST
-            command(PlayerCommand.BeginBoost(holdSpeed))
+            boostAnchorX = lastMoveX
+            boostStartSpeed = PlaybackRules.holdSpeed(holdSpeed)
+            boostActiveSpeed = PlaybackRules.temporarySpeed(snapshot().baseSpeed, boostStartSpeed)
+            command(PlayerCommand.BeginBoost(boostActiveSpeed))
             performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         }
     }
@@ -61,7 +69,7 @@ internal class PlayerGestureView(context: Context) : View(context) {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 active = true; moved = false; mode = GestureMode.PENDING
-                downX = event.x; downY = event.y
+                downX = event.x; downY = event.y; lastMoveX = event.x
                 start = snapshot().positionMs; duration = snapshot().durationMs
                 double = lastUp != 0L && event.eventTime - lastUp <= ViewConfiguration.getDoubleTapTimeout() &&
                     abs(lastX - event.x) < slop * 5 && abs(lastY - event.y) < slop * 5
@@ -71,9 +79,10 @@ internal class PlayerGestureView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) beginPinch(event)
             MotionEvent.ACTION_MOVE -> if (active && mode == GestureMode.PINCH && event.pointerCount >= 2) movePinch(event) else if (active) {
+                lastMoveX = event.x
                 val dx = event.x - downX; val dy = event.y - downY
                 val threshold = dragSlop()
-                if (abs(dx) > threshold || abs(dy) > threshold) { moved = true; handler.removeCallbacks(hold) }
+                if (mode == GestureMode.PENDING && (abs(dx) > threshold || abs(dy) > threshold)) { moved = true; handler.removeCallbacks(hold) }
                 if (mode == GestureMode.PENDING && moved) {
                     mode = chooseDrag(dx, dy, threshold, fullscreen, downX < width / 2f)
                     if (mode == GestureMode.BRIGHTNESS || mode == GestureMode.VOLUME) vertical(mode, 0f, true)
@@ -85,6 +94,15 @@ internal class PlayerGestureView(context: Context) : View(context) {
                         preview(target)
                     }
                     GestureMode.BRIGHTNESS, GestureMode.VOLUME -> vertical(mode, -dy / height.coerceAtLeast(1), false)
+                    GestureMode.BOOST -> {
+                        val steps = ((event.x - boostAnchorX) / boostStepPx).toInt()
+                        val next = PlaybackRules.boostSpeedForSlide(snapshot().baseSpeed, boostStartSpeed, steps)
+                        if (next != boostActiveSpeed) {
+                            boostActiveSpeed = next
+                            command(PlayerCommand.BeginBoost(next))
+                            performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        }
+                    }
                     else -> Unit
                 }
             }

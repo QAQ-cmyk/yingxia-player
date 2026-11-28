@@ -13,12 +13,32 @@ import java.io.InputStream
 class PlaybackRulesTest {
     @Test fun supportedSpeedsAndTemporaryBoostNeverSlowPlayback() {
         assertEquals(listOf(.25f, .5f, .75f, 1f, 1.25f, 1.5f, 2f, 3f), PlaybackRules.speeds)
+        assertEquals(listOf(1.5f, 2f, 2.5f, 3f, 4f), PlaybackRules.holdSpeeds)
         for (base in PlaybackRules.speeds) {
-            assertTrue(PlaybackRules.temporarySpeed(base, 2f) >= base)
-            assertTrue(PlaybackRules.temporarySpeed(base, 3f) >= base)
+            for (hold in PlaybackRules.holdSpeeds) {
+                assertTrue(PlaybackRules.temporarySpeed(base, hold) >= base)
+            }
         }
         assertEquals(3f, PlaybackRules.temporarySpeed(3f, 2f))
+        assertEquals(4f, PlaybackRules.temporarySpeed(3f, 4f))
+        assertEquals(2.5f, PlaybackRules.holdSpeed(2.5f))
+        assertEquals(2f, PlaybackRules.holdSpeed(Float.NaN))
         assertEquals(1f, PlaybackRules.speed(Float.NaN))
+    }
+
+    @Test fun boostSpeedForSlideStepsAcrossHoldSpeedsWithoutSlowingBase() {
+        assertEquals(2f, PlaybackRules.boostSpeedForSlide(1f, 2f, 0))
+        assertEquals(1.5f, PlaybackRules.boostSpeedForSlide(1f, 2f, -1))
+        assertEquals(1.5f, PlaybackRules.boostSpeedForSlide(1f, 2f, -5))
+        assertEquals(2.5f, PlaybackRules.boostSpeedForSlide(1f, 2f, 1))
+        assertEquals(3f, PlaybackRules.boostSpeedForSlide(1f, 2f, 2))
+        assertEquals(4f, PlaybackRules.boostSpeedForSlide(1f, 2f, 3))
+        assertEquals(4f, PlaybackRules.boostSpeedForSlide(1f, 2f, 9))
+        // Never drops below base speed when base is already fast
+        assertEquals(2f, PlaybackRules.boostSpeedForSlide(2f, 1.5f, -2))
+        assertEquals(2.5f, PlaybackRules.boostSpeedForSlide(2f, 1.5f, 1))
+        assertEquals(3f, PlaybackRules.boostSpeedForSlide(3f, 2f, 0))
+        assertEquals(4f, PlaybackRules.boostSpeedForSlide(3f, 2f, 1))
     }
     @Test fun seekAndResumeHandleEmptyCompletedAndOutOfRangeMedia() {
         assertEquals(0L, PlaybackRules.seek(-400, 20_000))

@@ -145,13 +145,13 @@
     <string name="theme_dark">Dark</string>
     <string name="settings_default_speed">Default playback speed</string>
     <string name="settings_hold_speed">Press-and-hold speed boost</string>
-    <string name="settings_hold_speed_desc">Release to return to normal speed; never slows down if already faster.</string>
+    <string name="settings_hold_speed_desc">Press and hold to boost temporarily and release to restore. Slide left or right while holding to switch speeds live; never slows down if already faster.</string>
     <string name="settings_touch_guard">Touch guard during playback</string>
     <string name="settings_touch_guard_desc">Blocks accidental taps and swipes while playing; tap the lock on the left to unlock.</string>
     <string name="settings_manage_permissions">Manage system media permissions</string>
     <string name="settings_manage_permissions_desc">If permission was denied previously, you can re-enable it in system settings.</string>
     <string name="settings_tips_title">Tips</string>
-    <string name="settings_tips_body">• Bottom tabs are top-level pages; history, settings, and folders open as nested screens.\n• Tap once for controls, double-tap to play/pause, swipe horizontally to seek.\n• Pinch to zoom applies to the current session; enable Crop black bars in Tools.\n• In fullscreen, drag left for brightness, right for volume, and long-press to speed up.\n• Search supports text and Chinese pinyin initials.</string>
+    <string name="settings_tips_body">• Bottom tabs are top-level pages; history, settings, and folders open as nested screens.\n• Tap once for controls, double-tap to play/pause, swipe horizontally to seek.\n• Pinch to zoom applies to the current session; enable Crop black bars in Tools.\n• Long-press to speed up, and slide left or right while holding to adjust boost speed live; in fullscreen, drag left for brightness and right for volume.\n• Search supports text and Chinese pinyin initials.</string>
     <string name="settings_clear_history">Clear watch history &amp; resume progress</string>
     <string name="settings_clear_history_title">Clear watch history?</string>
     <string name="settings_clear_history_desc">Watch history and resume positions will be cleared. Favorites, bookmarks, and video files are not affected.</string>
@@ -201,7 +201,7 @@
 
     <string name="player_speed_title">Playback Speed</string>
     <string name="player_speed_desc">Remembered automatically for future playback</string>
-    <string name="player_hold_speed_hint">Press and hold the video for temporary %1$s speed. Adjust in Me → Playback &amp; Appearance.</string>
+    <string name="player_hold_speed_hint">Long-press starts at %1$s and restores on release. Slide left or right while holding to switch boost speed live.</string>
     <string name="player_tools_desc">Built for movies, lectures, and focused review</string>
     <string name="player_reset_zoom">Reset zoom</string>
     <string name="player_crop_bars">Crop black bars</string>

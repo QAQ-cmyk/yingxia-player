@@ -145,13 +145,13 @@
     <string name="theme_dark">深色</string>
     <string name="settings_default_speed">默认播放速度</string>
     <string name="settings_hold_speed">长按临时加速</string>
-    <string name="settings_hold_speed_desc">松手恢复原速度；当前速度更快时不会降速。</string>
+    <string name="settings_hold_speed_desc">长按画面临时加速，松手恢复原速；长按时左右滑动也可实时切档，当前更快时不降速。</string>
     <string name="settings_touch_guard">播放时防误触</string>
     <string name="settings_touch_guard_desc">播放中先挡住单击和滑动，点画面左侧的锁可以解开。</string>
     <string name="settings_manage_permissions">管理系统相册权限</string>
     <string name="settings_manage_permissions_desc">多次拒绝授权后，可在系统设置中重新允许访问。</string>
     <string name="settings_tips_title">使用提示</string>
-    <string name="settings_tips_body">• 底部四个标签是第一层。点进历史、设置或文件夹是第二层，左上角返回。\n• 点一下画面显示控制，点两下播放或暂停，左右滑调节进度。\n• 双指捏合只放大这一次播放。播放工具里可以裁掉黑边。\n• 全屏时左侧调亮度，右侧调音量；长按才出现加速。\n• 搜索可以用拼音首字母，例如 pjh。</string>
+    <string name="settings_tips_body">• 底部三个标签是第一层。点进设置、隐藏管理或文件夹是第二层，左上角返回。\n• 点一下画面显示控制，点两下播放或暂停，左右滑调节进度。\n• 双指捏合只放大这一次播放。播放工具里可以裁掉黑边。\n• 长按画面临时加速，长按时左右滑可实时切换倍速；全屏时左侧调亮度，右侧调音量。\n• 搜索可以用拼音首字母，例如 pjh。</string>
     <string name="settings_clear_history">清除播放历史与续播进度</string>
     <string name="settings_clear_history_title">清除播放历史？</string>
     <string name="settings_clear_history_desc">播放记录和续播进度会被清除。收藏、书签和视频文件不受影响。</string>
@@ -201,7 +201,7 @@
 
     <string name="player_speed_title">播放速度</string>
     <string name="player_speed_desc">选择后会记住，下次播放继续使用</string>
-    <string name="player_hold_speed_hint">长按画面临时 %1$s，松手恢复。可在「我的 → 播放与外观」修改。</string>
+    <string name="player_hold_speed_hint">当前长按默认 %1$s（松手恢复）；长按画面时左右滑动也可实时切换倍速。</string>
     <string name="player_tools_desc">为观影，也为每一次认真学习</string>
     <string name="player_reset_zoom">还原缩放</string>
     <string name="player_crop_bars">裁掉黑边</string>

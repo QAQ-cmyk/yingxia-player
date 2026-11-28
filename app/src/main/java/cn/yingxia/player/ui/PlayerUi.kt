@@ -605,10 +605,29 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                         PanelTitle(stringResource(R.string.player_speed_title), stringResource(R.string.player_speed_desc))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             PlaybackRules.speeds.forEach { speed ->
-                                FilterChip(state.baseSpeed == speed, { vm.command(PlayerCommand.SetSpeed(speed)) }, label = { Text(speedText(speed)) }, shape = CircleShape, modifier = Modifier.heightIn(min = 44.dp))
+                                FilterChip(
+                                    selected = state.baseSpeed == speed,
+                                    onClick = { vm.command(PlayerCommand.SetSpeed(speed)) },
+                                    label = { Text(speedText(speed)) },
+                                    shape = CircleShape,
+                                    modifier = Modifier.heightIn(min = 44.dp).testTag("base-speed-${speedText(speed)}"),
+                                )
                             }
                         }
-                        Text(stringResource(R.string.player_hold_speed_hint, speedText(settings.holdSpeed)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp))
+                        HorizontalDivider(Modifier.padding(vertical = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(stringResource(R.string.settings_hold_speed), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            PlaybackRules.holdSpeeds.forEach { speed ->
+                                FilterChip(
+                                    selected = settings.holdSpeed == speed,
+                                    onClick = { vm.command(PlayerCommand.SetHoldSpeed(speed)) },
+                                    label = { Text(speedText(speed)) },
+                                    shape = CircleShape,
+                                    modifier = Modifier.heightIn(min = 44.dp).testTag("hold-speed-${speedText(speed)}"),
+                                )
+                            }
+                        }
+                        Text(stringResource(R.string.player_hold_speed_hint, speedText(settings.holdSpeed)), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
                     }
                     "tools" -> {
                         PanelTitle(stringResource(R.string.player_tools), stringResource(R.string.player_tools_desc))

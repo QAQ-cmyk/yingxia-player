@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import cn.yingxia.player.core.PlayerCommand
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import org.junit.*
 import org.junit.Assert.*
 import java.util.UUID
@@ -157,11 +158,15 @@ class FullAppWalkthroughUiTest {
                 ui.waitUntil(5_000) { ui.onAllNodesWithText(markerText).fetchSemanticsNodes().isEmpty() }
             }
 
-            // Speed sheet.
+            // Speed sheet (base speed + long-press boost speed).
             ui.onNodeWithTag("speed-button").performClick()
-            ui.onNodeWithText("1.5×").performClick()
+            ui.onNodeWithTag("base-speed-1.5×").performClick()
             ui.waitUntil(5_000) { graph.player.state.value.baseSpeed == 1.5f }
-            ui.onNodeWithText("1×").performClick()
+            ui.onNodeWithTag("hold-speed-2.5×").performClick()
+            ui.waitUntil(5_000) { runBlocking { graph.settings.settings.first().holdSpeed == 2.5f } }
+            ui.onNodeWithTag("hold-speed-2×").performClick()
+            ui.waitUntil(5_000) { runBlocking { graph.settings.settings.first().holdSpeed == 2f } }
+            ui.onNodeWithTag("base-speed-1×").performClick()
             ui.waitUntil(5_000) { graph.player.state.value.baseSpeed == 1f }
             dismissSheet(context.getString(R.string.player_speed_title))
 

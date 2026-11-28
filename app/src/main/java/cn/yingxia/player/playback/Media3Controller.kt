@@ -134,6 +134,15 @@ class Media3Controller(private val context: Context, private val repository: Vid
                     mutableState.update { it.copy(baseSpeed = value, effectiveSpeed = value) }
                     settings.setSpeed(value)
                 }
+                is PlayerCommand.SetHoldSpeed -> {
+                    val value = PlaybackRules.holdSpeed(command.speed)
+                    settings.setHoldSpeed(value)
+                    if (state.value.boosting) {
+                        val boosted = PlaybackRules.temporarySpeed(state.value.baseSpeed, value)
+                        surfacePlayer.setPlaybackSpeed(boosted)
+                        mutableState.update { it.copy(effectiveSpeed = boosted) }
+                    }
+                }
                 is PlayerCommand.BeginBoost -> if (surfacePlayer.isPlaying) {
                     val value = PlaybackRules.temporarySpeed(state.value.baseSpeed, command.speed)
                     mutableState.update { it.copy(boosting = true, effectiveSpeed = value) }

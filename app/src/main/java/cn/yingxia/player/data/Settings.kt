@@ -79,12 +79,12 @@ class SettingsRepository(private val context: Context) {
         if (it is IOException) emit(emptyPreferences()) else throw it
     }.map { p -> UserSettings(
         runCatching { ThemeMode.valueOf(p[theme] ?: "SYSTEM") }.getOrDefault(ThemeMode.SYSTEM),
-        PlaybackRules.speed(p[speed] ?: 1f), if (p[hold] == 3f) 3f else 2f,
+        PlaybackRules.speed(p[speed] ?: 1f), PlaybackRules.holdSpeed(p[hold] ?: 2f),
         runCatching { SortOrder.valueOf(p[sort] ?: SortOrder.NEWEST.name) }.getOrDefault(SortOrder.NEWEST),
         p[touchGuard] ?: false) }
     suspend fun setTheme(value: ThemeMode) { context.preferences.edit { it[theme] = value.name } }
     suspend fun setSpeed(value: Float) { context.preferences.edit { it[speed] = PlaybackRules.speed(value) } }
-    suspend fun setHoldSpeed(value: Float) { context.preferences.edit { it[hold] = if (value == 3f) 3f else 2f } }
+    suspend fun setHoldSpeed(value: Float) { context.preferences.edit { it[hold] = PlaybackRules.holdSpeed(value) } }
     suspend fun setSort(value: SortOrder) { context.preferences.edit { it[sort] = value.name } }
     suspend fun setTouchGuard(value: Boolean) { context.preferences.edit { it[touchGuard] = value } }
     suspend fun replacePlayback(settings: UserSettings) {
