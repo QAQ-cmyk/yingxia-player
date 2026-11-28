@@ -147,13 +147,14 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
             vm.command(PlayerCommand.EndBoost)
         }
     }
+    val dark = settings.theme == ThemeMode.DARK || (settings.theme == ThemeMode.SYSTEM && isSystemInDarkTheme())
     SideEffect {
         if (state.isPlaying) activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             isAppearanceLightStatusBars = false
-            isAppearanceLightNavigationBars = false
+            isAppearanceLightNavigationBars = !dark && !fullscreen
             if (fullscreen) hide(WindowInsetsCompat.Type.systemBars()) else show(WindowInsetsCompat.Type.systemBars())
         }
     }
@@ -163,9 +164,11 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
     }
     LaunchedEffect(feedback) { if (feedback != null) { delay(1000); feedback = null } }
 
-    YingXiaTheme(ThemeMode.DARK) {
-        Column(Modifier.fillMaxSize().background(CinemaDarkCanvas).then(if (fullscreen) Modifier else Modifier.statusBarsPadding())) {
-            Box(Modifier.fillMaxWidth().background(Color.Black).then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
+    Column(Modifier.fillMaxSize().background(if (fullscreen) Color.Black else MaterialTheme.colorScheme.background)) {
+        if (!fullscreen) {
+            Spacer(Modifier.fillMaxWidth().background(Color.Black).windowInsetsTopHeight(WindowInsets.statusBars))
+        }
+        Box(Modifier.fillMaxWidth().background(Color.Black).then(if (fullscreen) Modifier.weight(1f) else Modifier.aspectRatio(16f / 9f)).testTag("player-frame")) {
                 Media3VideoSurface(vm.player, current.cropBars, zoom, panX, panY, Modifier.fillMaxSize())
                 key(video.id) {
                     AndroidView(factory = { PlayerGestureView(it) }, modifier = Modifier.fillMaxSize(), update = { view ->
@@ -345,7 +348,7 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                 val untitledBookmark = stringResource(R.string.bookmark_untitled)
 
                 LazyColumn(
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f).navigationBarsPadding(),
                 ) {
@@ -441,14 +444,14 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                                     Surface(
                                         onClick = { vm.command(PlayerCommand.Seek(bm.positionMs)) },
                                         shape = RoundedCornerShape(8.dp),
-                                        color = CinemaDarkSurface,
+                                        color = MaterialTheme.colorScheme.primaryContainer,
                                     ) {
                                         Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Outlined.Bookmark, null, tint = SlateAccentDark, modifier = Modifier.size(13.dp))
+                                            Icon(Icons.Outlined.Bookmark, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(13.dp))
                                             Spacer(Modifier.width(4.dp))
                                             Text(
                                                 "${durationText(bm.positionMs)} ${bm.note.ifBlank { untitledBookmark }}",
-                                                color = Color(0xFF93C5FD),
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                                 fontSize = 11.sp,
                                                 maxLines = 1,
                                             )
@@ -464,17 +467,19 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.8.dp)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = RoundedCornerShape(10.dp), color = CinemaDarkSurface) {
+                                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                                     Row(Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                         SegmentPill(
                                             label = "${stringResource(R.string.player_playlist)} ${state.queue.size}",
                                             selected = activeSegment == 0,
+                                            dark = dark,
                                             onClick = { activeSegment = 0 },
                                         )
                                         if (!shared) {
                                             SegmentPill(
                                                 label = stringResource(R.string.player_tab_bookmarks, videoBookmarks.size),
                                                 selected = activeSegment == 1,
+                                                dark = dark,
                                                 onClick = { activeSegment = 1 },
                                             )
                                         }
@@ -505,10 +510,12 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                     if (activeSegment == 0) {
                         items(queue, key = { "q:${it.id.value}" }, contentType = { "queue-item" }) { item ->
                             val playing = item.id == video.id
+                            val playingBg = if (dark) Color(0xFF151F33) else MaterialTheme.colorScheme.primaryContainer
+                            val playingTitle = if (dark) Color(0xFF93C5FD) else MaterialTheme.colorScheme.primary
                             Surface(
                                 onClick = { vm.open(item, queue) },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (playing) Color(0xFF151F33) else Color(0xFF12151D),
+                                color = if (playing) playingBg else MaterialTheme.colorScheme.surfaceContainerLow,
                             ) {
                                 Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Box(Modifier.width(84.dp).height(48.dp).clip(RoundedCornerShape(8.dp))) {
@@ -521,7 +528,7 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                                         }
                                         if (playing) {
                                             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f)), contentAlignment = Alignment.Center) {
-                                                Icon(Icons.Outlined.GraphicEq, stringResource(R.string.player_now_playing), tint = SlateAccentDark)
+                                                Icon(Icons.Outlined.GraphicEq, stringResource(R.string.player_now_playing), tint = Color.White)
                                             }
                                         }
                                     }
@@ -530,7 +537,7 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                                             item.displayTitle(),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
-                                            color = if (playing) Color(0xFF93C5FD) else MaterialTheme.colorScheme.onSurface,
+                                            color = if (playing) playingTitle else MaterialTheme.colorScheme.onSurface,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (playing) FontWeight.SemiBold else FontWeight.Medium,
                                         )
@@ -559,10 +566,10 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
                                 Surface(
                                     onClick = { vm.command(PlayerCommand.Seek(bm.positionMs)) },
                                     shape = RoundedCornerShape(12.dp),
-                                    color = CinemaDarkSurface,
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                                 ) {
                                     Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(durationText(bm.positionMs), color = SlateAccentDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                        Text(durationText(bm.positionMs), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                                         Text(
                                             bm.note.ifBlank { untitledBookmark },
                                             color = MaterialTheme.colorScheme.onSurface,
@@ -578,12 +585,12 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
             }
         }
 
-        if (sheet != null) ModalBottomSheet(
-            onDismissRequest = { sheet = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = CinemaDarkSurface,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
+    if (sheet != null) ModalBottomSheet(
+        onDismissRequest = { sheet = null },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = if (dark) CinemaDarkSurface else MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
             val closeSheet = { sheet = null }
             if (onLockVault != null) {
                 TextButton(onClick = onLockVault, modifier = Modifier.align(Alignment.End).padding(end = 12.dp)) {
@@ -667,7 +674,6 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
         if (renaming) RenameVideoDialog(renameText, { renaming = false }) { name ->
             vm.rename(current.id, name); renaming = false
         }
-    }
 }
 
 @Composable private fun ActionCapsule(
@@ -677,34 +683,36 @@ private data class GestureFeedback(val brightness: Boolean, val text: String)
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val contentTint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
     Surface(
         onClick = onClick,
         modifier = modifier,
         shape = CircleShape,
-        color = if (active) Color(0xFF1E3A8A) else CinemaDarkSurface,
+        color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
             Modifier.heightIn(min = 36.dp).padding(horizontal = 11.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Icon(icon, null, tint = if (active) Color(0xFF93C5FD) else Color(0xFFD1D5DB), modifier = Modifier.size(15.dp))
-            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (active) Color(0xFF93C5FD) else Color(0xFFD1D5DB), maxLines = 1)
+            Icon(icon, null, tint = contentTint, modifier = Modifier.size(15.dp))
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = contentTint, maxLines = 1)
         }
     }
 }
 
-@Composable private fun SegmentPill(label: String, selected: Boolean, onClick: () -> Unit) {
+@Composable private fun SegmentPill(label: String, selected: Boolean, dark: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) Color(0xFF232938) else Color.Transparent,
+        color = if (selected) (if (dark) Color(0xFF232938) else MaterialTheme.colorScheme.surface) else Color.Transparent,
+        shadowElevation = if (selected && !dark) 1.dp else 0.dp,
     ) {
         Text(
             label,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color(0xFFF3F4F6) else Color(0xFF9CA3AF),
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
         )
     }

@@ -103,17 +103,20 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
     }
     YingXiaTheme(settings.theme) {
         val dark = settings.theme == ThemeMode.DARK || settings.theme == ThemeMode.SYSTEM && isSystemInDarkTheme()
+        val config = LocalConfiguration.current
+        val landscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val wideScreen = config.screenWidthDp >= 600
         SideEffect {
             val window = activity.window
             WindowCompat.getInsetsController(window, window.decorView).apply {
                 isAppearanceLightStatusBars = !dark && !hasActiveVideo
-                isAppearanceLightNavigationBars = !dark && !hasActiveVideo
+                isAppearanceLightNavigationBars = !dark && !(hasActiveVideo && landscape)
             }
         }
-        LaunchedEffect(dark, hasActiveVideo) {
+        LaunchedEffect(dark, hasActiveVideo, landscape) {
             val controller = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
             controller.isAppearanceLightStatusBars = !dark && !hasActiveVideo
-            controller.isAppearanceLightNavigationBars = !dark && !hasActiveVideo
+            controller.isAppearanceLightNavigationBars = !dark && !(hasActiveVideo && landscape)
             if (!hasActiveVideo) {
                 kotlinx.coroutines.delay(160)
                 controller.isAppearanceLightStatusBars = !dark
@@ -129,9 +132,6 @@ class LocalDocumentContract(private val mime: String) : ActivityResultContract<U
         var query by rememberSaveable { mutableStateOf("") }
         var filter by rememberSaveable { mutableIntStateOf(0) } // 0=All, 2=InProgress, 1=Favorites, 3=Bookmarks, 4=History
         var historyOrder by rememberSaveable { mutableStateOf(SortOrder.RECENT_PLAY) }
-        val config = LocalConfiguration.current
-        val landscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val wideScreen = config.screenWidthDp >= 600
         val showLibrary = !hasActiveVideo
         val baseLift = when {
             !showLibrary && landscape -> 96.dp

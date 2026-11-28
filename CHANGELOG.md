@@ -2,6 +2,13 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [2.0.3] - 2026-11-28
+
+### Fixed
+- **Unified portrait player theme with app Light/Dark mode**: Removed forced Dark Mode on the portrait player screen (`PlayerUi.kt`), keeping the top status bar strip and 16:9 video viewport pure black while making the title area, action capsules, inline bookmark pills, segmented queue/bookmark header, queue cards, bottom sheets, and bottom system navigation bar icons follow the user's active Light/Dark theme smoothly.
+
+---
+
 ## [2.0.2] - 2026-11-28
 
 ### Fixed
