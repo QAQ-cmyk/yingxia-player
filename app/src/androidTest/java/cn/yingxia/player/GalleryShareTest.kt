@@ -47,9 +47,22 @@ class GalleryShareTest {
         assertEquals(listOf(video), base.galleryShare(context.packageName)!!.uris)
         base.putExtra(Intent.EXTRA_STREAM, video)
         assertEquals(listOf(video), base.galleryShare(context.packageName)!!.uris)
-        for (uri in listOf("https://example.org/a.mp4", "file:///tmp/a.mp4", "content://${context.packageName}.files/backups/test")) {
+        for (uri in listOf(
+            "https://example.org/a.mp4",
+            "file:///tmp/a.mp4",
+            "content://${context.packageName}.files/backups/test",
+            "content://0@${context.packageName}.files/backups/test",
+            "content://evil@media/external/video/media/1",
+        )) {
             assertNotNull(Intent(Intent.ACTION_SEND).setType("video/*").putExtra(Intent.EXTRA_STREAM, Uri.parse(uri)).galleryShare(context.packageName)!!.error)
         }
+        val userPrefixed = Uri.parse("content://0@media/external/video/media/1")
+        assertEquals(listOf(userPrefixed), Intent(Intent.ACTION_SEND).setType("video/*").putExtra(Intent.EXTRA_STREAM, userPrefixed).galleryShare(context.packageName)!!.uris)
+        assertEquals(listOf(userPrefixed), Intent(Intent.ACTION_SEND).setType("*/*").putExtra(Intent.EXTRA_STREAM, userPrefixed).galleryShare(context.packageName)!!.uris)
+        val oemAliasSend = Intent(Intent.ACTION_SEND).setType("video/mp4")
+            .putExtra(Intent.EXTRA_STREAM, Uri.parse("content://com.miui.gallery.open/raw/1.mp4"))
+        oemAliasSend.clipData = ClipData.newRawUri("video", userPrefixed)
+        assertEquals(listOf(Uri.parse("content://com.miui.gallery.open/raw/1.mp4")), oemAliasSend.galleryShare(context.packageName)!!.uris)
         assertNotNull(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_STREAM, video).galleryShare(context.packageName)!!.error)
         assertNull(base.addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY).galleryShare(context.packageName))
     }

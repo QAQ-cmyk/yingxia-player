@@ -50,4 +50,20 @@ class SecurityAndBackupV2Test {
             LibraryBackup.decryptBackup(encrypted, "WrongPassword#123".toCharArray())
         }
     }
+
+    @Test
+    fun galleryShareAuthorityAllowsNumericUserIdsAndRejectsOwnProviders() {
+        val pkg = "cn.yingxia.player"
+        assertTrue(isSafeSharedAuthority("media", pkg))
+        assertTrue(isSafeSharedAuthority("0@media", pkg))
+        assertTrue(isSafeSharedAuthority("0@com.miui.gallery.open", pkg))
+        assertTrue(isSafeSharedAuthority("999@com.coloros.gallery3d.fileprovider", pkg))
+
+        assertFalse(isSafeSharedAuthority("", pkg))
+        assertFalse(isSafeSharedAuthority(pkg, pkg))
+        assertFalse(isSafeSharedAuthority("$pkg.files", pkg))
+        assertFalse(isSafeSharedAuthority("0@$pkg.files", pkg))
+        assertFalse(isSafeSharedAuthority("evil@media", pkg))
+        assertFalse(isSafeSharedAuthority("0@evil@media", pkg))
+    }
 }

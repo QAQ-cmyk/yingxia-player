@@ -12,6 +12,34 @@ internal data class GalleryShare(
     val error: String? = null,
 )
 
+/**
+ * Validate a content URI authority from an incoming share.
+ * Allows Android's numeric multi-user prefix (e.g. "0@media", "999@com.miui.gallery.open"),
+ * while still rejecting arbitrary userInfo spoofing or any authority belonging to this app.
+ */
+internal fun isSafeSharedAuthority(rawAuthority: String, packageName: String): Boolean {
+    if (rawAuthority.isBlank()) return false
+    val bareAuthority = if ('@' in rawAuthority) {
+        val prefix = rawAuthority.substringBefore('@')
+        val host = rawAuthority.substringAfter('@')
+        if (prefix.isEmpty() || !prefix.all(Char::isDigit) || '@' in host) return false
+        host
+    } else {
+        rawAuthority
+    }
+    return bareAuthority.isNotBlank() &&
+        bareAuthority != packageName &&
+        !bareAuthority.startsWith("$packageName.")
+}
+
+private fun Uri.normalizedShareKey(): String {
+    val rawAuthority = authority.orEmpty()
+    val idx = rawAuthority.indexOf('@')
+    if (idx <= 0 || !rawAuthority.substring(0, idx).all(Char::isDigit)) return toString()
+    val bareAuthority = rawAuthority.substring(idx + 1)
+    return buildUpon().authority(bareAuthority).build().toString()
+}
+
 /** Keep incoming grants in memory only. A share must never resolve through our own providers. */
 internal fun Intent.galleryShare(
     packageName: String,
@@ -21,31 +49,60 @@ internal fun Intent.galleryShare(
         flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
     ) return null
     val invalid = GalleryShare(error = invalidMessage)
-    if (type?.startsWith("video/", ignoreCase = true) != true) return invalid
+    val acceptedType = type == null ||
+        type.equals("*/*", ignoreCase = true) ||
+        type?.startsWith("video/", ignoreCase = true) == true
+    if (!acceptedType) return invalid
     return try {
-        val uris = linkedSetOf<Uri>()
+        val urisByKey = linkedMapOf<String, Uri>()
+        fun addUri(uri: Uri): Boolean {
+            val key = uri.normalizedShareKey()
+            if (key !in urisByKey) {
+                if (urisByKey.size >= MAX_SHARED_VIDEO_URIS) return false
+                urisByKey[key] = uri
+            }
+            return true
+        }
         if (action == Intent.ACTION_SEND) {
-            IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)?.let(uris::add)
+            val single = IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
+                ?: IntentCompat.getParcelableArrayListExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
+                    ?.takeIf { it.size == 1 }?.firstOrNull()
+            if (single != null) {
+                addUri(single)
+            } else {
+                clipData?.let { clip ->
+                    if (clip.itemCount > MAX_SHARED_VIDEO_URIS) return invalid
+                    for (i in 0 until clip.itemCount) {
+                        val u = clip.getItemAt(i).uri ?: continue
+                        if (!addUri(u)) return invalid
+                    }
+                }
+            }
         } else {
             val streamList = IntentCompat.getParcelableArrayListExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
             if (streamList != null) {
                 if (streamList.size > MAX_SHARED_VIDEO_URIS) return invalid
-                uris.addAll(streamList)
+                for (u in streamList) {
+                    if (!addUri(u)) return invalid
+                }
+            } else {
+                IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)?.let {
+                    if (!addUri(it)) return invalid
+                }
+            }
+            clipData?.let { clip ->
+                if (clip.itemCount > MAX_SHARED_VIDEO_URIS) return invalid
+                for (i in 0 until clip.itemCount) {
+                    val u = clip.getItemAt(i).uri ?: continue
+                    if (!addUri(u)) return invalid
+                }
             }
         }
-        clipData?.let { clip ->
-            if (clip.itemCount > MAX_SHARED_VIDEO_URIS) return invalid
-            for (i in 0 until clip.itemCount) {
-                clip.getItemAt(i).uri?.let(uris::add)
-                if (uris.size > MAX_SHARED_VIDEO_URIS) return invalid
-            }
-        }
+        val uris = urisByKey.values.toList()
         if (uris.isEmpty() || (action == Intent.ACTION_SEND && uris.size != 1) || uris.any {
-                val authority = it.authority.orEmpty()
-                it.scheme != "content" || authority.isBlank() || '@' in authority || authority == packageName ||
-                    authority.startsWith("$packageName.")
+                it.scheme != "content" || !isSafeSharedAuthority(it.authority.orEmpty(), packageName)
             }
-        ) invalid else GalleryShare(uris.toList())
+        ) invalid else GalleryShare(uris)
     } catch (_: RuntimeException) {
         invalid
     }

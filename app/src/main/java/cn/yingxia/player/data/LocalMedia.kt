@@ -34,18 +34,32 @@ fun libraryAccess(context: Context): LibraryAccess {
 }
 fun stableHash(text: String): String = MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 
+private fun Uri.bareAuthority(): String {
+    val raw = authority.orEmpty()
+    val idx = raw.indexOf('@')
+    return if (idx > 0 && raw.substring(0, idx).all(Char::isDigit)) raw.substring(idx + 1) else raw
+}
+
+private fun Uri.stripNumericUserId(): Uri {
+    val raw = authority.orEmpty()
+    val idx = raw.indexOf('@')
+    return if (idx > 0 && raw.substring(0, idx).all(Char::isDigit)) buildUpon().authority(raw.substring(idx + 1)).build() else this
+}
+
 /** SAF returns a Files URI on some devices; system deletion requires the typed video collection. */
 fun canonicalVideoUri(context: Context, input: Uri): Uri? = runCatching {
-    val resolved = if (input.authority == "media") input else if (Build.VERSION.SDK_INT >= 29) MediaStore.getMediaUri(context, input)
-    else if (input.authority == "com.android.externalstorage.documents" && DocumentsContract.isDocumentUri(context, input)) {
-        val document = DocumentsContract.getDocumentId(input)
+    val normalized = input.stripNumericUserId()
+    val bare = normalized.bareAuthority()
+    val resolved = if (bare == "media") normalized else if (Build.VERSION.SDK_INT >= 29) MediaStore.getMediaUri(context, input)?.stripNumericUserId()
+    else if (bare == "com.android.externalstorage.documents" && DocumentsContract.isDocumentUri(context, normalized)) {
+        val document = DocumentsContract.getDocumentId(normalized)
         val volume = document.substringBefore(':'); val relative = document.substringAfter(':')
         val path = if (volume == "primary") "${android.os.Environment.getExternalStorageDirectory()}/$relative" else "/storage/$volume/$relative"
         context.contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, arrayOf("_id"), "_data=?", arrayOf(path), null)?.use {
             if (it.moveToFirst()) ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, it.getLong(0)) else null
         }
     } else null
-    if (resolved?.authority != "media") return@runCatching null
+    if (resolved?.bareAuthority() != "media") return@runCatching null
     if (resolved.pathSegments.contains("video")) resolved
     else if (resolved.pathSegments.contains("file")) {
         val volume = resolved.pathSegments.first()
@@ -199,17 +213,22 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         var name = AppLocale.str(context, R.string.media_imported_video)
         var size = 0L
         val fields = arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
-        context.contentResolver.query(parsed, fields, null, null, null)?.use { c ->
-            if (c.moveToFirst()) {
-                c.getColumnIndex(OpenableColumns.DISPLAY_NAME).takeIf { it >= 0 }?.let { name = c.getString(it) ?: name }
-                c.getColumnIndex(OpenableColumns.SIZE).takeIf { it >= 0 && !c.isNull(it) }?.let { size = c.getLong(it) }
+        runCatching {
+            context.contentResolver.query(parsed, fields, null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    c.getColumnIndex(OpenableColumns.DISPLAY_NAME).takeIf { it >= 0 }?.let { name = c.getString(it) ?: name }
+                    c.getColumnIndex(OpenableColumns.SIZE).takeIf { it >= 0 && !c.isNull(it) }?.let { size = c.getLong(it) }
+                }
             }
         }
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, parsed)
             fun number(key: Int) = retriever.extractMetadata(key)?.toLongOrNull() ?: 0
-            if (shared) require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes")
+            val hasVideo = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes" ||
+                number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH) > 0 ||
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)?.startsWith("video/", ignoreCase = true) == true
+            if (shared) require(hasVideo)
             VideoItem(id, parsed.toString(), name, AppLocale.str(context, if (shared) R.string.media_shared_folder else R.string.media_manual_folder), "documents",
                 number(MediaMetadataRetriever.METADATA_KEY_DURATION), size,
                 number(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH).toInt(), number(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT).toInt(),
@@ -219,10 +238,12 @@ class LocalVideoRepository(private val context: Context, private val db: VideoDa
         finally { retriever.release() }
     }
     private fun mediaIdentity(input: Uri): String? {
-        val mediaUri = if (input.authority == "com.android.providers.media.documents") {
-            val id = runCatching { DocumentsContract.getDocumentId(input) }.getOrNull()?.removePrefix("video:")?.toLongOrNull() ?: return null
+        val normalized = input.stripNumericUserId()
+        val bare = normalized.bareAuthority()
+        val mediaUri = if (bare == "com.android.providers.media.documents") {
+            val id = runCatching { DocumentsContract.getDocumentId(normalized) }.getOrNull()?.removePrefix("video:")?.toLongOrNull() ?: return null
             ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
-        } else if (input.authority == "media" && input.pathSegments.contains("video")) input else return null
+        } else if (bare == "media" && normalized.pathSegments.contains("video")) normalized else return null
         val id = mediaUri.lastPathSegment?.toLongOrNull() ?: return null
         var volume = if (Build.VERSION.SDK_INT >= 29) mediaUri.pathSegments.firstOrNull().orEmpty() else "external"
         if (Build.VERSION.SDK_INT >= 29) {

@@ -12,8 +12,8 @@ android {
         applicationId = "cn.yingxia.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 24
-        versionName = "2.0.0"
+        versionCode = 25
+        versionName = "2.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     flavorDimensions += "edition"

@@ -2,6 +2,13 @@
 
 All notable changes to **YingXia Player (映匣)** are documented here.
 
+## [2.0.1] - 2026-11-28
+
+### Fixed
+- **Fixed system gallery Share → YingXia rejection on OEM ROMs**: Allowed Android multi-user numeric URI authority prefixes (such as `content://0@media/...` and `content://0@com.miui.gallery.open/...`) while still blocking arbitrary `userInfo` spoofing and self-provider URIs, handled `ACTION_SEND` intents where OEM galleries supply distinct `EXTRA_STREAM` and `clipData` aliases, accepted generic `*/*` / `null` share MIME types (still verified as video via `MediaMetadataRetriever`), and hardened `OpenableColumns` / `0@media` handling in `LocalMedia`.
+
+---
+
 ## [2.0.0] - 2026-11-26
 
 ### Added & Changed
