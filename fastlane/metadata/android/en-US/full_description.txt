@@ -1,19 +1,16 @@
-YingXia Player is a clean, open-source, 100% offline Android local video player with a real AES-256-GCM streaming-encrypted video vault.
+YingXia Player is a 4.16 MB, open-source Android local video player with zero internet permissions and a real AES-256-GCM streaming encrypted video vault.
 
-Zero internet permission, no accounts, no ads, and no telemetry. Both INTERNET and ACCESS_NETWORK_STATE are stripped from the manifest and verified in CI.
+No INTERNET or ACCESS_NETWORK_STATE permissions, no ads, no accounts, and no trackers — everything stays strictly offline on your device.
 
 Encrypted Video Vault:
-- Encrypts local videos using Google Tink AES256_GCM_HKDF_1MB Streaming AEAD with PBKDF2-HMAC-SHA256 (600,000 iterations).
-- Decrypts segments on demand in memory during playback with random seeking — no temporary plaintext video files or thumbnails are written to disk.
-- Verifies encrypted copies via SHA-256 before requesting Android system removal of gallery originals.
-- Isolates vault resume positions, favorites, crop settings, and bookmarks in separate encrypted metadata.
-- Protects vault screens with FLAG_SECURE, locks immediately when moved to background, and offers a one-tap Lock button during playback.
-- Share directly from your Android gallery to watch once without history or save encrypted copies without granting full video library access.
-- Optional offline custom recovery questions stored via Android Keystore to reset a forgotten password on the same device.
+- Encrypts videos with Google Tink AES256_GCM_HKDF_1MB Streaming AEAD and PBKDF2-HMAC-SHA256 (600,000 iterations), plus optional hardware-backed Biometric (fingerprint) quick unlock.
+- Streams and decrypts chunks in memory with smooth seeking — zero plaintext video caches or thumbnails written to disk.
+- Verifies full ciphertext integrity with SHA-256 before requesting Android's system dialog to remove gallery originals.
+- Supports uninstall-safe pure-ciphertext cold backups to local storage or USB OTG drives, plus offline Keystore-backed recovery questions.
+- Protects vault playback with FLAG_SECURE, instant lock on backgrounding, and a one-tap Lock button during playback.
+- Share directly from your system gallery to Watch without history or encrypt straight into the vault without granting full library access.
 
-Local Playback & Study Tools:
-- 8 playback speeds (0.25x to 3x) plus press-and-hold temporary 2x/3x speed boost.
-- A-B segment loop, timestamped bookmarks with notes, and sleep timer (countdown or end-of-video).
-- Double-tap play/pause, swipe seek, fullscreen brightness/volume gestures, pinch-to-zoom, crop black bars, and accidental-touch guard.
-- Real local folder organization (SHA-256 verified moves), offline duplicate/unreadable video scanner, and local JSON metadata backup/restore.
-- Supports English and Simplified Chinese.
+Playback & Local Library Tools:
+- 8 playback speeds (0.25x–3x) plus 5 selectable press-and-hold boost speeds (1.5x / 2x / 2.5x / 3x / 4x) with live horizontal slide-to-switch while holding.
+- A–B segment loop, timestamped bookmarks with notes, sleep timer, double-tap pause, swipe seek, fullscreen brightness/volume gestures, pinch-to-zoom, crop black bars, and touch guard.
+- Minimalist 2.0 UI with 2-column library grid, pinyin initial search, SHA-256 verified folder moves, offline duplicate & corrupt file checker, password-encrypted local backups (.yxbackup.enc), and English / Simplified Chinese switching.

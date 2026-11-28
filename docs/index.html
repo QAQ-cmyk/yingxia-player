@@ -14,39 +14,39 @@
   <link rel="icon" type="image/png" href="icon.png">
   <style>
     :root {
-      --bg: #fffcfd;
-      --bg-soft: #f7f4f6;
+      --bg: #ffffff;
+      --bg-soft: #f5f6f8;
       --surface: #ffffff;
-      --border: #ece7ea;
-      --text: #181a20;
-      --muted: #5f6475;
-      --pink: #e03e68;
-      --pink-deep: #c42c54;
-      --pink-soft: #ffedf2;
-      --violet: #6c5ce7;
-      --violet-soft: #f1efff;
-      --teal: #0f9d74;
-      --shadow: 0 14px 40px rgba(24, 26, 32, 0.06);
-      --code-bg: #141720;
-      --code-text: #eef1f8;
+      --border: #e5e7eb;
+      --text: #111318;
+      --muted: #68707e;
+      --pink: #2563eb;
+      --pink-deep: #1d4ed8;
+      --pink-soft: #eff4ff;
+      --violet: #059669;
+      --violet-soft: #ecfdf5;
+      --teal: #059669;
+      --shadow: 0 14px 40px rgba(17, 19, 24, 0.06);
+      --code-bg: #111318;
+      --code-text: #f3f4f6;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0e1015;
-        --bg-soft: #151822;
-        --surface: #181c26;
-        --border: #262b3a;
-        --text: #f3f4f8;
-        --muted: #9ba1b4;
-        --pink: #ff6e97;
-        --pink-deep: #ff5485;
-        --pink-soft: rgba(255, 110, 151, 0.14);
-        --violet: #b6abff;
-        --violet-soft: rgba(124, 92, 250, 0.16);
+        --bg: #0b0d11;
+        --bg-soft: #151922;
+        --surface: #151922;
+        --border: #1f2430;
+        --text: #f3f4f6;
+        --muted: #8a92a3;
+        --pink: #60a5fa;
+        --pink-deep: #3b82f6;
+        --pink-soft: rgba(96, 165, 250, 0.14);
+        --violet: #34d399;
+        --violet-soft: rgba(52, 211, 153, 0.14);
         --teal: #34d399;
-        --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-        --code-bg: #090b10;
-        --code-text: #eef1f8;
+        --shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+        --code-bg: #06080b;
+        --code-text: #f3f4f6;
       }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -116,7 +116,7 @@
     }
     .btn-primary {
       background: var(--pink); color: #fff;
-      box-shadow: 0 10px 26px rgba(224, 62, 104, 0.28);
+      box-shadow: 0 10px 26px rgba(37, 99, 235, 0.25);
     }
     .btn-primary:hover { background: var(--pink-deep); transform: translateY(-1px); }
     .btn-secondary {
@@ -241,49 +241,49 @@
   <main>
     <section class="hero container">
       <div class="pill-row">
-        <span class="pill accent" data-en="Zero INTERNET Permission" data-zh="零联网权限 · CI 自动校验">Zero INTERNET Permission</span>
-        <span class="pill vault" data-en="AES-256-GCM Streaming Vault" data-zh="AES-256-GCM 真流式加密保险箱">AES-256-GCM Streaming Vault</span>
-        <span class="pill" data-en="MIT Open Source · Android 8.0+" data-zh="MIT 开源 · Android 8.0+">MIT Open Source · Android 8.0+</span>
+        <span class="pill accent" data-en="4.16 MB · Zero INTERNET Permission" data-zh="仅 4.16 MB · 零联网权限">4.16 MB · Zero INTERNET Permission</span>
+        <span class="pill vault" data-en="AES-256-GCM Streaming Vault" data-zh="AES-256-GCM 流式加密保险箱">AES-256-GCM Streaming Vault</span>
+        <span class="pill" data-en="v2.0.4 · MIT Open Source · Android 8.0+" data-zh="v2.0.4 · MIT 开源 · Android 8.0+">v2.0.4 · MIT Open Source · Android 8.0+</span>
       </div>
       <h1 data-en="Your local videos stay <span>offline &amp; encrypted</span> — not in adware."
           data-zh="把本地视频与私密片段，留在<span>零联网、真加密</span>的手机里">
         Your local videos stay <span>offline &amp; encrypted</span> — not in adware.
       </h1>
       <p class="lead"
-         data-en="YingXia Player is a minimalist, open-source Android video player built with Kotlin, Jetpack Compose, Media3, and Google Tink. Stream-decrypt private videos directly in memory with zero plaintext cache, zero ads, and zero network permissions."
-         data-zh="映匣是一款零联网权限、无广告、无账号的开源 Android 本地视频播放器。内置 Google Tink AES-256-GCM 流式加密保险箱，播放时在内存按需解密不落明文缓存，同时提供长按倍速、A–B 循环与时间书签。">
-        YingXia Player is a minimalist, open-source Android video player built with Kotlin, Jetpack Compose, Media3, and Google Tink. Stream-decrypt private videos directly in memory with zero plaintext cache, zero ads, and zero network permissions.
+         data-en="YingXia Player 2.0 is a 4.16 MB minimalist open-source Android video player built with Kotlin, Jetpack Compose, Media3, and Google Tink. Stream-decrypt private videos directly in memory with biometric unlock, 5-step hold-to-boost speed, and zero network permissions."
+         data-zh="映匣 2.0 是一款仅 4.16 MB、零联网权限、无广告的开源 Android 本地视频播放器。内置 Google Tink AES-256-GCM 流式加密保险箱与指纹解锁，播放全程零明文缓存，并支持 5 档长按滑速、A–B 循环与时间书签。">
+        YingXia Player 2.0 is a 4.16 MB minimalist open-source Android video player built with Kotlin, Jetpack Compose, Media3, and Google Tink. Stream-decrypt private videos directly in memory with biometric unlock, 5-step hold-to-boost speed, and zero network permissions.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/QAQ-cmyk/yingxia-player/releases/latest" target="_blank" rel="noopener"
-           data-en="📥 Download Latest APK" data-zh="📥 下载最新 Android APK">📥 Download Latest APK</a>
+           data-en="📥 Download v2.0.4 APK (4.16 MB)" data-zh="📥 下载 v2.0.4 安装包 (4.16 MB)">📥 Download v2.0.4 APK (4.16 MB)</a>
         <a class="btn btn-secondary" href="https://github.com/QAQ-cmyk/yingxia-player" target="_blank" rel="noopener"
            data-en="⭐ Star on GitHub" data-zh="⭐ 去 GitHub 点个 Star">⭐ Star on GitHub</a>
       </div>
       <p class="sub-note"
-         data-en="Signed APK + SHA-256 checksums on GitHub Releases · Obtainium auto-updates supported"
-         data-zh="GitHub Releases 提供正式签名 APK 与 SHA-256 校验文件 · 支持 Obtainium 自动追更">
-        Signed APK + SHA-256 checksums on GitHub Releases · Obtainium auto-updates supported
+         data-en="Offline Core (4.16 MB) + Optional Self-Hosted Sync Edition · SHA-256 verified on GitHub Releases"
+         data-zh="提供零联网核心版 (4.16 MB) 与可选自托管同步版 · GitHub Releases 附 SHA-256 校验">
+        Offline Core (4.16 MB) + Optional Self-Hosted Sync Edition · SHA-256 verified on GitHub Releases
       </p>
     </section>
 
     <section class="section container">
       <div class="shots-grid">
         <div class="phone-card">
-          <img src="screenshots/01-home.png" alt="Home library screen" loading="lazy">
-          <div class="phone-caption" data-en="Clean Video Library" data-zh="纯净双列视频库">Clean Video Library</div>
+          <img src="screenshots/01-home.png" alt="YingXia 2.0 minimalist 2-column library screen" loading="lazy">
+          <div class="phone-caption" data-en="Minimalist 2-Column Library" data-zh="极简双列媒体库">Minimalist 2-Column Library</div>
         </div>
         <div class="phone-card">
-          <img src="screenshots/02-player.png" alt="Player screen" loading="lazy">
-          <div class="phone-caption" data-en="Gestures, Bookmarks & Queue" data-zh="手势控制与播放队列">Gestures, Bookmarks &amp; Queue</div>
+          <img src="screenshots/02-player.png" alt="Cohesive light-mode portrait player screen" loading="lazy">
+          <div class="phone-caption" data-en="Cohesive Light/Dark Player" data-zh="浅/深色衔接播放页">Cohesive Light/Dark Player</div>
         </div>
         <div class="phone-card">
-          <img src="screenshots/03-folders.png" alt="Folders screen" loading="lazy">
-          <div class="phone-caption" data-en="Real Local Folders" data-zh="真实本机目录管理">Real Local Folders</div>
+          <img src="screenshots/03-speed.png" alt="5-step long-press boost speed selector" loading="lazy">
+          <div class="phone-caption" data-en="5-Step Hold-to-Boost Speed" data-zh="5 档长按倍速自选">5-Step Hold-to-Boost Speed</div>
         </div>
         <div class="phone-card">
-          <img src="screenshots/04-profile.png" alt="Vault and tools entry" loading="lazy">
-          <div class="phone-caption" data-en="Encrypted Vault & Check" data-zh="加密保险箱与本机体检">Encrypted Vault &amp; Check</div>
+          <img src="screenshots/04-space.png" alt="Space screen with Encrypted Vault and utilities" loading="lazy">
+          <div class="phone-caption" data-en="Space & Encrypted Vault" data-zh="空间与加密保险箱">Space &amp; Encrypted Vault</div>
         </div>
       </div>
     </section>
@@ -367,7 +367,7 @@
               <td data-en="Playback Tools" data-zh="观影与网课工具">Playback Tools</td>
               <td data-en="Basic scrub only" data-zh="基础播放">Basic scrub only</td>
               <td data-en="Minimal" data-zh="往往简陋">Minimal</td>
-              <td class="highlight"><span class="check">✓</span> <span data-en="Hold 2×/3×, A–B Loop, Bookmarks" data-zh="长按倍速、A–B 循环、时间书签">Hold 2×/3×, A–B Loop, Bookmarks</span></td>
+              <td class="highlight"><span class="check">✓</span> <span data-en="Hold 1.5×–4× Slide, A–B Loop, Bookmarks" data-zh="长按 1.5×–4× 滑速、A–B 循环、时间书签">Hold 1.5×–4× Slide, A–B Loop, Bookmarks</span></td>
             </tr>
             <tr>
               <td data-en="Source & Auditability" data-zh="开源与透明">Source &amp; Auditability</td>
@@ -386,10 +386,10 @@
       </div>
       <div class="feat-grid">
         <div class="feat-card">
-          <h3 data-en="⚡ Speed & Gestures" data-zh="⚡ 8 档变速与长按加速">⚡ Speed &amp; Gestures</h3>
-          <p data-en="0.25× to 3× remembered speeds, press-and-hold temporary 2×/3× boost, swipe seek preview, fullscreen brightness & volume, pinch zoom, and touch guard."
-             data-zh="支持 0.25×–3× 变速与长按画面临时 2×/3× 加速松手恢复，左右滑屏定位、全屏调亮度音量、双指缩放、裁黑边与防误触。">
-            0.25× to 3× remembered speeds, press-and-hold temporary 2×/3× boost, swipe seek preview, fullscreen brightness &amp; volume, pinch zoom, and touch guard.
+          <h3 data-en="⚡ 5-Step Hold Boost & Slide" data-zh="⚡ 5 档长按倍速与滑屏切档">⚡ 5-Step Hold Boost &amp; Slide</h3>
+          <p data-en="0.25×–3× speeds, customizable 1.5×–4× press-and-hold boost (slide left/right while holding to switch live), swipe seek, pinch zoom, crop bars, and touch guard."
+             data-zh="支持 0.25×–3× 变速与 1.5×–4× 五档长按倍速（长按时左右滑实时切档、松手恢复），配滑屏定位、双指缩放、裁黑边与防误触。">
+            0.25×–3× speeds, customizable 1.5×–4× press-and-hold boost (slide left/right while holding to switch live), swipe seek, pinch zoom, crop bars, and touch guard.
           </p>
         </div>
         <div class="feat-card">
@@ -400,10 +400,10 @@
           </p>
         </div>
         <div class="feat-card">
-          <h3 data-en="🗂️ Offline Library Check" data-zh="🗂️ 离线体检与双语界面">🗂️ Offline Library Check</h3>
-          <p data-en="Find exact byte-for-byte duplicates via SHA-256 and unreadable files locally, organize real storage folders, back up metadata as JSON, and switch EN / 中文 anytime."
-             data-zh="离线比对 SHA-256 找出重复视频和坏文件，支持拼音首字母搜索、真实目录校验移动、纯文本 JSON 备份与中英双语一键切换。">
-            Find exact byte-for-byte duplicates via SHA-256 and unreadable files locally, organize real storage folders, back up metadata as JSON, and switch EN / 中文 anytime.
+          <h3 data-en="🗂️ Offline Check & Encrypted Backup" data-zh="🗂️ 离线体检与加密备份">🗂️ Offline Check &amp; Encrypted Backup</h3>
+          <p data-en="Find exact byte-for-byte duplicates via SHA-256 and broken files locally, export password-encrypted .yxbackup.enc snapshots, or mirror pure vault ciphertexts to USB/local folders."
+             data-zh="离线比对 SHA-256 找出重复和坏文件，支持拼音首字母搜片、密码加密导出 .yxbackup.enc 进度备份，以及换机无忧纯密文冷备。">
+            Find exact byte-for-byte duplicates via SHA-256 and broken files locally, export password-encrypted .yxbackup.enc snapshots, or mirror pure vault ciphertexts to USB/local folders.
           </p>
         </div>
       </div>
@@ -412,11 +412,11 @@
     <section class="section container" id="verify">
       <div class="audit-box">
         <div class="audit-top">
-          <span class="audit-tag" data-en="Don't trust — verify the APK manifest yourself" data-zh="不必轻信口号 — 自己验证安装包零联网权限">Don't trust — verify the APK manifest yourself</span>
+          <span class="audit-tag" data-en="Don't trust — verify the APK manifest &amp; DEX yourself" data-zh="不必轻信口号 — 自己验证安装包零联网权限与零网络类">Don't trust — verify the APK manifest &amp; DEX yourself</span>
           <button class="copy-btn" id="copyBtn" type="button" data-en="Copy command" data-zh="复制命令">Copy command</button>
         </div>
-        <pre><code id="cmdText">python3 scripts/check-apk-privacy.py YingXia-1.8.0.apk</code>
-<span class="pass-line"># PASS: network permissions absent; backup disabled; extraction rules declared; debugging disabled.</span></pre>
+        <pre><code id="cmdText">python3 scripts/check-apk-privacy.py YingXia-2.0.4.apk</code>
+<span class="pass-line"># PASS: network permissions absent; zero sync/network DEX classes; backup disabled; extraction rules declared; debugging disabled.</span></pre>
       </div>
     </section>
   </main>

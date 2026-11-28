@@ -1,1 +1,1 @@
-Offline video player with zero internet permission & AES-256-GCM encrypted vault
+4 MB offline video player with zero internet permission & AES-256-GCM encrypted vault
